@@ -9,10 +9,10 @@ estar concluídas antes do item.
 - [x] B-002 — Definir classificação e CORE MVP. [B-001]
 - [ ] B-003 — Registrar proposta aprovada, escopo aceito e data. [B-002]
 - [ ] B-004 — Confirmar ano/calendário das entregas com o professor.
-- [ ] B-005 — Detalhar arquitetura das camadas e regras de dependência. [B-002]
-- [ ] B-006 — Modelar `Carteira`, `Ativo`, `Transação` e `Posição`, relações e invariantes. [B-005]
-- [ ] B-007 — Definir semântica de venda, preço médio, arredondamento e tipo decimal. [B-006]
-- [ ] B-008 — Definir contrato de repositório e schema SQLite inicial. [B-006]
+- [x] B-005 — Detalhar arquitetura das camadas e regras de dependência. [B-002]
+- [x] B-006 — Modelar `Carteira`, `Ativo`, `Transação` e `Posição`, relações e invariantes. [B-005]
+- [x] B-007 — Definir semântica de venda, preço médio, arredondamento e tipo decimal. [B-006]
+- [x] B-008 — Definir contrato de repositório e schema SQLite inicial. [B-006]
 - [ ] B-009 — Definir wireflows F-01 a F-04 e design mínimo. [B-002]
 - [ ] B-010 — Validar instalação e execução de PySide6 no Windows.
 
