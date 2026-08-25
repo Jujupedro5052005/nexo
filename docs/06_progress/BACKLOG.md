@@ -1,71 +1,75 @@
 # Backlog priorizado
 
-Os itens seguem `docs/00_project/SCOPE.md`. Dependências entre colchetes devem
-estar concluídas antes do item.
+## P0 — Validação e desenho
 
-## P0 — Bloqueios acadêmicos e arquitetura
+- [ ] Registrar proposta aprovada e escopo aceito.
+- [ ] Confirmar calendário e tratamento acadêmico de A-008 com o professor.
+- [ ] Definir wireflows e design system mínimo.
+- [ ] Validar PySide6 no Windows.
+- [ ] Delimitar `core`, `infrastructure/persistence` e papéis opcionais da UI.
 
-- [x] B-001 — Consolidar requisitos acadêmicos e rastreabilidade.
-- [x] B-002 — Definir classificação e CORE MVP. [B-001]
-- [ ] B-003 — Registrar proposta aprovada, escopo aceito e data. [B-002]
-- [ ] B-004 — Confirmar ano/calendário das entregas com o professor.
-- [x] B-005 — Detalhar arquitetura das camadas e regras de dependência. [B-002]
-- [x] B-006 — Modelar `Carteira`, `Ativo`, `Transação` e `Posição`, relações e invariantes. [B-005]
-- [x] B-007 — Definir semântica de venda, preço médio, arredondamento e tipo decimal. [B-006]
-- [x] B-008 — Definir contrato de repositório e schema SQLite inicial. [B-006]
-- [ ] B-009 — Definir wireflows F-01 a F-04 e design mínimo. [B-002]
-- [ ] B-010 — Validar instalação e execução de PySide6 no Windows.
+## P1 — Domínio e cálculos fundamentais
 
-## P1 — CORE MVP: vertical slice F-01
+- [ ] Implementar `Asset` como objeto de valor.
+- [ ] Implementar `Portfolio` com `id` e `name`.
+- [ ] Implementar `TransactionType` e `Transaction` vinculada à carteira.
+- [ ] Implementar `Position` derivada e reconstrução do ledger.
+- [ ] Definir e testar preço médio, venda, precisão e arredondamento com `Decimal`.
 
-- [ ] B-101 — Implementar domínio mínimo de carteira, ativo, compra e posição. [B-006, B-007]
-- [ ] B-102 — Implementar repositório SQLite para transações. [B-008]
-- [ ] B-103 — Implementar caso de uso de registrar compra. [B-101, B-102]
-- [ ] B-104 — Implementar UI mínima de registro de compra. [B-009, B-103]
-- [ ] B-105 — Exibir histórico e posição persistidos. [B-102, B-104]
-- [ ] B-106 — Testar domínio, persistência e reinício da aplicação. [B-105]
+## P1 — Persistência
 
-## P1 — CORE MVP: regras F-02 e F-03
+- [ ] Definir schema de `portfolios` e `transactions`.
+- [ ] Implementar `PortfolioRepository` concreto.
+- [ ] Implementar `TransactionRepository` por carteira.
+- [ ] Mapear modelos ORM sem contaminar Domain/Application.
+- [ ] Testar atomicidade, reabertura, vínculo e preservação decimal.
 
-- [ ] B-111 — Implementar múltiplas compras e preço médio ponderado. [B-101]
-- [ ] B-112 — Implementar venda parcial e total. [B-111]
-- [ ] B-113 — Rejeitar venda acima da posição sem alterar dados. [B-112]
-- [ ] B-114 — Consolidar histórico e posições na UI. [B-105, B-113]
-- [ ] B-115 — Cobrir regras e casos de erro com testes. [B-111, B-113]
+## P1 — Casos de uso de carteira
 
-## P1 — CORE MVP: dashboard e conclusão
+- [ ] Criar, atualizar, excluir e listar carteiras.
+- [ ] Registrar compra e venda.
+- [ ] Carregar carteira e reconstruir posições.
+- [ ] Rejeitar venda insuficiente sem gravação parcial.
+- [ ] Comparar carteiras por métricas definidas.
 
-- [ ] B-121 — Calcular custo total e alocação por custo. [B-114]
-- [ ] B-122 — Implementar dashboard e gráfico funcional. [B-009, B-121]
-- [ ] B-123 — Atualizar dashboard após transações. [B-122]
-- [ ] B-124 — Revisar validações, mensagens, estado vazio e usabilidade. [B-114, B-123]
-- [ ] B-125 — Validar F-01 a F-04 em Windows. [B-124]
-- [ ] B-126 — Cumprir e auditar a Definition of Done do CORE. [B-125]
+## P1 — Integração de mercado
 
-## P2 — MVP EXTENDED
+- [ ] Selecionar provedor e registrar restrições.
+- [ ] Definir `MarketDataProvider` mínimo.
+- [ ] Implementar adaptador em `infrastructure/market_data/adapters`.
+- [ ] Tratar timeout, erros, limites e credenciais.
+- [ ] Testar com provider falso e integração separada.
 
-- [ ] B-201 — Selecionar provedor de cotações e documentar restrições. [B-126]
-- [ ] B-202 — Definir contrato de provedor e adaptador HTTP. [B-201]
-- [ ] B-203 — Implementar consulta com timeout, erros, limites e fallback. [B-202]
-- [ ] B-204 — Exibir cotação atual na UI. [B-203]
-- [ ] B-205 — Calcular valor de mercado e rentabilidade. [B-204]
-- [ ] B-206 — Testar integração sem depender da API real na suíte comum. [B-203]
+## P1 — UI
 
-## P3 — OPTIONAL
+- [ ] Implementar shell, navegação e seleção explícita de carteira.
+- [ ] Implementar formulários de carteira, compra e venda.
+- [ ] Exibir histórico, posições e estados vazios.
+- [ ] Integrar mercado sem HTTP direto.
+- [ ] Cobrir fluxos críticos com pytest-qt e roteiro Windows.
 
-- [ ] B-301 — Selecionar indicadores financeiros de baixo risco. [B-206]
-- [ ] B-302 — Implementar indicadores selecionados. [B-301]
-- [ ] B-303 — Implementar alerta de preço dentro da aplicação. [B-203]
+## P2 — Dashboard e análise
 
-## FUTURE / OUT OF SCOPE
+- [ ] Definir métricas e período de comparação.
+- [ ] Implementar dashboard e gráficos funcionais.
+- [ ] Integrar cálculos priorizados de `calculations`.
+- [ ] Exibir valor atual e rentabilidade quando houver cotação.
 
-- [ ] F-001 — Valuation e preço teto.
-- [ ] F-002 — Notificações por e-mail ou WhatsApp.
-- [ ] F-003 — Planejamento financeiro pessoal.
-- [ ] F-004 — Receitas e despesas.
-- [ ] F-005 — Objetivos financeiros.
-- [ ] F-006 — Educação financeira.
-- [ ] F-007 — Integrações adicionais com caso de uso futuro.
+## P3 — Alertas
 
-Itens FUTURE não devem ser puxados durante o MVP sem revisão explícita de
-escopo e impacto no prazo.
+- [ ] Implementar e persistir `PriceAlert` se o prazo permitir.
+- [ ] Avaliar condições e exibir alertas no aplicativo.
+
+## P4 — Complementar
+
+- [ ] Planejamento e educação financeira.
+- [ ] Projeções, risco e valuation adicionais.
+- [ ] Notificações externas.
+- [ ] IA e integrações adicionais com caso de uso confirmado.
+
+## Entrega contínua
+
+- [ ] Atualizar testes, documentação, status e rastreabilidade a cada incremento.
+- [ ] Documentar instalação/execução quando funcionarem.
+- [ ] Preparar demonstrações e explicações técnicas.
+- [ ] Validar checklist final no Windows.

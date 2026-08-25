@@ -1,100 +1,67 @@
-# Arquitetura da interface do CORE MVP
+# Arquitetura da interface
 
-## 1. Decisão
+## Abordagem
 
-PySide6 implementará uma interface desktop com `MainWindow` e poucas páginas.
-Não haverá camada própria de Controller ou ViewModel no CORE. Os casos de uso
-da Application já formam a fronteira de ações e consultas; acrescentar outro
-intermediário apenas repassaria chamadas.
+A interface desktop será implementada em PySide6 seguindo a estrutura atual de
+`src/nexo/ui/`. As pastas separam responsabilidades práticas, sem declarar MVC
+ou MVVM rígido.
 
-## 2. Componentes
-
-| Componente | Responsabilidade |
+| Pasta | Papel esperado |
 |---|---|
-| `MainWindow` | Criar shell, navegação e manter referências das páginas. |
-| `PortfolioPage` | Exibir posições e histórico; abrir formulário; solicitar recarga. |
-| `TransactionForm` | Coletar compra/venda e emitir submissão ao caso de uso apropriado. |
-| `DashboardPage` | Exibir custo total, estado vazio e gráfico de alocação. |
+| `windows/` | Janelas e shell principal. |
+| `pages/` | Áreas navegáveis como mercado, carteiras, detalhes, análises, alertas e configurações. |
+| `widgets/` | Elementos visuais reutilizáveis. |
+| `components/` | Composições de apresentação compartilhadas quando houver distinção útil de `widgets`. |
+| `dialogs/` | Formulários e modais. |
+| `viewmodels/` | Estado preparado para apresentação, se necessário. |
+| `controllers/` | Coordenação de interações da UI, se a abordagem continuar útil. |
+| `styles/` | Tema e estilos. |
+| `resources/` | Ícones e imagens. |
 
-Pode haver widgets reutilizáveis quando repetição real surgir, mas não será
-criada uma biblioteca interna antecipadamente.
+Os nomes são orientativos. Pastas vazias não comprovam classes implementadas.
+A fronteira entre `components` e `widgets`, assim como o uso efetivo de
+controllers/viewmodels, será confirmada durante a UI sem duplicar papéis.
 
-## 3. Comunicação com Application
+## Comunicação
 
-`main.py` constrói repositório e casos de uso e os injeta nas páginas ou na
-`MainWindow`. A UI nunca instancia SQLAlchemy.
+`main.py` constrói repositórios, adaptadores e casos de uso e fornece à UI as
+dependências necessárias.
 
 ```text
 evento PySide6
-  -> handler curto na página/formulário
-  -> Command com Decimal/datetime/str
-  -> use_case.execute(command)
-  -> DTO de saída
-  -> atualizar widgets
+  -> handler/controller curto
+  -> caso de uso da Application
+  -> resultado/modelo de apresentação
+  -> atualização dos widgets
 ```
 
-Regras:
+A UI não recebe sessão SQLAlchemy, não executa SQL ou HTTP e não reconstrói
+posições. Widgets PySide6 não atravessam para Application ou Domain.
 
-- sinais PySide6 não atravessam para Domain/Infrastructure;
-- casos de uso não recebem `QLineEdit`, `QDateEdit` ou outro widget;
-- DTOs não importam PySide6 nem SQLAlchemy;
-- páginas não recalculam preço médio, posição ou alocação;
-- após uma escrita bem-sucedida, a UI chama novamente as consultas; não mantém
-  um segundo estado financeiro mutável.
+## Estado e atualização
 
-## 4. Navegação mínima
+Após criar ou alterar uma carteira ou registrar transação, a UI recarrega o
+estado pelos casos de uso adequados. Ela não mantém uma segunda cópia financeira
+mutável. A carteira selecionada deve estar explícita para que compras, vendas,
+dashboard e análises usem o `portfolio_id` correto.
 
-- **Carteira**: posições e ações de compra/venda;
-- **Histórico**: pode ser uma seção/aba da página Carteira, não precisa de
-  página própria;
-- **Dashboard**: custo total e gráfico de alocação.
+Não se exige event bus, estado global ou framework de injeção. Sinais locais do
+PySide6 podem coordenar componentes visuais.
 
-Não haverá roteador, navegação profunda, múltiplas janelas independentes nem
-sistema de plugins.
+## Validação e mensagens
 
-## 5. Validação e mensagens
+1. UI valida presença e conversão de campos.
+2. Domain valida invariantes financeiras.
+3. Application coordena o resultado da operação.
+4. Infrastructure traduz falhas técnicas.
+5. UI apresenta mensagens claras sem SQL, stack trace ou dados sensíveis.
 
-1. UI valida obrigatoriedade e conversão de tipos.
-2. Domain valida regras financeiras.
-3. Campo inválido recebe indicação próxima e mensagem objetiva.
-4. `DomainError` vira mensagem específica, como “Quantidade disponível
-   insuficiente”.
-5. `ApplicationError` vira mensagem operacional segura, como “Não foi possível
-   salvar a transação”.
-6. Detalhes SQL, stack traces e credenciais nunca aparecem em diálogo.
+Chamadas de rede futuras não podem bloquear a thread da interface; a estratégia
+assíncrona será escolhida quando a integração for implementada.
 
-O formulário permanece aberto após erro e preserva os dados para correção. Em
-sucesso, a UI confirma a operação e atualiza carteira/dashboard.
+## Testes
 
-## 6. Atualização das telas
-
-Sem event bus ou estado global:
-
-- `TransactionForm` informa sucesso à `PortfolioPage` por retorno ou signal
-  local;
-- a página chama `LoadPortfolio`;
-- `MainWindow`/página solicita `LoadDashboard` quando necessário;
-- cada carregamento substitui a visualização com um snapshot novo.
-
-Esse fluxo é suficiente para o volume do MVP e é fácil de demonstrar.
-
-## 7. Testes da UI
-
-- testes unitários concentram-se em Domain/Application;
-- testes de widgets cobrem submissão, mensagens e estado vazio quando úteis;
-- um roteiro manual no Windows cobre F-01 a F-04;
-- casos de uso falsos podem ser injetados na UI; não é necessário banco real
-  em cada teste de widget.
-
-## 8. Decisões evitadas
-
-- sem Controller separado;
-- sem MVVM/ViewModel;
-- sem framework de navegação;
-- sem service locator ou container de injeção;
-- sem acesso direto ao repositório;
-- sem lógica financeira em slots/signals;
-- sem threads no CORE, pois não há rede.
-
-Se a API futura for adicionada, chamadas de rede não poderão bloquear a thread
-da UI; a estratégia assíncrona será decidida apenas nessa fase.
+Casos de uso falsos podem ser fornecidos aos componentes para testar submissão,
+seleção de carteira, mensagens e estados vazios. Fluxos críticos também devem
+ser validados manualmente no Windows. Consulte
+[`TESTING.md`](../04_development/TESTING.md).

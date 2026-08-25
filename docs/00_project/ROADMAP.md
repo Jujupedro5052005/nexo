@@ -1,90 +1,70 @@
-# Roadmap acadêmico do Nexo
+# Roadmap acadêmico do Nexo Invest
 
-Este roadmap prioriza uma demonstração funcional e coerente. As fases são
-gates: trabalho opcional não antecipa o núcleo.
+As fases são sequenciais o suficiente para proteger o núcleo, mas podem ter
+atividades de design e teste em paralelo quando não criarem dependências falsas.
 
-## Fase 0 — Fundação e validação acadêmica
+## 0 — Arquitetura e validação acadêmica
 
-- [x] analisar os requisitos do professor;
-- [x] criar rastreabilidade acadêmica;
-- [x] definir e classificar o MVP;
+- [x] analisar requisitos e criar rastreabilidade inicial;
+- [x] definir arquitetura, ledger de transações e posições derivadas;
+- [x] alinhar documentação a múltiplas carteiras;
 - [ ] registrar proposta aprovada e confirmar o calendário;
-- [ ] detalhar arquitetura e dependências entre camadas;
-- [ ] definir modelo de domínio, invariantes e precisão monetária;
-- [ ] definir schema/migração inicial do banco;
-- [ ] definir fluxo visual e design system mínimo;
-- [ ] validar ambiente Python/PySide6 no Windows.
+- [ ] resolver fronteiras ainda ambíguas (`core`, `persistence`, componentes de UI);
 
-**Gate:** proposta confirmada e arquitetura capaz de sustentar F-01 sem violar
-as regras de dependência.
+## 1 — Estrutura visual e telas
 
-## Fase 1 — Primeira vertical slice: compra persistida
+- [ ] definir design system e diretrizes mínimas;
+- [ ] detalhar fluxos e wireflows;
+- [ ] validar o ambiente PySide6 no Windows;
+- [ ] construir shell e telas essenciais com estados vazios.
 
-- [ ] criar carteira local e ativo;
-- [ ] registrar compra por caso de uso;
-- [ ] persistir transação em SQLite;
-- [ ] exibir histórico e posição na UI;
-- [ ] reabrir aplicação preservando dados;
-- [ ] testar domínio e persistência.
+## 2 — Implementar domínio e persistência
 
-**Gate:** fluxo F-01 completo, demonstrável e testado.
+- [ ] implementar `Asset`, `Portfolio`, `Transaction`, `TransactionType` e `Position`;
+- [ ] cobrir invariantes e cálculos com testes unitários;
+- [ ] implementar persistência estrutural de carteiras;
+- [ ] implementar ledger de transações por carteira;
+- [ ] reconstruir posições sem tabela própria;
+- [ ] testar SQLite e mapeamentos de domínio/ORM.
 
-## Fase 2 — Núcleo de negociação simulada
+## 3 — Dados de mercado
 
-- [ ] suportar múltiplas compras e preço médio ponderado;
-- [ ] implementar venda parcial/total;
-- [ ] rejeitar venda acima da quantidade disponível;
-- [ ] consolidar posições e histórico;
-- [ ] completar validações e estados vazios;
-- [ ] cobrir F-02 e F-03 com testes.
+- [ ] selecionar provedor e documentar restrições;
+- [ ] definir contrato mínimo e adaptador externo;
+- [ ] tratar timeout, limites, erros e credenciais;
+- [ ] testar a integração sem tornar a suíte dependente da internet.
 
-**Gate:** regras do domínio consistentes e nenhuma persistência parcial em erro.
+## 4 — Carteiras completas
 
-## Fase 3 — Dashboard e acabamento do CORE
+- [ ] criar, atualizar, selecionar e excluir carteiras;
+- [ ] registrar compras e vendas;
+- [ ] carregar histórico e posições reconstruídas;
+- [ ] comparar carteiras;
+- [ ] validar fluxos completos no Windows.
 
-- [ ] exibir custo total da carteira;
-- [ ] criar gráfico funcional de alocação por custo;
-- [ ] atualizar dashboard após transações;
-- [ ] revisar organização, clareza, usabilidade e estética;
-- [ ] validar F-04 no Windows;
-- [ ] cumprir toda a Definition of Done do CORE.
+## 5 — Dashboard e análise
 
-**Gate:** CORE MVP funcional, offline, testado e apresentável.
+- [ ] implementar métricas e gráficos funcionais;
+- [ ] integrar indicadores priorizados de `calculations`;
+- [ ] exibir valor atual e rentabilidade quando houver dados;
+- [ ] revisar usabilidade e consistência visual.
 
-## Fase 4 — MVP EXTENDED
+## 6 — Alertas
 
-Somente após o gate da Fase 3:
+- [ ] persistir `PriceAlert` se priorizado;
+- [ ] avaliar condições e exibir alertas dentro do aplicativo;
+- [ ] manter notificações externas fora desta fase inicial.
 
-- [ ] escolher e documentar provedor de mercado;
-- [ ] implementar contrato e adaptador de cotações;
-- [ ] tratar configuração, timeout, erros e limites;
-- [ ] consultar ativos/cotações sem acoplar UI a HTTP;
-- [ ] calcular valor de mercado e rentabilidade;
-- [ ] manter fallback coerente quando a API estiver indisponível.
+## 7 — Funcionalidades complementares
 
-## Fase 5 — OPTIONAL
+- [ ] avaliar planejamento e educação financeira;
+- [ ] avaliar projeções, risco e valuation adicionais;
+- [ ] avaliar IA, mensagens e outras integrações somente com caso de uso e prazo.
 
-Somente se o CORE estiver pronto e o prazo permitir:
+## 8 — Testes e entrega
 
-- [ ] selecionar um conjunto pequeno de indicadores financeiros;
-- [ ] implementar alertas configuráveis de preço dentro da aplicação;
-- [ ] avaliar se o diferencial melhora a apresentação sem ameaçar estabilidade.
-
-## Fase 6 — Entrega acadêmica
-
+- [ ] executar testes unitários, de integração e de UI aplicáveis;
 - [ ] atualizar rastreabilidade com evidências;
-- [ ] documentar instalação e execução;
-- [ ] preparar conteúdo exigido para apresentação parcial/final;
-- [ ] preparar e ensaiar os fluxos F-01 a F-04;
-- [ ] ensaiar explicação de arquitetura, POO, classes, integração e limitações;
-- [ ] executar testes e checklist final em Windows;
-- [ ] confirmar apenas com o professor eventuais artefatos não citados no PDF.
-
-## Pós-MVP / fora da entrega inicial
-
-- valuation e preço teto;
-- notificações por e-mail ou WhatsApp;
-- planejamento financeiro, receitas, despesas e objetivos;
-- educação financeira;
-- integrações adicionais sem caso de uso aprovado;
-- operações reais ou integração de negociação com corretoras.
+- [ ] documentar instalação e execução reais;
+- [ ] preparar e ensaiar demonstração e explicações técnicas;
+- [ ] validar checklist final e artefatos confirmados pelo professor.

@@ -2,57 +2,59 @@
 
 ## Fase atual
 
-**Fase 0 — Fundação e validação acadêmica**
+**Fundação documental e arquitetural.**
 
-## Concluído
+## Definido
 
-- conceito inicial e nome Nexo;
-- estrutura inicial do repositório;
-- leitura dos requisitos oficiais e materiais de aula;
-- consolidação dos requisitos acadêmicos A-001 a A-023;
-- matriz de rastreabilidade inicial;
-- definição do CORE MVP, MVP EXTENDED, OPTIONAL e FUTURE;
-- definição dos fluxos F-01 a F-04;
-- Definition of Done e backlog priorizado do CORE;
-- arquitetura didática em UI, Application, Domain e Infrastructure;
-- regras de dependência e fluxos técnicos de compra, venda e dashboard;
-- modelo de domínio com transações como fonte de verdade;
-- schema SQLite inicial e isolamento do SQLAlchemy;
-- decisão de não usar Controller/ViewModel, hierarquias de ativos ou posições
-  persistidas no CORE.
+- propósito educacional e de simulação, sem operações reais;
+- aplicação desktop com Python/PySide6 e persistência SQLite;
+- separação UI, Application, Domain, Calculations e Infrastructure;
+- suporte a múltiplas carteiras com `id` e `name` persistidos;
+- `Transaction` como ledger e `Position` como estado derivado;
+- `Asset` como objeto de valor sem hierarquia por categoria;
+- composição como relacionamento interno enfatizado;
+- herança apenas se houver especialização real;
+- integração de mercado por contrato e adaptador;
+- recursos complementares fora do núcleo inicial.
 
-## Decisão de escopo vigente
+## Estruturado
 
-O CORE é uma aplicação local de carteira simulada com compra, venda, posição,
-preço médio, histórico SQLite e dashboard de custo/alocação. Ele deve funcionar
-sem internet. API de cotações e rentabilidade pertencem ao MVP EXTENDED.
+As árvores de `src/nexo/` e `tests/` existem, mas quase todas as subpastas
+contêm somente `.gitkeep`. Há `__init__.py`, `main.py` e `tests/conftest.py`, sem
+implementação funcional correspondente aos módulos documentados.
 
-Valuation, notificações externas, planejamento financeiro, receitas/despesas,
-objetivos e educação financeira estão fora da entrega inicial.
+## Em implementação
 
-## Em andamento
+Nenhuma funcionalidade foi identificada como em implementação no estado atual
+dos arquivos rastreados.
 
-- confirmação da proposta aprovada e do calendário acadêmico;
-- definição do fluxo visual e do design mínimo;
-- validação do ambiente Python/PySide6 no Windows.
+## Implementado
 
-## Próximas tarefas
+Somente scaffolding Python mínimo. Não há modelos de domínio, casos de uso,
+repositórios, adaptadores, telas ou cálculos implementados.
 
-1. obter/registrar proposta aprovada e confirmar o ano das datas;
-2. desenhar os fluxos visuais F-01 a F-04 e o design mínimo;
-3. validar o ambiente PySide6 no Windows;
-4. revisar exemplos numéricos de compra, venda e preço médio;
-5. somente então iniciar a vertical slice F-01.
+## Testado
 
-## Bloqueios e riscos
+Não foram encontrados testes funcionais, unitários, de integração ou de UI além
+da estrutura preparada.
 
-- aprovação da proposta ainda não está registrada;
-- o ano do cronograma do professor não está confirmado;
-- qualquer antecipação da API ou de módulos futuros pode reabrir o risco de
-  escopo excessivo.
+## Pendências imediatas
 
-## Regra de execução
+1. registrar proposta aprovada e confirmar ano/calendário;
+2. confirmar com o professor o tratamento acadêmico do requisito A-008;
+3. definir design visual e wireflows;
+4. validar ambiente PySide6 no Windows;
+5. implementar modelos do domínio e persistência de `Portfolio`/`Transaction`;
+6. reconstruir `Position` e criar os primeiros casos de uso testados.
 
-Não iniciar MVP EXTENDED ou OPTIONAL antes do CORE cumprir seu gate. Não
-iniciar código de negócio enquanto as decisões de domínio necessárias à
-primeira vertical slice não estiverem documentadas.
+## Ambiguidades
+
+- responsabilidade de `src/nexo/core/`;
+- fronteira entre `infrastructure/database/` e `infrastructure/persistence/`;
+- distinção prática entre `ui/components` e `ui/widgets`;
+- uso efetivo de `controllers` e `viewmodels`;
+- provedor de mercado e estratégia assíncrona;
+- conteúdo e data da aprovação acadêmica.
+
+Este documento descreve evidência real. Diretório preparado ou decisão
+documentada não equivale a funcionalidade implementada.

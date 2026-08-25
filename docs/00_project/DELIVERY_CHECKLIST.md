@@ -3,11 +3,9 @@
 - [ ] Requisitos acadêmicos atendidos
 - [ ] Aplicação executável
 - [ ] Banco de dados funcionando
-- [ ] API externa funcionando
+- [ ] Integração acadêmica escolhida funcionando
 - [ ] Testes executados
 - [ ] README atualizado
-- [ ] Manual de instalação
-- [ ] Manual do usuário
-- [ ] Relatório final
-- [ ] Slides finais
+- [ ] Instalação e execução documentadas quando disponíveis
+- [ ] Artefatos adicionais confirmados com o professor
 - [ ] Demo preparada

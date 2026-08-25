@@ -1,52 +1,50 @@
-# Arquitetura futura da API de mercado
+# Arquitetura de serviços externos de mercado
 
-## 1. Estado e limite
+## Estado
 
-A API externa pertence ao MVP EXTENDED. Ela não é dependência do CORE, não é
-necessária para iniciar a aplicação e não participa dos cálculos de custo e
-alocação do dashboard inicial.
+A consulta de mercado faz parte do produto previsto, mas ainda não está
+implementada e o provedor concreto permanece indefinido. O núcleo de carteiras
+deve continuar utilizável sem executar operações financeiras reais.
 
-Nenhum provedor, endpoint ou contrato será implementado antes do gate do CORE.
-
-## 2. Forma prevista de integração
-
-Quando priorizada, a Application poderá definir um contrato mínimo
-`MarketDataProvider` apenas com as operações exigidas pelo caso de uso, por
-exemplo consultar cotação atual de um símbolo. Infrastructure conterá o
-adaptador HTTP e o mapeamento da resposta externa para DTO/tipo interno.
+## Fluxo e fronteiras
 
 ```text
-UI -> caso de uso de cotação -> MarketDataProvider <- adaptador HTTP
-                                  (contrato)          (Infrastructure)
+UI
+ ↓
+caso de uso em Application
+ ↓
+MarketDataProvider
+ ↑
+adaptador em infrastructure/market_data/adapters
+ ↓
+API financeira
 ```
 
-A UI não fará HTTP. Domain não conhecerá JSON, endpoints, chaves ou biblioteca
-de rede.
+A Application depende de um contrato mínimo orientado aos casos de uso, com
+operações conceituais como `get_quote(symbol)` e `get_history(symbol)`. A
+Infrastructure implementa HTTP, autenticação e conversão da resposta. A UI não
+faz chamadas HTTP e o Domain não conhece JSON, endpoints ou chaves.
 
-## 3. Critérios antes da escolha do provedor
+O polimorfismo pode surgir naturalmente se mais de um adaptador real for
+necessário, mas não se criam múltiplas implementações apenas para demonstrá-lo.
 
-- documentação oficial e termos de uso;
-- cobertura dos ativos necessários;
-- autenticação e proteção da chave;
-- limites de requisição;
-- latência e disponibilidade;
-- formato/precisão da cotação e horário de referência;
-- permissão de cache e uso acadêmico;
-- comportamento previsível para demonstração.
+## Escolha do provedor
 
-## 4. Resiliência futura
+Antes da implementação, verificar documentação oficial, cobertura de ativos,
+autenticação, limites, latência, disponibilidade, precisão, horários, termos de
+uso acadêmico e permissão de cache. Nenhum provedor está definido neste
+documento.
 
-- timeout explícito;
-- tradução de erros de rede/autenticação/limite;
-- nenhuma credencial no código;
-- UI responsiva durante rede;
-- indicação de horário e origem da cotação;
-- fallback para último valor válido somente se cache for aprovado e claramente
-  identificado como desatualizado;
-- testes comuns com provider falso, sem depender da internet.
+## Falhas e segurança
 
-## 5. Fora desta decisão
+- timeout explícito e cancelamento adequado;
+- tradução de falhas de rede, autenticação e limite na Infrastructure ou
+  Application;
+- nenhuma chave no código ou em mensagens de erro;
+- chamadas não bloqueiam a interface;
+- cotações exibem origem e horário quando disponíveis;
+- testes comuns usam implementação falsa; testes reais ficam na suíte de
+  integração e não devem tornar a suíte dependente da internet.
 
-Ainda não estão definidos provedor, cache, polling, histórico de preços,
-streaming ou alertas. Criar essas abstrações agora seria especulação. A
-arquitetura do CORE permanece válida sem qualquer módulo de API.
+Cache, polling, streaming e fallback ainda não estão definidos. Essas decisões
+só devem ser tomadas quando um caso de uso concreto exigir.

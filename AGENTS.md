@@ -28,6 +28,7 @@ O projeto deve manter separação entre:
 - Application: casos de uso e coordenação das ações;
 - Domain: entidades e regras de negócio;
 - Infrastructure: banco de dados, APIs externas e notificações.
+- Calculations: cálculos financeiros reutilizáveis e independentes da UI.
 
 Regras:
 
@@ -37,6 +38,10 @@ Regras:
 - o domínio não depende de PySide6;
 - acesso ao banco deve ficar na camada de infraestrutura;
 - integração com APIs externas deve ficar na camada de infraestrutura.
+- `Portfolio` possui identidade e dados estruturais persistidos;
+- `Transaction` é a fonte principal de verdade financeira;
+- `Position` é reconstruída e não possui repositório próprio inicialmente;
+- cálculos financeiros reutilizáveis ficam em `calculations`.
 
 ## Object-oriented programming
 
@@ -53,6 +58,9 @@ Utilizar de forma justificável:
 - responsabilidade única.
 
 Não criar abstrações artificiais apenas para demonstrar um conceito.
+Não criar subclasses de `Asset` apenas por categoria. Herança e polimorfismo
+devem responder a uma necessidade concreta; composição é o relacionamento
+interno principal do modelo atual.
 
 ## Workflow
 
@@ -74,6 +82,7 @@ Nunca:
 - commitar `.env`;
 - apagar testes apenas para obter build verde;
 - alterar arquitetura silenciosamente;
+- tratar estrutura vazia como funcionalidade implementada;
 - duplicar regras de negócio;
 - misturar UI, banco e regras de negócio na mesma classe.
 

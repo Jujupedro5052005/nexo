@@ -1,61 +1,60 @@
-# Visão geral do projeto — Nexo
+# Visão geral do projeto — Nexo Invest
 
-## Propósito
+## Produto
 
-O Nexo é uma aplicação desktop acadêmica, desenvolvida em Python com PySide6,
-para acompanhar uma carteira de investimentos exclusivamente simulada. O
-projeto existe para demonstrar uma solução funcional, coerente e orientada a
-objetos, com regras de domínio testáveis, interface gráfica e integração
-prática com armazenamento de dados.
+**Nexo Invest — Simulador e Plataforma de Análise de Investimentos** é uma
+aplicação desktop acadêmica, desenvolvida principalmente em Python e PySide6.
+Seu propósito é oferecer um ambiente educacional para organizar estratégias e
+analisar investimentos simulados, sem executar operações financeiras reais.
 
-## Entrega inicial
+## Problema e proposta
 
-O CORE MVP permite:
+Informações de mercado, históricos de operação e métricas de carteira costumam
+ficar dispersos. O Nexo Invest reúne esses dados em uma interface local na qual
+o usuário pode pesquisar ativos, manter carteiras separadas, registrar operações
+simuladas e visualizar resultados compreensíveis.
 
+## Objetivos principais
+
+- consultar ativos e dados de mercado;
+- criar, nomear e selecionar múltiplas carteiras;
 - registrar compras e vendas simuladas;
-- consultar posições, custo e preço médio;
-- consultar o histórico persistido de transações;
-- visualizar custo total e alocação por ativo em dashboard;
-- fechar e reabrir a aplicação sem perder os dados.
+- reconstruir posições a partir das transações;
+- acompanhar e comparar carteiras;
+- apresentar dashboards, gráficos, indicadores e análises.
 
-O CORE usa SQLite como integração acadêmica obrigatória e funciona sem
-internet. Consulta de cotações por API e rentabilidade de mercado pertencem ao
-MVP EXTENDED e só devem começar depois do núcleo estável.
+O histórico de `Transaction` é a fonte principal de verdade financeira.
+`Portfolio` possui identidade e nome persistidos; `Position` e métricas
+consolidadas são derivadas. Isso favorece auditoria e consistência.
 
-## Módulos por horizonte
+## Diferenciais
 
-### CORE MVP
+- separação clara entre históricos de estratégias diferentes;
+- rastreabilidade das posições até as operações que as originaram;
+- cálculos financeiros independentes da interface;
+- arquitetura orientada a objetos testável e adequada ao contexto acadêmico.
 
-- Carteira;
-- Transações simuladas;
-- Posições e preço médio;
-- Histórico;
-- Dashboard mínimo;
-- Persistência.
+## Tecnologias previstas
 
-### MVP EXTENDED
+- Python e PySide6;
+- SQLite e SQLAlchemy ou mecanismo equivalente;
+- serviços externos de dados financeiros por adaptadores;
+- bibliotecas de gráficos e análise;
+- pytest e ferramentas de qualidade.
 
-- Mercado e cotações por API;
-- Valor de mercado e rentabilidade.
+## Arquitetura resumida
 
-### OPTIONAL
+UI apresenta dados e chama a Application; Application coordena casos de uso;
+Domain contém modelos e regras; Calculations reúne cálculos reutilizáveis;
+Infrastructure implementa banco e integrações; `main.py` conecta as
+implementações. Consulte [`ARCHITECTURE.md`](../02_architecture/ARCHITECTURE.md).
 
-- Indicadores financeiros selecionados;
-- Alertas de preço dentro da aplicação.
+## Escopo
 
-### FUTURE / OUT OF SCOPE da entrega inicial
+O núcleo prioriza mercado, múltiplas carteiras, transações, posições derivadas,
+persistência, dashboards, comparação e análise. Alertas externos, planejamento
+financeiro, educação financeira, IA e integrações adicionais são complementares.
+Os limites estão em [`SCOPE.md`](SCOPE.md).
 
-- valuation e preço teto;
-- notificações por e-mail ou WhatsApp;
-- planejamento financeiro, receitas, despesas e objetivos;
-- educação financeira;
-- integrações adicionais.
-
-## Limites importantes
-
-O Nexo utiliza somente carteiras simuladas. O sistema não executa ordens reais,
-não se conecta a corretoras para negociação, não mantém custódia e não oferece
-recomendação personalizada nem promessa de retorno.
-
-O escopo detalhado, os fluxos e a Definition of Done estão em
-`docs/00_project/SCOPE.md`.
+O sistema não negocia com corretoras, não mantém custódia, não promete retorno
+e não fornece recomendação financeira personalizada.

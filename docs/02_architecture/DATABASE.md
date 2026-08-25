@@ -1,93 +1,94 @@
-# Arquitetura de banco de dados do CORE MVP
+# Arquitetura de banco de dados
 
-## 1. Decisão
+## Estratégia
 
-SQLite armazena somente fatos necessários: as transações simuladas. SQLAlchemy
-fica restrito a Infrastructure e seus modelos não são entidades do domínio.
-Posições e resumos são recalculados em memória.
+SQLite é a persistência local prevista, acessada por implementações em
+`src/nexo/infrastructure/database/`. SQLAlchemy ou mecanismo equivalente fica
+restrito à Infrastructure. Modelos ORM são diferentes dos modelos em
+`domain/models` e nunca são entregues diretamente à UI.
 
-## 2. Schema inicial
+O banco persiste dados estruturais e fatos. `Transaction` é a fonte principal
+de verdade financeira; `Position` e métricas consolidadas são reconstruídas.
 
-### Tabela `transactions`
+## Schema conceitual inicial
 
-| Coluna | Tipo lógico | Restrições/finalidade |
-|---|---|---|
-| `id` | texto UUID | chave primária, não nulo |
-| `transaction_type` | texto | `BUY` ou `SELL`, não nulo |
-| `asset_symbol` | texto | código normalizado, não nulo |
-| `quantity` | numeric(20, 8) | maior que zero, não nulo |
-| `unit_price` | numeric(20, 4) | maior que zero, não nulo |
-| `occurred_at` | datetime | data efetiva informada, não nulo |
-| `created_at` | datetime | auditoria/desempate, não nulo |
+### `portfolios`
 
-Índices iniciais:
+| Campo | Finalidade |
+|---|---|
+| `id` | Identidade da carteira. |
+| `name` | Nome fornecido pelo usuário. |
 
-- índice por `occurred_at`/`created_at` para ordenação;
-- índice por `asset_symbol` somente se consultas ou volume justificarem. Para o
-  MVP, ele pode ser omitido até medição.
+Restrições de nome e demais metadados devem ser definidos durante a
+implementação, sem adicionar atributos antecipadamente.
 
-Constraints do banco reforçam tipo e valores positivos, mas não substituem as
-regras do domínio. A regra de venda depende do histórico e é validada antes da
-inserção.
+### `transactions`
 
-## 3. Tabelas deliberadamente ausentes
+| Campo | Finalidade |
+|---|---|
+| `id` | Identidade da transação. |
+| `portfolio_id` | Carteira à qual a operação pertence. |
+| `asset_symbol` | Símbolo normalizado do ativo. |
+| `transaction_type` | `BUY` ou `SELL`. |
+| `quantity` | Quantidade positiva, preservada como decimal. |
+| `unit_price` | Preço unitário positivo, preservado como decimal. |
+| `date` | Data da operação. |
 
-- `portfolios`: há uma única carteira sem identidade própria;
-- `assets`: no CORE, o símbolo na transação basta;
-- `positions`: são projeções calculadas;
-- `dashboard` ou `allocations`: são resultados calculados;
-- tabelas de cotações: pertencem ao MVP EXTENDED, se cache persistente for
-  necessário.
+A chave estrangeira para `portfolios` garante que históricos permaneçam
+separados. Precisão, escalas, índices e nomes físicos finais devem ser definidos
+e testados junto da primeira implementação.
 
-## 4. Isolamento do SQLAlchemy
+### `price_alerts`
 
-`TransactionModel` é uma classe ORM em `infrastructure/models.py`. Ela não
-herda nem substitui `domain.Transaction`.
+Tabela prevista somente quando alertas forem implementados. Deve guardar a
+carteira ou o contexto necessário, símbolo, condição e valor-alvo, conforme o
+caso de uso confirmado.
 
-`SqlAlchemyTransactionRepository` faz o mapeamento explícito:
+## Dados não persistidos como estado financeiro
+
+Não existe tabela `positions` como fonte de verdade. Também não se persistem
+como estado independente quantidade consolidada, preço médio, valor investido,
+lucro/prejuízo ou rentabilidade. Esses resultados são derivados das transações.
+
+Uma tabela própria de ativos só se justifica se metadados ou ciclo de vida
+independente surgirem. Não é necessária apenas para classificar símbolos.
+
+## Modelos e repositórios
 
 ```text
-TransactionModel <-> Transaction + Asset
+domain/models/Portfolio       != infrastructure/database/models/PortfolioModel
+domain/models/Transaction     != infrastructure/database/models/TransactionModel
 ```
 
-Somente Infrastructure importa `Session`, `Engine`, `DeclarativeBase` ou
-modelos ORM. O repositório devolve objetos do domínio, nunca linhas/modelos ORM.
-Isso mantém testes de regras independentes do banco.
+Os modelos de domínio expressam regras; os modelos ORM expressam schema e
+mapeamento. Repositórios concretos convertem entre eles e não vazam sessões ou
+linhas ORM.
 
-## 5. Sessões, transações e falhas
+Contratos conceituais necessários incluem `PortfolioRepository` e
+`TransactionRepository`, com implementações SQLAlchemy na Infrastructure.
+`TransactionRepository` consulta por `portfolio_id`. Não se cria
+`PositionRepository`.
 
-- engine e `sessionmaker` são criados em `database.py`;
-- cada `add()` abre/recebe uma sessão curta, adiciona, faz commit e fecha;
-- qualquer exceção causa rollback antes da tradução para erro de persistência;
-- `list_all()` devolve transações ordenadas deterministicamente;
-- nenhuma sessão permanece presa a widgets;
-- conexão e criação do schema acontecem na inicialização da aplicação.
+## Transações, falhas e evolução
 
-Como cada operação do CORE grava uma única transação, uma Unit of Work pública
-não agrega benefício. Se um caso de uso futuro precisar de várias gravações
-atômicas, essa decisão poderá ser revista.
+- escritas relacionadas devem ser atômicas e realizar rollback em erro;
+- sessões não permanecem presas a widgets;
+- a Application não executa SQL;
+- testes usam banco isolado e verificam preservação de `Decimal` e datas;
+- migrations só são criadas quando houver schema implementado e necessidade de
+  evolução; bancos existentes não devem ser apagados silenciosamente.
 
-## 6. Inicialização e evolução
+O `.env.example` atualmente define
+`NEXO_DATABASE_URL=sqlite:///data/nexo.db`, portanto `data/` é o local previsto
+para o banco local. O arquivo gerado não deve ser versionado nem conter dados
+sensíveis.
 
-Para a primeira versão acadêmica, `metadata.create_all()` é suficiente em um
-banco local novo. Alembic não entra antes de existir necessidade real de
-migrar dados preservados. Mudanças de schema após uso real exigem decisão de
-migração; apagar silenciosamente o banco não é aceitável.
+## Ambiguidade atual
 
-Configuração:
+`infrastructure/database/` já concentra migrations, modelos e repositórios,
+enquanto `infrastructure/persistence/` também existe. Como ainda não há código
+que delimite a segunda pasta, sua responsabilidade permanece indefinida; não se
+deve duplicar persistência entre ambas.
 
-- URL em variável de ambiente/configuração, com padrão local seguro;
-- arquivo do banco dentro de `data/` e fora do versionamento;
-- banco temporário isolado nos testes de integração;
-- nenhuma credencial incorporada ao código.
-
-## 7. Testes de persistência
-
-- salvar e recuperar compra e venda preservando `Decimal` e datas;
-- garantir ordenação determinística;
-- garantir rollback quando a gravação falhar;
-- reabrir o banco e reconstruir as mesmas posições;
-- confirmar que a infraestrutura não devolve `TransactionModel` à aplicação.
-
-A decisão de usar transações como fonte de verdade está em
-`decisions/ADR-001-transaction-ledger.md`.
+Veja a decisão completa em
+[`ADR-001`](decisions/ADR-001-transaction-ledger.md).

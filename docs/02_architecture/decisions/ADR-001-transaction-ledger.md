@@ -1,46 +1,52 @@
-# ADR-001 — Transações como fonte de verdade
+# ADR-001 — Transações como fonte principal de verdade financeira
 
 - **Status:** aceito
 - **Data:** 2026-08-25
 
 ## Contexto
 
-O CORE precisa persistir compras e vendas, mostrar histórico, posições, preço
-médio, custo e alocação. Persistir simultaneamente transações e posições
-duplicaria o estado e exigiria sincronização em toda alteração ou falha.
-
-Há apenas uma carteira local e o volume acadêmico esperado permite recalcular
-as posições rapidamente.
+Persistir simultaneamente transações e posições calculadas duplicaria o estado
+financeiro e poderia gerar divergências. `Portfolio`, contudo, possui identidade
+e dados estruturais: uma carteira existe mesmo vazia e deve poder ser
+selecionada e comparada a outras.
 
 ## Decisão
 
-Persistir somente transações. `Position` será uma projeção calculada do
-histórico ordenado. `Portfolio` será um objeto transitório sem tabela ou ID, e
-`Asset` será um objeto de valor representado pelo símbolo armazenado na
-transação.
+Persistir a identidade e os dados estruturais de `Portfolio` (ao menos `id` e
+`name`), cada `Transaction` vinculada à carteira e, quando implementados,
+`PriceAlert` e configurações necessárias.
+
+Usar a coleção ordenada de `Transaction` como fonte principal de verdade
+financeira. Reconstruir `Position`, quantidade consolidada, preço médio, valor
+investido, lucro/prejuízo e rentabilidade quando necessários. `Asset` é tratado
+principalmente como objeto de valor identificado pelo símbolo.
 
 ## Consequências positivas
 
+- menor duplicação de estado;
 - histórico auditável;
-- uma única fonte de verdade;
-- menor risco de divergência;
-- schema e operações de escrita simples;
-- regra de preço médio facilmente testável fora do banco.
+- consistência entre histórico e posições;
+- facilidade para recalcular;
+- melhor rastreabilidade por carteira.
 
 ## Consequências negativas
 
-- leituras recalculam as posições;
-- inserções retroativas exigem revalidar o histórico;
-- volumes muito grandes podem exigir projeção/cache no futuro.
+- reconstrução nas leituras e validações;
+- maior custo de cálculo em algumas operações;
+- lógica de agregação precisa ser correta e bem testada;
+- alterações retroativas podem exigir revalidar o histórico.
+
+## Exceção importante
+
+`Portfolio` não é totalmente transitório. Sua identidade e seus dados
+estruturais são persistidos porque o sistema suporta múltiplas carteiras. Apenas
+o estado financeiro consolidado é reconstruído.
 
 ## Alternativas rejeitadas
 
-- persistir `positions`: melhora leitura, mas duplica estado cedo demais;
-- persistir `Portfolio`: não há múltiplas carteiras nem identidade necessária;
-- tabela `assets`: o CORE não possui metadados ou ciclo de vida independente do
-  ativo.
+- persistir `positions` como fonte paralela;
+- manter uma única carteira global;
+- criar `PositionRepository` para um estado derivado.
 
-## Critério de revisão
-
-Reavaliar somente se múltiplas carteiras, metadados próprios de ativos ou
-medição de desempenho demonstrarem que o recálculo não atende ao produto.
+Projeções materializadas ou cache só devem ser avaliados mediante problema real
+de desempenho; o ledger continua sendo a referência auditável.
