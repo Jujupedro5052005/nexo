@@ -1,5 +1,18 @@
 # Modelo de domínio do Nexo Invest
 
+## Estado implementado no incremento 01
+
+Somente `Portfolio` está implementado: entidade imutável com `name: str` e
+`id: int | None`. O nome recebe trim e não pode ser vazio; não há limite de
+tamanho arbitrário nem unicidade por nome. IDs persistidos são inteiros positivos.
+Entidades persistidas com o mesmo ID são iguais, independentemente do nome;
+entidades novas sem ID só são iguais a si mesmas. A persistência retorna uma
+nova entidade com ID sem modificar a original.
+
+Ainda não há positions ou campos financeiros em Portfolio. O contrato
+`PortfolioRepository` possui somente `add` e `list_all`. Os demais conceitos
+e relacionamentos deste documento descrevem o modelo planejado.
+
 ## Princípio central
 
 O sistema suporta múltiplas carteiras simuladas. Cada `Portfolio` possui

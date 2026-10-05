@@ -2,46 +2,71 @@
 
 ## Pré-requisitos
 
-- Python 3.x compatível com as dependências;
-- Windows para validação final da interface PySide6.
+- Python >=3.10 compatível com as dependências;
+- Windows para validação final da interface;
+- incremento 01 validado com Python 3.14.0, PySide6/Qt 6.11.2 e SQLAlchemy 2.1.3.
 
-## Preparação
+## Preparação no Windows
+
+Na raiz do clone:
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m pip install -r requirements-dev.txt
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m nexo.main
 ```
 
-Em Linux/macOS, a ativação equivalente é `source .venv/bin/activate`, embora a
-entrega da GUI deva ser validada no Windows.
+Usar o executável diretamente evita depender da política de ativação do
+PowerShell. Opcionalmente, ative com `.venv\Scripts\Activate.ps1` e use
+`python -m nexo.main`.
 
-## Dependências declaradas
+## Linux
 
-`requirements.txt`: PySide6, SQLAlchemy, httpx, pydantic e python-dotenv.
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -e .
+.venv/bin/python -m pip install -r requirements-dev.txt
+.venv/bin/python -m nexo.main
+```
 
-`requirements-dev.txt`: pytest, pytest-cov, pytest-qt, ruff e mypy.
+Os comandos Linux são equivalentes; este incremento foi verificado no Windows.
 
-## Configuração
+## Dependências
 
-Copie `.env.example` para um `.env` local não versionado e preencha somente os
-serviços em uso. As variáveis atualmente declaradas são:
+`requirements.txt` é a fonte única de dependências de execução: PySide6,
+SQLAlchemy >=2.0 e <3, httpx, pydantic e python-dotenv. O setuptools lê esse
+arquivo em `pyproject.toml`, portanto `pip install -e .` também instala as
+dependências. Algumas bibliotecas permanecem reservadas para etapas futuras.
 
-- `NEXO_DATABASE_URL` (padrão de exemplo `sqlite:///data/nexo.db`);
-- `MARKET_API_KEY` e `MARKET_API_BASE_URL`;
-- `EMAIL_ADDRESS` e `EMAIL_APP_PASSWORD`.
+`requirements-dev.txt` declara pytest, pytest-cov, pytest-qt, Ruff e mypy.
 
-As variáveis de mercado e e-mail podem permanecer vazias enquanto suas
-integrações não forem implementadas. Nunca registre segredos no repositório.
+## Banco e configuração
+
+`default_database_path()` resolve `data/nexo.db` a partir de `session.py` no
+checkout instalado em modo editável, sem depender do current working directory.
+A inicialização cria o diretório e a tabela `portfolios`, sem apagar dados
+existentes. Os testes usam bancos temporários próprios.
+
+O `.env` ainda não é carregado. As variáveis de banco, mercado e e-mail em
+`.env.example` permanecem exemplos para configuração futura; não alteram o
+caminho usado neste incremento. Nenhuma credencial é necessária. Não versione
+`.env` nem bancos locais. A distribuição executável/wheel fora do checkout e
+seu diretório de dados ainda não foram definidos.
 
 ## Verificações
 
 ```powershell
-pytest
-ruff check .
-mypy src
+$env:QT_QPA_PLATFORM = "offscreen"
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m mypy src
+.\.venv\Scripts\python.exe -m compileall -q src tests bootstrap_project.py
+.\.venv\Scripts\python.exe -m pip check
+Remove-Item Env:QT_QPA_PLATFORM
 ```
 
-A aplicação ainda não possui fluxo funcional; publique comando de execução
-somente quando `main.py` realmente iniciar a interface.
+Use `offscreen` para verificações automatizadas. A aparência em diferentes
+escalas/monitores do Windows continua exigindo validação manual.

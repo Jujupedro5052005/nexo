@@ -18,9 +18,9 @@
 - `ui`: apresentação PySide6 conforme responsabilidades das subpastas;
 - `main.py`: composição, não regra de negócio.
 
-Não mova pastas para ajustar uma arquitetura teórica. `core/` e
-`infrastructure/persistence/` têm responsabilidade pendente; não duplique
-lógica nelas sem decisão documentada.
+Não mova pastas para ajustar uma arquitetura teórica. `core/` tem papel
+pendente; `infrastructure/persistence/` permanece vazio. Persistência SQL fica
+oficialmente em `infrastructure/database/`, sem duplicação em outras pastas.
 
 ## Fluxo de contribuição
 

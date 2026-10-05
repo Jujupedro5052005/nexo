@@ -4,29 +4,34 @@
 
 - [ ] Registrar proposta aprovada e escopo aceito.
 - [ ] Confirmar calendário e tratamento acadêmico de A-008 com o professor.
-- [ ] Definir wireflows e design system mínimo.
-- [ ] Validar PySide6 no Windows.
-- [ ] Delimitar `core`, `infrastructure/persistence` e papéis opcionais da UI.
+- [x] Definir fluxos principais e design system mínimo.
+- [x] Validar execução PySide6 e carteiras no Windows.
+- [ ] Validar visualmente todas as páginas e escalas de tela.
+- [x] Fixar persistência SQL em `infrastructure/database/`.
+- [ ] Delimitar `core` e papéis opcionais da UI.
 
 ## P1 — Domínio e cálculos fundamentais
 
 - [ ] Implementar `Asset` como objeto de valor.
-- [ ] Implementar `Portfolio` com `id` e `name`.
+- [x] Implementar `Portfolio` com ID/nome validados e nomes iguais permitidos.
 - [ ] Implementar `TransactionType` e `Transaction` vinculada à carteira.
 - [ ] Implementar `Position` derivada e reconstrução do ledger.
 - [ ] Definir e testar preço médio, venda, precisão e arredondamento com `Decimal`.
 
 ## P1 — Persistência
 
-- [ ] Definir schema de `portfolios` e `transactions`.
-- [ ] Implementar `PortfolioRepository` concreto.
+- [x] Implementar schema de `portfolios(id, name)`.
+- [ ] Definir e implementar schema de `transactions`.
+- [x] Implementar abstração e PortfolioRepository SQLAlchemy concreto.
 - [ ] Implementar `TransactionRepository` por carteira.
-- [ ] Mapear modelos ORM sem contaminar Domain/Application.
-- [ ] Testar atomicidade, reabertura, vínculo e preservação decimal.
+- [x] Mapear Portfolio ORM/domínio sem contaminar Domain/Application.
+- [x] Testar rollback e reabertura de carteiras.
+- [ ] Testar vínculo de transações e preservação decimal.
 
 ## P1 — Casos de uso de carteira
 
-- [ ] Criar, atualizar, excluir e listar carteiras.
+- [x] Criar e listar carteiras pelos casos de uso.
+- [ ] Atualizar e excluir carteiras conforme políticas definidas.
 - [ ] Registrar compra e venda.
 - [ ] Carregar carteira e reconstruir posições.
 - [ ] Rejeitar venda insuficiente sem gravação parcial.
@@ -42,11 +47,13 @@
 
 ## P1 — UI
 
-- [ ] Implementar shell, navegação e seleção explícita de carteira.
-- [ ] Implementar formulários de carteira, compra e venda.
+- [x] Implementar shell, navegação e seleção explícita de carteira por ID.
+- [x] Integrar formulário de criação e estado vazio de carteiras reais.
+- [ ] Integrar formulários de compra e venda.
 - [ ] Exibir histórico, posições e estados vazios.
 - [ ] Integrar mercado sem HTTP direto.
-- [ ] Cobrir fluxos críticos com pytest-qt e roteiro Windows.
+- [x] Cobrir criar/listar/selecionar com pytest-qt e reabertura SQLite.
+- [ ] Cobrir fluxos financeiros e roteiro interativo Windows.
 
 ## P2 — Dashboard e análise
 
@@ -70,6 +77,6 @@
 ## Entrega contínua
 
 - [ ] Atualizar testes, documentação, status e rastreabilidade a cada incremento.
-- [ ] Documentar instalação/execução quando funcionarem.
+- [x] Documentar instalação editável e execução do incremento 01.
 - [ ] Preparar demonstrações e explicações técnicas.
 - [ ] Validar checklist final no Windows.

@@ -9,23 +9,27 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 - [x] definir arquitetura, ledger de transações e posições derivadas;
 - [x] alinhar documentação a múltiplas carteiras;
 - [ ] registrar proposta aprovada e confirmar o calendário;
-- [ ] resolver fronteiras ainda ambíguas (`core`, `persistence`, componentes de UI);
+- [x] definir `infrastructure/database/` como local oficial da persistência SQL;
+- [ ] resolver o papel de `core` e papéis opcionais da UI;
 
 ## 1 — Estrutura visual e telas
 
-- [ ] definir design system e diretrizes mínimas;
-- [ ] detalhar fluxos e wireflows;
-- [ ] validar o ambiente PySide6 no Windows;
-- [ ] construir shell e telas essenciais com estados vazios.
+- [x] definir design system e diretrizes mínimas;
+- [x] documentar fluxos principais;
+- [x] executar PySide6 no Windows e validar carteiras em offscreen;
+- [x] construir shell navegável e estado vazio de carteiras;
+- [ ] validar todas as páginas visualmente em diferentes escalas.
 
 ## 2 — Implementar domínio e persistência
 
-- [ ] implementar `Asset`, `Portfolio`, `Transaction`, `TransactionType` e `Position`;
+- [x] implementar `Portfolio` com identidade e nome validados;
+- [ ] implementar `Asset`, `Transaction`, `TransactionType` e `Position`;
 - [ ] cobrir invariantes e cálculos com testes unitários;
-- [ ] implementar persistência estrutural de carteiras;
+- [x] implementar persistência estrutural de carteiras;
 - [ ] implementar ledger de transações por carteira;
 - [ ] reconstruir posições sem tabela própria;
-- [ ] testar SQLite e mapeamentos de domínio/ORM.
+- [x] testar SQLite, mapeamento de Portfolio, reabertura e rollback;
+- [ ] testar mapeamento do ledger e preservação decimal.
 
 ## 3 — Dados de mercado
 
@@ -36,7 +40,8 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 
 ## 4 — Carteiras completas
 
-- [ ] criar, atualizar, selecionar e excluir carteiras;
+- [x] criar, listar e selecionar carteiras por ID;
+- [ ] atualizar e excluir carteiras conforme políticas definidas;
 - [ ] registrar compras e vendas;
 - [ ] carregar histórico e posições reconstruídas;
 - [ ] comparar carteiras;
@@ -63,8 +68,8 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 
 ## 8 — Testes e entrega
 
-- [ ] executar testes unitários, de integração e de UI aplicáveis;
-- [ ] atualizar rastreabilidade com evidências;
-- [ ] documentar instalação e execução reais;
+- [x] executar testes unitários, de integração e UI do incremento 01;
+- [x] atualizar rastreabilidade com evidências do incremento 01;
+- [x] documentar instalação editável e execução reais;
 - [ ] preparar e ensaiar demonstração e explicações técnicas;
 - [ ] validar checklist final e artefatos confirmados pelo professor.

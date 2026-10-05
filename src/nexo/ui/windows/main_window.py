@@ -13,6 +13,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from nexo.application.portfolio.create_portfolio import CreatePortfolio
+from nexo.application.portfolio.list_portfolios import ListPortfolios
+from nexo.domain.models.portfolio import Portfolio
 from nexo.ui.components.common import Badge
 from nexo.ui.components.navigation_button import NavigationButton
 from nexo.ui.dialogs.forms import (
@@ -37,7 +40,7 @@ from nexo.ui.pages.portfolio_assets import AssetsPage, PortfoliosPage
 
 PAGE_INFO = (
     ("Visão Geral", "Acompanhe seu patrimônio e sua organização financeira.", "overview"),
-    ("Carteiras", "Organize e compare suas estratégias de investimento.", "portfolio"),
+    ("Carteiras", "Crie e selecione suas carteiras de investimento.", "portfolio"),
     ("Ativos", "Pesquise ativos e visualize informações de mercado.", "assets"),
     ("Movimentações", "Consulte e registre o histórico financeiro das carteiras.", "transactions"),
     ("Planejamento", "Visualize receitas, despesas e capacidade de aporte.", "planning"),
@@ -55,13 +58,19 @@ class MainWindow(QMainWindow):
     INITIAL_WIDTH = 1440
     INITIAL_HEIGHT = 900
 
-    def __init__(self) -> None:
+    def __init__(
+        self, create_portfolio: CreatePortfolio, list_portfolios: ListPortfolios,
+    ) -> None:
         super().__init__()
+        self._create_portfolio = create_portfolio
+        self.selected_portfolio_id: int | None = None
+        self.portfolios_page = PortfoliosPage(list_portfolios)
+        self.portfolios_page.portfolio_selected.connect(self._select_portfolio)
         self.setObjectName("main_window")
         self.setWindowTitle("Nexo Invest")
         self.resize(self.INITIAL_WIDTH, self.INITIAL_HEIGHT)
         self.setMinimumSize(1180, 720)
-        self.active_dialog: DemoFormDialog | NoticeDialog | None = None
+        self.active_dialog: DemoFormDialog | NoticeDialog | PortfolioDialog | None = None
 
         root = QWidget()
         root.setObjectName("AppRoot")
@@ -89,7 +98,7 @@ class MainWindow(QMainWindow):
     def _add_pages(self) -> None:
         pages = (
             OverviewPage(),
-            PortfoliosPage(),
+            self.portfolios_page,
             AssetsPage(),
             TransactionsPage(),
             PlanningPage(),
@@ -216,6 +225,9 @@ class MainWindow(QMainWindow):
         return lambda _checked: self.show_page(index)
 
     def show_page(self, index: int) -> None:
+        if index == 1:
+            self.portfolios_page.reload()
+            self.selected_portfolio_id = self.portfolios_page.selected_portfolio_id
         self.page_stack.setCurrentIndex(index)
         title, subtitle, _icon_name = PAGE_INFO[index]
         self.page_title.setText(title)
@@ -224,12 +236,18 @@ class MainWindow(QMainWindow):
             button.setChecked(button.page_index == index)
 
     def open_dialog(self, kind: str) -> None:
+        if kind == "portfolio":
+            dialog = PortfolioDialog(self._create_portfolio, self)
+            dialog.portfolio_created.connect(self._portfolio_created)
+            dialog.finished.connect(self._portfolio_dialog_finished)
+            self.active_dialog = dialog
+            dialog.open()
+            return
         factories: dict[str, Callable[[], DemoFormDialog | NoticeDialog]] = {
             "transaction": lambda: TransactionDialog(self),
             "asset": lambda: AssetDialog(self),
             "alert": lambda: AlertDialog(self),
             "goal": lambda: GoalDialog(self),
-            "portfolio": lambda: PortfolioDialog(self),
             "report": lambda: NoticeDialog("Relatórios", "A geração de relatórios será conectada em uma próxima etapa.", self),
             "notifications": lambda: NoticeDialog("Notificações", "As notificações serão conectadas quando alertas reais estiverem disponíveis.", self),
             "logout": lambda: NoticeDialog("Perfil", "Autenticação e encerramento de sessão não fazem parte deste protótipo.", self),
@@ -237,6 +255,17 @@ class MainWindow(QMainWindow):
         }
         self.active_dialog = factories.get(kind, factories["notice"])()
         self.active_dialog.open()
+
+    def _select_portfolio(self, portfolio_id: int) -> None:
+        self.selected_portfolio_id = portfolio_id
+
+    def _portfolio_created(self, portfolio: Portfolio) -> None:
+        if self.portfolios_page.reload():
+            self.portfolios_page.set_selected_portfolio(portfolio.id)
+            self.selected_portfolio_id = portfolio.id
+
+    def _portfolio_dialog_finished(self, _result: int) -> None:
+        self.active_dialog = None
 
     def _show_profile_menu(self, anchor: QPushButton) -> None:
         menu = QMenu(self)

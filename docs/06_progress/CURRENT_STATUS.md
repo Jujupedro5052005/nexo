@@ -2,60 +2,73 @@
 
 ## Fase atual
 
-**Fundação executável e protótipo visual completo da aplicação desktop.**
+**Incremento funcional 01 concluído: criar, listar e selecionar carteiras
+persistentes, com o restante da aplicação ainda demonstrativo.**
 
 ## Implementado
 
-- pacote instalável em modo editável e entry point `python -m nexo.main`;
-- janela PySide6 redimensionável com sidebar e topbar fixas;
-- tema dark centralizado e ícones vetoriais próprios;
-- navegação por `QStackedWidget` entre dez páginas;
-- páginas visuais de Visão Geral, Carteiras, Ativos, Movimentações,
-  Planejamento, Metas, Alertas, Análises, Relatórios e Configurações;
-- gráficos responsivos de linha, barras e donut usando QtCharts;
-- tabelas, filtros, seletores, cards, badges, progresso e ações demonstrativas;
-- diálogos completos de movimentação, ativo, alerta, meta e carteira;
-- feedback visual para ações que ainda dependem das próximas camadas;
-- dados de apresentação isolados em `src/nexo/ui/demo/data.py` e identificados
-  na interface como demonstrativos.
+- pacote editável com runtime declarado a partir de `requirements.txt`;
+- entry point `python -m nexo.main`;
+- janela PySide6, tema dark, ícones e navegação entre dez páginas;
+- `Portfolio` imutável com `id: int | None`, nome obrigatório e trim;
+- igualdade de entidades persistidas pelo ID, sem unicidade de nome;
+- abstração `PortfolioRepository` e erro independente de detalhes SQL;
+- casos de uso `CreatePortfolio` e `ListPortfolios`;
+- `PortfolioModel` distinto da entidade de domínio;
+- implementação SQLAlchemy em `infrastructure/database/`;
+- schema real somente `portfolios(id INTEGER PRIMARY KEY, name TEXT NOT NULL)`;
+- sessões por operação, commit antes do retorno e rollback em falha;
+- banco `data/nexo.db` resolvido pelo checkout, sem depender de cwd;
+- composição de banco, repositório, casos de uso e janela em `main.py`;
+- página Carteiras real, com estado vazio, atualização e seleção por ID;
+- `PortfolioDialog` funcional, somente com campo nome e feedback de erro;
+- `MainWindow.selected_portfolio_id`, sem persistir seleção entre execuções;
+- carteiras vazias sem patrimônio/rentabilidade fictícios;
+- falhas de leitura/gravação sem expor detalhes técnicos na UI;
+- correção dos dois acessos potencialmente `None` apontados pelo mypy no overview.
 
-## Não implementado
+## Ainda demonstrativo ou não implementado
 
-Não há modelos de domínio, regras financeiras, casos de uso, SQLAlchemy,
-SQLite, provedor de mercado, cotações reais, autenticação, IA, notificações ou
-geração de relatórios. Os gráficos e valores exibidos não são calculados a
-partir de uma carteira real e não são persistidos.
+As outras nove páginas conservam dados demonstrativos em `ui/demo/data.py` e
+constantes inline. Seus gráficos/valores não são calculados de carteiras
+persistidas. Os outros formulários continuam demonstrativos.
 
-Salvar nos diálogos apenas mostra o aviso de demonstração. Tema claro, dados
-locais, exportação e canais externos permanecem desabilitados ou marcados para
-uma etapa futura.
+Não há edição/exclusão/comparação real de carteiras, `Asset`, `Transaction`,
+`TransactionType`, `Position`, compras/vendas, saldo, custo médio, cálculos,
+API de mercado, alertas, metas, planejamento, relatórios, IA ou notificações
+funcionais. O parser de transações permanece deliberadamente inalterado.
 
-## Testado
+`infrastructure/database/` é o local oficial da persistência SQL.
+`infrastructure/persistence/` permanece vazio. Não há Alembic ou tabelas
+antecipadas.
 
-- ambiente local: Python 3.10.12, PySide6 6.8.0.2 e Qt 6.8.0 no Linux;
-- smoke tests cobrem criação da janela, dez páginas, página inicial, navegação e
-  abertura dos quatro diálogos das ações rápidas;
-- `compileall`, Ruff e mypy passam;
-- inicialização e renderização foram verificadas em modo offscreen;
-- execução e aparência no Windows continuam pendentes de validação manual.
+## Testado em 05/10/2026
 
-## Pendências imediatas
+- Windows, Python 3.14.0, PySide6/Qt 6.11.2 e SQLAlchemy 2.1.3;
+- instalação editável com runtime/dev em `.venv` inicialmente sem dependências;
+- 43 testes aprovados: 11 Domain, 6 Application, 7 banco, 19 UI;
+- os 9 smoke tests anteriores foram preservados;
+- UI cria no SQLite temporário e reabre com novo repositório/janela;
+- falha após flush provoca rollback e permite nova gravação;
+- Ruff, mypy, compileall e pip check aprovados;
+- processos offscreen distintos criam nomes iguais e reabrem por ID;
+- iniciar de outra pasta cria/carrega o banco padrão sem traceback;
+- página Carteiras renderizada e inspecionada com o backend nativo Windows,
+  sem exibir a janela na tela.
 
-1. validar visualmente o protótipo no Windows e em escalas de tela diferentes;
-2. registrar proposta aprovada e confirmar ano/calendário;
-3. confirmar com o professor o tratamento acadêmico do requisito A-008;
-4. implementar modelos do domínio e persistência de `Portfolio`/`Transaction`;
-5. reconstruir `Position` e criar os primeiros casos de uso testados;
-6. substituir gradualmente o dataset demonstrativo por resultados da
-   Application;
-7. selecionar e integrar o provedor real de mercado em etapa posterior.
+A renderização offscreen no Windows não reproduziu as fontes nativas; o backend
+Windows renderizou os textos corretamente. Escalas de tela e uso interativo
+prolongado continuam pendentes.
 
-## Ambiguidades preservadas
+## Próximas pendências
 
-- responsabilidade de `src/nexo/core/`;
-- fronteira entre `infrastructure/database/` e `infrastructure/persistence/`;
-- provedor de mercado e estratégia assíncrona;
-- conteúdo e data da aprovação acadêmica.
+1. Definir regras financeiras e implementar domínio de transações/posições.
+2. Persistir o ledger e integrar operações por carteira selecionada.
+3. Selecionar e integrar o provedor de mercado.
+4. Migrar gradualmente as demais páginas para resultados da Application.
+5. Validar interface em escalas/monitores distintos.
+6. Registrar proposta aprovada, calendário e tratamento acadêmico de A-008.
 
-Este documento distingue interface implementada de funcionalidade financeira.
-Uma tela, tabela ou gráfico demonstrativo não comprova domínio, banco ou API.
+Permanecem indefinidos o papel de `core/`, a estratégia assíncrona de mercado
+e a distribuição executável. Não foram adicionados controllers, viewmodels,
+serviços genéricos ou frameworks de injeção.

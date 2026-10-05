@@ -153,6 +153,8 @@ class OverviewPage(PageContent):
         table.setMaximumHeight(255)
         for row in range(table.rowCount()):
             result = table.item(row, 3)
+            if result is None:
+                continue
             result.setForeground(QColor("#3DDC84" if not result.text().startswith("-") else "#FF5C6C"))
         card.content.addWidget(table)
         return card

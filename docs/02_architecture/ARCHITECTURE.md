@@ -32,6 +32,18 @@ main.py compõe as dependências concretas.
 Diretórios com apenas `.gitkeep` representam estrutura preparada, não
 funcionalidade implementada.
 
+## Fluxo implementado no incremento 01
+
+`Portfolio` contém somente nome validado e identidade inteira opcional.
+`CreatePortfolio` e `ListPortfolios` usam a ABC `PortfolioRepository` de
+`domain/interfaces`. `SqlAlchemyPortfolioRepository` implementa esse contrato,
+com sessões por operação e conversão para entidades. `main.py` inicializa o
+schema e injeta os casos de uso na `MainWindow`.
+
+Somente Carteiras usa esse fluxo real. A seleção por ID vive na janela durante
+a sessão; as outras páginas continuam demonstrativas. Os conceitos financeiros
+descritos abaixo são arquitetura planejada, ainda sem implementação.
+
 ## Responsabilidades
 
 ### UI
@@ -72,8 +84,7 @@ uso.
 - `database/migrations`: evolução do schema quando necessária;
 - `market_data/adapters`: adaptadores de provedores financeiros;
 - `notifications`: integrações futuras;
-- `persistence`: pasta existente cuja fronteira com `database/` ainda precisa
-  ser delimitada.
+- `persistence`: pasta vazia; persistência SQL fica oficialmente em `database/`.
 
 Não existe `PositionRepository`, pois `Position` é reconstruída.
 

@@ -1,94 +1,72 @@
 # Arquitetura de banco de dados
 
-## Estratégia
+## Implementação atual — incremento 01
 
-SQLite é a persistência local prevista, acessada por implementações em
-`src/nexo/infrastructure/database/`. SQLAlchemy ou mecanismo equivalente fica
-restrito à Infrastructure. Modelos ORM são diferentes dos modelos em
-`domain/models` e nunca são entregues diretamente à UI.
-
-O banco persiste dados estruturais e fatos. `Transaction` é a fonte principal
-de verdade financeira; `Position` e métricas consolidadas são reconstruídas.
-
-## Schema conceitual inicial
-
-### `portfolios`
-
-| Campo | Finalidade |
-|---|---|
-| `id` | Identidade da carteira. |
-| `name` | Nome fornecido pelo usuário. |
-
-Restrições de nome e demais metadados devem ser definidos durante a
-implementação, sem adicionar atributos antecipadamente.
-
-### `transactions`
-
-| Campo | Finalidade |
-|---|---|
-| `id` | Identidade da transação. |
-| `portfolio_id` | Carteira à qual a operação pertence. |
-| `asset_symbol` | Símbolo normalizado do ativo. |
-| `transaction_type` | `BUY` ou `SELL`. |
-| `quantity` | Quantidade positiva, preservada como decimal. |
-| `unit_price` | Preço unitário positivo, preservado como decimal. |
-| `date` | Data da operação. |
-
-A chave estrangeira para `portfolios` garante que históricos permaneçam
-separados. Precisão, escalas, índices e nomes físicos finais devem ser definidos
-e testados junto da primeira implementação.
-
-### `price_alerts`
-
-Tabela prevista somente quando alertas forem implementados. Deve guardar a
-carteira ou o contexto necessário, símbolo, condição e valor-alvo, conforme o
-caso de uso confirmado.
-
-## Dados não persistidos como estado financeiro
-
-Não existe tabela `positions` como fonte de verdade. Também não se persistem
-como estado independente quantidade consolidada, preço médio, valor investido,
-lucro/prejuízo ou rentabilidade. Esses resultados são derivados das transações.
-
-Uma tabela própria de ativos só se justifica se metadados ou ciclo de vida
-independente surgirem. Não é necessária apenas para classificar símbolos.
-
-## Modelos e repositórios
+A persistência SQL fica oficialmente em
+`src/nexo/infrastructure/database/`. SQLite é acessado por SQLAlchemy >=2.0.
+`infrastructure/persistence/` permanece vazio e não recebe implementação SQL.
 
 ```text
-domain/models/Portfolio       != infrastructure/database/models/PortfolioModel
-domain/models/Transaction     != infrastructure/database/models/TransactionModel
+database/
+├── session.py
+├── models/portfolio_model.py
+└── repositories/portfolio_repository.py
 ```
 
-Os modelos de domínio expressam regras; os modelos ORM expressam schema e
-mapeamento. Repositórios concretos convertem entre eles e não vazam sessões ou
-linhas ORM.
+`Portfolio` não é um modelo ORM. `SqlAlchemyPortfolioRepository` implementa
+`PortfolioRepository`, converte ORM em entidades e não entrega sessões/modelos
+SQLAlchemy à Application ou UI.
 
-Contratos conceituais necessários incluem `PortfolioRepository` e
-`TransactionRepository`, com implementações SQLAlchemy na Infrastructure.
-`TransactionRepository` consulta por `portfolio_id`. Não se cria
-`PositionRepository`.
+## Caminho e inicialização
 
-## Transações, falhas e evolução
+`default_database_path()` resolve `<raiz do checkout>/data/nexo.db` pelo
+local de `session.py`. Iniciar de outra pasta não altera o banco escolhido.
+Esse caminho atende a execução no checkout instalado em modo editável.
 
-- escritas relacionadas devem ser atômicas e realizar rollback em erro;
-- sessões não permanecem presas a widgets;
-- a Application não executa SQL;
-- testes usam banco isolado e verificam preservação de `Decimal` e datas;
-- migrations só são criadas quando houver schema implementado e necessidade de
-  evolução; bancos existentes não devem ser apagados silenciosamente.
+`create_database_engine()` cria o diretório. `initialize_database()` executa
+explicitamente `Base.metadata.create_all(engine)`, sem apagar dados existentes.
+Não há Alembic ou migração de schema neste incremento.
 
-O `.env.example` atualmente define
-`NEXO_DATABASE_URL=sqlite:///data/nexo.db`, portanto `data/` é o local previsto
-para o banco local. O arquivo gerado não deve ser versionado nem conter dados
-sensíveis.
+O `.env`/`NEXO_DATABASE_URL` não é consumido nesta etapa. O caminho opcional
+recebido pela composição/infraestrutura permite diagnósticos e testes isolados.
+O arquivo padrão e outros bancos gerados são ignorados pelo Git.
 
-## Ambiguidade atual
+## Schema real
 
-`infrastructure/database/` já concentra migrations, modelos e repositórios,
-enquanto `infrastructure/persistence/` também existe. Como ainda não há código
-que delimite a segunda pasta, sua responsabilidade permanece indefinida; não se
-deve duplicar persistência entre ambas.
+A única tabela implementada é `portfolios`:
 
-Veja a decisão completa em
-[`ADR-001`](decisions/ADR-001-transaction-ledger.md).
+| Campo | Tipo SQLite | Restrição |
+|---|---|---|
+| `id` | `INTEGER` | Chave primária gerada pelo banco |
+| `name` | `TEXT` | `NOT NULL`; não é único |
+
+O Domain remove espaços nas extremidades e rejeita nome vazio. Nomes iguais
+representam carteiras distintas quando os IDs diferem. Não há campos
+financeiros, estratégias, descrições, usuários ou outras tabelas.
+
+## Operações, sessões e falhas
+
+- `add()` aceita uma entidade nova, faz flush, obtém o ID e retorna uma nova
+  entidade somente depois de o commit concluir;
+- a entidade original não é modificada;
+- cada gravação usa `session_factory.begin()`, com rollback em erro;
+- `list_all()` usa sessão própria e ordena por ID;
+- exceções SQLAlchemy são traduzidas em `PortfolioRepositoryError`;
+- a UI conserva a entrada e não cria cards em falha de gravação;
+- falha de leitura conserva cards existentes e permite atualizar novamente.
+
+## Evolução planejada, ainda não implementada
+
+`Transaction` será o ledger financeiro ligado a uma carteira. O schema futuro
+pode conter `id`, `portfolio_id`, `asset_symbol`, `transaction_type`, `quantity`,
+`unit_price` e `date`; tipos finais, ordenação e precisão serão definidos junto
+das regras. Nenhuma tabela de transações foi antecipada.
+
+`Position` e métricas serão reconstruídas, sem tabela/repositório próprio
+inicialmente. `Asset` não exige tabela apenas para identificar símbolos.
+Alertas/configurações só receberão schema quando seus casos de uso existirem.
+
+Testes de integração verificam schema, mapeamento, nomes duplicados,
+reabertura e rollback em SQLite temporário. Nunca usam `data/nexo.db`.
+
+Referência: [`ADR-001`](decisions/ADR-001-transaction-ledger.md).

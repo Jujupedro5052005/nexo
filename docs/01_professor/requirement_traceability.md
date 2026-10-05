@@ -20,23 +20,23 @@ Menção em Markdown não é evidência de implementação.
 | A-002 | Proposta aprovada | Proposta e aprovação datadas | Pendente de confirmação |
 | A-003 | Tema não substituído sem autorização | Comparação entre proposta e entrega | Pendente de confirmação |
 | A-004 | Autor compreende e explica | Apresentação e arguição | Não iniciado |
-| A-005 | Python 3.x | Estrutura Python existente; execução ainda ausente | Estruturado |
-| A-006 | POO efetiva | Modelos, casos de uso e colaboração testáveis | Definido |
-| A-007 | Classes, atributos, métodos e encapsulamento | Invariantes implementadas e testadas | Não iniciado |
+| A-005 | Python 3.x | Aplicação executada no Windows com Python 3.14.0 | Testado |
+| A-006 | POO efetiva | Portfolio, casos de uso, contrato e implementação SQLAlchemy no fluxo real | Testado no incremento 01 |
+| A-007 | Classes, atributos, métodos e encapsulamento | Portfolio imutável valida nome/ID; testes em unit/domain | Testado no incremento 01 |
 | A-008 | Associação e composição na redação oficial | Composição definida; orientação posterior rejeita associação no modelo atual | Pendente de confirmação |
-| A-009 | Herança quando pertinente | Nenhuma especialização real identificada; ausência documentada | Não aplicável ainda |
-| A-010 | Polimorfismo quando pertinente | `MarketDataProvider` é possibilidade; nenhuma implementação existe | Planejado |
-| A-011 | Responsabilidades e modularização | Estrutura por partes existe, regras documentadas | Estruturado |
-| A-012 | GUI funcional no Windows | PySide6 declarado; UI vazia | Não iniciado |
-| A-013 | Interface organizada e usável | Diretrizes iniciais; validação futura | Definido |
-| A-014 | Elemento gráfico funcional | Dashboard/gráficos previstos | Planejado |
-| A-015 | Ao menos uma integração válida | SQLite e API previstos; nenhuma implementada | Planejado |
-| A-016 | Banco com finalidade prática | `Portfolio` e `Transaction` previstos | Planejado |
+| A-009 | Herança quando pertinente | Widgets/diálogos Qt e implementação da ABC PortfolioRepository; sem subclasses financeiras artificiais | Implementado |
+| A-010 | Polimorfismo quando pertinente | Application usa PortfolioRepository SQLAlchemy ou fake nos testes | Testado |
+| A-011 | Responsabilidades e modularização | main.py compõe UI, Application, Domain e Infrastructure | Implementado no incremento 01 |
+| A-012 | GUI funcional no Windows | Criar/listar/selecionar carteiras verificado com pytest-qt e processos offscreen | Testado no incremento 01 |
+| A-013 | Interface organizada e usável | Tema/componentes e estado vazio reais; revisão de DPI pendente | Em implementação |
+| A-014 | Elemento gráfico funcional | QtCharts com dados demo, sem representar ledger real | Em implementação |
+| A-015 | Ao menos uma integração válida | SQLite armazena/consulta carteiras criadas pela interface | Testado |
+| A-016 | Banco com finalidade prática | Portfolio persiste após reabertura; Transaction planejada | Testado no incremento 01 |
 | A-017 | API/web processa dados | Contrato/adaptador previstos; provedor indefinido | Planejado |
 | A-018 | Proposta com conteúdo exigido | Artefato/aprovação não confirmados | Pendente de confirmação |
-| A-019 | Versão funcional na parcial | Aplicação ainda não funcional | Não iniciado |
+| A-019 | Versão funcional na parcial | Fluxo de carteiras disponível; apresentação não registrada | Pendente de confirmação |
 | A-020 | Conteúdo da parcial | Material não localizado | Não iniciado |
-| A-021 | Demonstração funcional final | Aplicação ainda não funcional | Não iniciado |
+| A-021 | Demonstração funcional final | Primeiro fluxo funcional disponível; funções financeiras e apresentação pendentes | Em implementação |
 | A-022 | Respostas técnicas na final | Documentação existe; ensaio e código pendentes | Não iniciado |
 | A-023 | Datas acadêmicas | 26/08, 30/09 e 04/11; ano ausente no PDF | Pendente de confirmação |
 
@@ -44,14 +44,14 @@ Menção em Markdown não é evidência de implementação.
 
 | Conceito | Situação |
 |---|---|
-| Classes/objetos | Planejados; não implementados. |
-| Atributos/métodos | Planejados; não implementados. |
-| Encapsulamento | Invariantes definidas; não implementado. |
-| Composição | Definida no modelo; não implementada. |
-| Herança | Não aplicável ainda; não implementada e não será forçada. |
-| Polimorfismo | Planejado apenas para componentes intercambiáveis; não implementado. |
-| Abstração | Definida em modelos e contratos; implementação pendente. |
-| Responsabilidade única/modularização | Estrutura preparada; comportamento pendente. |
+| Classes/objetos | Portfolio, casos de uso, repository e UI implementados. |
+| Atributos/métodos | Portfolio.id/name e operações execute/add/list_all. |
+| Encapsulamento | Portfolio normaliza/valida dados e impede alteração direta. |
+| Composição | MainWindow recebe casos de uso prontos; cada caso recebe repository. |
+| Herança | Implementação de ABC e especialização Qt; sem hierarquia de ativos. |
+| Polimorfismo | Mesma Application opera com repository SQLAlchemy ou fake. |
+| Abstração | PortfolioRepository define somente add/list_all. |
+| Responsabilidade única/modularização | Fluxo real separado por camadas; ORM restrito à Infrastructure. |
 
 ## Confirmações pendentes
 

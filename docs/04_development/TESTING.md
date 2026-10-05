@@ -1,5 +1,17 @@
 # Estratégia de testes
 
+## Suíte implementada — incremento 01
+
+43 casos: 11 de Domain, 6 de Application, 7 de SQLite e 19 de UI,
+incluindo os 9 smoke tests anteriores. Unitários e a maioria dos testes de UI
+usam um repository em memória definido somente em `tests/conftest.py`.
+
+Integração cobre schema exclusivo de portfolios, IDs, nomes duplicados,
+reabertura com novo engine/repository e rollback após flush. Um fluxo de UI
+cria em SQLite temporário e verifica outra janela após reabertura.
+Não há teste financeiro nem dependência de API/rede; `data/nexo.db` não é usado.
+O restante deste documento descreve a estratégia para incrementos futuros.
+
 ```text
 tests/
 ├── unit/

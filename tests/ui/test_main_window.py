@@ -2,6 +2,8 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QPushButton, QStackedWidget, QWidget
 
+from nexo.application.portfolio.create_portfolio import CreatePortfolio
+from nexo.application.portfolio.list_portfolios import ListPortfolios
 from nexo.ui.dialogs.forms import (
     AlertDialog,
     AssetDialog,
@@ -12,8 +14,10 @@ from nexo.ui.windows.main_window import MainWindow
 
 
 @pytest.fixture
-def window(qtbot) -> MainWindow:
-    main_window = MainWindow()
+def window(qtbot, portfolio_repository) -> MainWindow:
+    main_window = MainWindow(
+        CreatePortfolio(portfolio_repository), ListPortfolios(portfolio_repository),
+    )
     qtbot.addWidget(main_window)
     main_window.show()
     return main_window

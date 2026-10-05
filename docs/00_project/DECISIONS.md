@@ -9,6 +9,9 @@ devem receber ADR em `docs/02_architecture/decisions/`.
 | SQLite com SQLAlchemy ou equivalente | Definido para persistência local prática. |
 | Múltiplas carteiras | Cada estratégia possui identidade, histórico e resultados separados. |
 | `Portfolio` persistido estruturalmente | Ao menos `id` e `name`; estado financeiro é reconstruído. |
+| Incremento 01 | Somente criar/listar/selecionar Portfolio; ID inteiro gerado pelo SQLite, nome validado e duplicidade permitida. |
+| Local da persistência SQL | `infrastructure/database/`; `persistence/` permanece vazio. |
+| Contrato de carteiras | ABC PortfolioRepository em `domain/interfaces`, com `add` e `list_all`; sem repository genérico. |
 | `Transaction` como ledger | Fonte principal de verdade financeira; ver [`ADR-001`](../02_architecture/decisions/ADR-001-transaction-ledger.md). |
 | `Position` derivada | Sem tabela ou repositório próprios inicialmente. |
 | `Asset` como objeto de valor | Identificado pelo símbolo; sem hierarquia por categoria. |
@@ -19,5 +22,6 @@ devem receber ADR em `docs/02_architecture/decisions/`.
 | Complementos não bloqueiam o núcleo | Planejamento, educação, IA e notificações externas têm prioridade inferior. |
 
 Permanecem sem decisão: provedor de mercado, estratégia assíncrona da UI,
-fronteira de `infrastructure/persistence`, papel de `core` e uso efetivo de
-controllers/viewmodels.
+papel de `core` e uso efetivo de controllers/viewmodels. A localização do banco
+para distribuição fora do checkout também permanece futura; no modo editável,
+o caminho é `<raiz do checkout>/data/nexo.db`, independente de cwd.

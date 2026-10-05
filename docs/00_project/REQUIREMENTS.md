@@ -96,7 +96,8 @@ prevalecem sobre decisões internas.
 - composição descreve o estado reconstruído do `Portfolio` e objetos contidos;
 - abstração aparece em modelos focados e contratos necessários;
 - polimorfismo pode aparecer em provedores ou repositórios intercambiáveis;
-- herança não será criada artificialmente e ainda não está implementada;
+- herança existe nos componentes Qt e na implementação do contrato de repository;
+  não serão criadas subclasses financeiras artificiais;
 - responsabilidade única orienta módulos e classes.
 
 A menção documental não comprova implementação. O status de cada requisito e
