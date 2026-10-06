@@ -1,5 +1,3 @@
-from decimal import Decimal, InvalidOperation
-
 from PySide6.QtCore import QDate, Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -10,7 +8,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -18,12 +15,17 @@ from PySide6.QtWidgets import (
 from nexo.application.portfolio.create_portfolio import CreatePortfolio
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
 from nexo.ui.components.common import Badge
+from nexo.ui.dialogs.transaction_dialog import (
+    TransactionDialog as TransactionDialog,  # noqa: PLC0414 -- preserve public import
+)
 
 
 class DemoFormDialog(QDialog):
     """Shared dialog chrome and presentation-only save feedback."""
 
-    def __init__(self, title: str, object_name: str, parent: QWidget | None = None) -> None:
+    def __init__(
+        self, title: str, object_name: str, parent: QWidget | None = None
+    ) -> None:
         super().__init__(parent)
         self.setObjectName(object_name)
         self.setWindowTitle(title)
@@ -43,7 +45,9 @@ class DemoFormDialog(QDialog):
         self.form.setSpacing(11)
         self.form.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
         self.dialog_layout.addLayout(self.form)
-        self.feedback = QLabel("Demonstração: persistência será conectada posteriormente.")
+        self.feedback = QLabel(
+            "Demonstração: persistência será conectada posteriormente."
+        )
         self.feedback.setObjectName("WarningBadge")
         self.feedback.setWordWrap(True)
         self.feedback.setVisible(False)
@@ -72,56 +76,16 @@ class DemoFormDialog(QDialog):
         return field
 
 
-class TransactionDialog(DemoFormDialog):
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__("Nova movimentação", "transaction_dialog", parent)
-        self.form.addRow("Carteira", self.combo(["Longo Prazo", "Reserva", "Internacional"]))
-        self.form.addRow("Tipo", self.combo(["Compra", "Venda", "Aporte", "Retirada", "Provento"]))
-        self.form.addRow("Ativo", self.text_field("Ex.: PETR4"))
-        self.quantity = self.text_field("0")
-        self.unit_price = self.text_field("R$ 0,00")
-        self.fees = self.text_field("R$ 0,00")
-        for field in (self.quantity, self.unit_price, self.fees):
-            field.textChanged.connect(self.update_summary)
-        self.form.addRow("Quantidade", self.quantity)
-        self.form.addRow("Preço unitário", self.unit_price)
-        date = QDateEdit(QDate.currentDate())
-        date.setCalendarPopup(True)
-        date.setDisplayFormat("dd/MM/yyyy")
-        self.form.addRow("Data", date)
-        self.form.addRow("Taxas", self.fees)
-        notes = QTextEdit()
-        notes.setPlaceholderText("Observações opcionais")
-        notes.setMaximumHeight(70)
-        self.form.addRow("Observações", notes)
-        self.summary = QLabel("Valor bruto  R$ 0,00  •  Taxas  R$ 0,00  •  Valor total  R$ 0,00")
-        self.summary.setObjectName("Badge")
-        self.dialog_layout.addWidget(self.summary)
-        self.add_buttons("Salvar movimentação")
-
-    def update_summary(self) -> None:
-        gross = self._decimal(self.quantity.text()) * self._decimal(self.unit_price.text())
-        fees = self._decimal(self.fees.text())
-        self.summary.setText(
-            f"Valor bruto  R$ {gross:,.2f}  •  Taxas  R$ {fees:,.2f}  •  Valor total  R$ {gross + fees:,.2f}"
-        )
-
-    @staticmethod
-    def _decimal(value: str) -> Decimal:
-        normalized = value.replace("R$", "").replace(".", "").replace(",", ".").strip()
-        try:
-            return Decimal(normalized or "0")
-        except InvalidOperation:
-            return Decimal(0)
-
-
 class AssetDialog(DemoFormDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Adicionar ativo", "asset_dialog", parent)
         self.form.addRow("Buscar ativo", self.text_field("Código ou nome"))
         self.form.addRow("Símbolo", self.text_field("Ex.: PETR4"))
         self.form.addRow("Nome", self.text_field("Nome do ativo"))
-        self.form.addRow("Tipo", self.combo(["Ação", "FII", "ETF", "Renda fixa", "Cripto", "Internacional"]))
+        self.form.addRow(
+            "Tipo",
+            self.combo(["Ação", "FII", "ETF", "Renda fixa", "Cripto", "Internacional"]),
+        )
         self.form.addRow("Preço atual", self.text_field("R$ 0,00"))
         self.form.addRow("Moeda", self.combo(["BRL", "USD", "EUR"]))
         self.add_buttons("Adicionar ativo")
@@ -131,7 +95,10 @@ class AlertDialog(DemoFormDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Criar alerta", "alert_dialog", parent)
         self.form.addRow("Ativo", self.text_field("Ex.: PETR4"))
-        self.form.addRow("Condição", self.combo(["Preço abaixo de", "Preço acima de", "Variação percentual"]))
+        self.form.addRow(
+            "Condição",
+            self.combo(["Preço abaixo de", "Preço acima de", "Variação percentual"]),
+        )
         self.form.addRow("Valor alvo", self.text_field("R$ 0,00"))
         self.form.addRow("Canal", self.combo(["No aplicativo"]))
         channels = QLabel("E-mail  Em breve    •    WhatsApp  Em breve")
@@ -144,7 +111,10 @@ class GoalDialog(DemoFormDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Criar meta", "goal_dialog", parent)
         self.form.addRow("Nome da meta", self.text_field("Ex.: Reserva de emergência"))
-        self.form.addRow("Categoria", self.combo(["Segurança", "Patrimônio", "Experiência", "Educação", "Outro"]))
+        self.form.addRow(
+            "Categoria",
+            self.combo(["Segurança", "Patrimônio", "Experiência", "Educação", "Outro"]),
+        )
         self.form.addRow("Valor alvo", self.text_field("R$ 0,00"))
         self.form.addRow("Valor atual", self.text_field("R$ 0,00"))
         deadline = QDateEdit(QDate.currentDate().addYears(1))
@@ -164,7 +134,9 @@ class PortfolioDialog(QDialog):
     portfolio_created = Signal(object)
 
     def __init__(
-        self, create_portfolio: CreatePortfolio, parent: QWidget | None = None,
+        self,
+        create_portfolio: CreatePortfolio,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._create_portfolio = create_portfolio
@@ -194,7 +166,8 @@ class PortfolioDialog(QDialog):
         cancel = buttons.addButton("Cancelar", QDialogButtonBox.ButtonRole.RejectRole)
         cancel.setObjectName("SecondaryButton")
         self.save_button = buttons.addButton(
-            "Criar carteira", QDialogButtonBox.ButtonRole.AcceptRole,
+            "Criar carteira",
+            QDialogButtonBox.ButtonRole.AcceptRole,
         )
         self.save_button.setObjectName("PrimaryButton")
         buttons.rejected.connect(self.reject)
@@ -211,7 +184,9 @@ class PortfolioDialog(QDialog):
             self.feedback.show()
             self.name_field.setFocus()
         except PortfolioRepositoryError:
-            self.feedback.setText("Não foi possível salvar a carteira. Tente novamente.")
+            self.feedback.setText(
+                "Não foi possível salvar a carteira. Tente novamente."
+            )
             self.feedback.show()
         else:
             self.portfolio_created.emit(portfolio)

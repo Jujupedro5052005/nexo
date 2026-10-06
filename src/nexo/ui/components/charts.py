@@ -6,14 +6,16 @@ from PySide6.QtCharts import (
     QBarSet,
     QChart,
     QChartView,
+    QDateTimeAxis,
     QLineSeries,
     QPieSeries,
     QValueAxis,
 )
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import QDateTime, QPointF, Qt, QTimeZone
 from PySide6.QtGui import QColor, QCursor, QPainter, QPen
 from PySide6.QtWidgets import QToolTip
 
+from nexo.domain.models.market_data import PriceHistory
 from nexo.ui.styles.theme import BORDER, TEXT_SECONDARY
 
 
@@ -61,11 +63,11 @@ def line_chart(
         series.attachAxis(axis_x)
         series.attachAxis(axis_y)
         series.hovered.connect(
-            lambda point, state, label=name: QToolTip.showText(
-                QCursor.pos(), f"{label}: {point.y():.2f}"
+            lambda point, state, label=name: (
+                QToolTip.showText(QCursor.pos(), f"{label}: {point.y():.2f}")
+                if state
+                else QToolTip.hideText()
             )
-            if state
-            else QToolTip.hideText()
         )
     return _view(chart, minimum_height)
 
@@ -112,3 +114,37 @@ def bar_chart(
     series.attachAxis(axis_x)
     series.attachAxis(axis_y)
     return _view(chart, minimum_height)
+
+
+def historical_chart(history: PriceHistory) -> QChartView:
+    """Decimal becomes float only at Qt's drawing boundary, never in valuation."""
+    chart = QChart()
+    series = QLineSeries()
+    series.setName(f"{history.asset.symbol} • fechamento informado pela API")
+    for point in history.points:
+        series.append(point.timestamp.timestamp() * 1000, float(point.close))
+    chart.addSeries(series)
+    dates = QDateTimeAxis()
+    dates.setFormat("dd/MM/yy")
+    dates.setTickCount(max(2, min(5, len(history.points))))
+    dates.setTitleText("Data (UTC)")
+    prices = QValueAxis()
+    prices.setLabelFormat("%.2f")
+    for axis in (dates, prices):
+        axis.setLabelsColor(QColor(TEXT_SECONDARY))
+        axis.setGridLineColor(QColor(BORDER))
+    chart.addAxis(dates, Qt.AlignmentFlag.AlignBottom)
+    chart.addAxis(prices, Qt.AlignmentFlag.AlignLeft)
+    series.attachAxis(dates)
+    series.attachAxis(prices)
+    if history.points:
+        first = int(history.points[0].timestamp.timestamp() * 1000)
+        last = int(history.points[-1].timestamp.timestamp() * 1000)
+        dates.setRange(
+            QDateTime.fromMSecsSinceEpoch(first, QTimeZone.utc()),
+            QDateTime.fromMSecsSinceEpoch(max(first + 86400000, last), QTimeZone.utc()),
+        )
+        values = [float(point.close) for point in history.points]
+        margin = max(0.01, (max(values) - min(values)) * 0.1)
+        prices.setRange(min(values) - margin, max(values) + margin)
+    return _view(chart, 240)

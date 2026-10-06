@@ -1,5 +1,5 @@
+from PySide6.QtCharts import QChartView
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
@@ -9,7 +9,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from nexo.ui.components.charts import donut_chart, line_chart
+from nexo.application.portfolio.financial_summary import FinancialSummary
+from nexo.calculations.valuation.portfolio import PortfolioValuation
+from nexo.domain.reconstruction import ReconstructionResult
+from nexo.ui.components.charts import bar_chart, donut_chart, line_chart
 from nexo.ui.components.common import (
     Badge,
     DataTable,
@@ -25,24 +28,68 @@ from nexo.ui.demo.data import (
     GOALS,
     INVESTED_SERIES,
     PORTFOLIO_SERIES,
-    POSITIONS,
     REFERENCE_SERIES,
+)
+from nexo.ui.financial_formatting import (
+    MARKET_HEADERS,
+    apply_valuation,
+    currency_text,
+    market_status,
+    money_text,
+    percent_text,
+    position_rows,
+    replace_rows,
 )
 from nexo.ui.icons import icon
 
 
 class OverviewPage(PageContent):
-    """Full presentation prototype for the dashboard."""
+    """Real ledger metrics above explicitly separated presentation demos."""
 
     dialog_requested = Signal(str)
 
     def __init__(self) -> None:
         super().__init__("overview")
+        self.page_layout.addWidget(Badge("Dados locais do ledger"))
+        self.context_label = QLabel(
+            "Selecione uma carteira para consultar suas posições."
+        )
+        self.page_layout.addWidget(self.context_label)
+        self.page_layout.addLayout(self._metrics())
+        market_metrics = QHBoxLayout()
+        for key, title in (
+            ("market", "VALOR DAS POSIÇÕES"),
+            ("unrealized", "NÃO REALIZADO"),
+            ("total", "RESULTADO TOTAL"),
+            ("return", "RETORNO DAS POSIÇÕES ABERTAS"),
+        ):
+            metric = MetricCard(title, "—", "Mercado • carteira selecionada • BRL")
+            self.metrics[key] = metric
+            market_metrics.addWidget(metric, 1)
+        self.page_layout.addLayout(market_metrics)
+        positions = SectionCard("Posições abertas — carteira selecionada")
+        self.positions_table = DataTable(MARKET_HEADERS, [])
+        self.positions_table.setObjectName("overview_positions_table")
+        positions.content.addWidget(self.positions_table)
+        self.positions_empty = QLabel("Selecione uma carteira.")
+        positions.content.addWidget(self.positions_empty)
+        self.market_feedback = QLabel("Cotações e valor de mercado indisponíveis.")
+        self.market_feedback.setWordWrap(True)
+        positions.content.addWidget(self.market_feedback)
+        self.page_layout.addWidget(positions)
+        self.valuation_chart_card = SectionCard(
+            "Custo e valor das posições cotadas — BRL"
+        )
+        self.valuation_chart: QChartView | None = None
+        self.chart_feedback = QLabel(
+            "Aguardando cotações. Sem série demonstrativa nesta seção."
+        )
+        self.valuation_chart_card.content.addWidget(self.chart_feedback)
+        self.page_layout.addWidget(self.valuation_chart_card)
         demo_row = QHBoxLayout()
-        demo_row.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
+        demo_row.addWidget(Badge("Seções abaixo: dados demonstrativos", "DemoBadge"))
         demo_row.addStretch()
         self.page_layout.addLayout(demo_row)
-        self.page_layout.addLayout(self._metrics())
 
         charts = QGridLayout()
         charts.setSpacing(14)
@@ -55,7 +102,6 @@ class OverviewPage(PageContent):
 
         middle = QGridLayout()
         middle.setSpacing(14)
-        middle.addWidget(self._positions(), 0, 0, 1, 2)
         middle.addWidget(self._insights(), 0, 2)
         middle.setColumnStretch(0, 2)
         middle.setColumnStretch(1, 2)
@@ -79,26 +125,124 @@ class OverviewPage(PageContent):
         bottom.setColumnStretch(2, 2)
         self.page_layout.addLayout(bottom)
 
-    @staticmethod
-    def _metrics() -> QHBoxLayout:
+    def _metrics(self) -> QHBoxLayout:
         row = QHBoxLayout()
         row.setSpacing(14)
-        items = (
-            ("PATRIMÔNIO TOTAL", "R$ 125.430,28", "+ R$ 4.820 este mês", "wallet", "positive", "Soma demonstrativa dos ativos da carteira."),
-            ("RENTABILIDADE", "+12,42%", "+1,84% no período", "analytics", "positive", "Variação percentual acumulada da carteira no período selecionado."),
-            ("RESULTADO", "+R$ 13.870,42", "Ganho não realizado", "overview", "positive", "Diferença demonstrativa entre valor atual e valor investido."),
-            ("APORTE MÉDIO", "R$ 2.500,00", "Média dos últimos 6 meses", "cashflow", "neutral", "Média demonstrativa dos aportes mensais."),
-        )
-        for label, value, detail, icon_name, trend, tooltip in items:
-            row.addWidget(
-                MetricCard(label, value, detail, icon(icon_name, "#10C7C7"), trend, tooltip),
-                1,
-            )
+        self.metrics: dict[str, MetricCard] = {}
+        for key, label in (
+            ("portfolios", "CARTEIRAS"),
+            ("positions", "POSIÇÕES ABERTAS"),
+            ("cost", "CUSTO DAS POSIÇÕES"),
+            ("realized", "RESULTADO REALIZADO"),
+            ("transactions", "MOVIMENTAÇÕES"),
+        ):
+            card = MetricCard(label, "—", "Ledger local")
+            self.metrics[key] = card
+            row.addWidget(card, 1)
         return row
+
+    def set_financial_data(
+        self,
+        portfolio_id: int | None,
+        portfolios_count: int | None,
+        result: ReconstructionResult,
+        summary: FinancialSummary | None,
+    ) -> None:
+        self.metrics["portfolios"].value_label.setText(
+            str(portfolios_count) if portfolios_count is not None else "—"
+        )
+        self.context_label.setText(
+            f"Carteira #{portfolio_id} • valores a custo e resultado realizado"
+            if portfolio_id
+            else "Selecione uma carteira para consultar suas posições."
+        )
+        values = (
+            {
+                "positions": str(summary.positions_count),
+                "cost": money_text(summary.cost_basis),
+                "realized": money_text(summary.realized_profit_loss),
+                "transactions": str(summary.transactions_count),
+            }
+            if summary is not None
+            else {}
+        )
+        for key in ("positions", "cost", "realized", "transactions"):
+            self.metrics[key].value_label.setText(values.get(key, "—"))
+        replace_rows(
+            self.positions_table, [row + ("—",) * 4 for row in position_rows(result)]
+        )
+        self.positions_empty.setVisible(not result.positions)
+        self.positions_empty.setText(
+            "Nenhuma posição aberta nesta carteira."
+            if portfolio_id
+            else "Selecione uma carteira."
+        )
+
+    def clear_market_data(self, message: str) -> None:
+        self._clear_valuation_chart()
+        self.chart_feedback.setText(message)
+        for key in ("market", "unrealized", "total", "return"):
+            self.metrics[key].value_label.setText("—")
+        self.market_feedback.setText(message)
+
+    def set_market_data(self, valuation: PortfolioValuation) -> None:
+        for key, amount in (
+            ("market", valuation.current_market_value),
+            ("unrealized", valuation.unrealized_profit_loss),
+            ("total", valuation.total_profit_loss),
+        ):
+            self.metrics[key].value_label.setText(currency_text(amount))
+        self.metrics["return"].value_label.setText(
+            percent_text(valuation.unrealized_return)
+        )
+        apply_valuation(self.positions_table, valuation)
+        self.market_feedback.setText(market_status(valuation))
+        self._clear_valuation_chart()
+        available = [
+            item
+            for item in valuation.positions
+            if item.quote is not None
+            and item.quote.currency == "BRL"
+            and item.market_value is not None
+        ]
+        self.chart_feedback.setText(
+            "Somente posições BRL com cotação disponível; valores de mercado das posições abertas, sem caixa."
+            if available
+            else "Nenhuma posição BRL com cotação para exibir."
+        )
+        if available:
+            # Qt chart coordinates are floats; all financial calculations stay Decimal.
+            self.valuation_chart = bar_chart(
+                [item.position.asset.symbol for item in available],
+                (
+                    (
+                        "Custo do ledger",
+                        [float(item.position.cost_basis) for item in available],
+                        "#4D7CFF",
+                    ),
+                    (
+                        "Valor atual",
+                        [
+                            float(item.market_value)
+                            for item in available
+                            if item.market_value is not None
+                        ],
+                        "#10C7C7",
+                    ),
+                ),
+            )
+            self.valuation_chart_card.content.addWidget(self.valuation_chart)
+
+    def _clear_valuation_chart(self) -> None:
+        if self.valuation_chart is not None:
+            self.valuation_chart_card.content.removeWidget(self.valuation_chart)
+            self.valuation_chart.deleteLater()
+            self.valuation_chart = None
 
     @staticmethod
     def _evolution() -> SectionCard:
         card = SectionCard("Evolução Patrimonial")
+        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
         filters = QHBoxLayout()
         filters.addStretch()
         for label in ("1M", "3M", "6M", "1A", "Máx"):
@@ -124,6 +268,7 @@ class OverviewPage(PageContent):
     @staticmethod
     def _allocation() -> SectionCard:
         card = SectionCard("Alocação da Carteira", "Ver carteira completa  →")
+        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
         row = QHBoxLayout()
         chart = donut_chart(ALLOCATION)
         chart.setMaximumWidth(255)
@@ -147,21 +292,9 @@ class OverviewPage(PageContent):
         return card
 
     @staticmethod
-    def _positions() -> SectionCard:
-        card = SectionCard("Principais Posições", "Ver todas")
-        table = DataTable(("ATIVO", "VALOR ATUAL", "PARTICIPAÇÃO", "RESULTADO"), POSITIONS)
-        table.setMaximumHeight(255)
-        for row in range(table.rowCount()):
-            result = table.item(row, 3)
-            if result is None:
-                continue
-            result.setForeground(QColor("#3DDC84" if not result.text().startswith("-") else "#FF5C6C"))
-        card.content.addWidget(table)
-        return card
-
-    @staticmethod
     def _insights() -> SectionCard:
         card = SectionCard("NEXO Insights")
+        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
         card.setMinimumWidth(260)
         badge = Badge("ATENÇÃO", "WarningBadge")
         title = QLabel("Concentração da carteira")
@@ -187,6 +320,7 @@ class OverviewPage(PageContent):
     @staticmethod
     def _cashflow() -> SectionCard:
         card = SectionCard("Fluxo Financeiro")
+        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
         stats = QHBoxLayout()
         for label, value, kind in (
             ("Entradas", "R$ 9.800", "Positive"),
@@ -215,6 +349,7 @@ class OverviewPage(PageContent):
     @staticmethod
     def _goals() -> SectionCard:
         card = SectionCard("Metas", "Ver todas")
+        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
         for name, _category, current, target, progress, _deadline in GOALS[:2]:
             title = QLabel(f"{name}    {progress}%")
             title.setObjectName("SectionTitle")
@@ -232,6 +367,7 @@ class OverviewPage(PageContent):
     @staticmethod
     def _alerts() -> SectionCard:
         card = SectionCard("Alertas Recentes", "Ver todos  →")
+        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
         for name, _condition, _state, checked in ALERTS:
             row = QHBoxLayout()
             marker = QLabel("●")
@@ -260,7 +396,9 @@ class OverviewPage(PageContent):
             button.setObjectName("QuickAction")
             button.setProperty("dialogKey", key)
             button.setIcon(icon("plus", "#10C7C7"))
-            button.clicked.connect(lambda _checked=False, value=key: self.dialog_requested.emit(value))
+            button.clicked.connect(
+                lambda _checked=False, value=key: self.dialog_requested.emit(value)
+            )
             grid.addWidget(button, index // 2, index % 2)
         card.content.addLayout(grid)
         return card

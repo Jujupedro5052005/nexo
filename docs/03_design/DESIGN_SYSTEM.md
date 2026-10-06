@@ -49,7 +49,7 @@ discretas, preenchimento interno entre 14 e 18 px e não usam sombras pesadas.
 - `PageContent`: conteúdo rolável, mantendo sidebar e topbar fixas;
 - gráficos QtCharts: linha, barras e donut, sempre redimensionáveis;
 - diálogos: título, campos e feedback; criação de carteira funcional, demais
-  formulários demonstrativos.
+  formulários demonstrativos, exceto compra/venda funcional.
 
 Os ícones são vetores desenhados com `QPainter` em `src/nexo/ui/icons.py`. Isso
 mantém estilo uniforme sem imagens raster ou dependência adicional.
@@ -74,6 +74,47 @@ mensagem de que a conexão será feita posteriormente. Opções não disponívei
 como tema claro e exportação local, permanecem desabilitadas ou marcadas “Em
 breve”.
 
-Gráficos atuais são widgets reais alimentados por dados demonstrativos. Eles não
-comprovam a implementação de métricas financeiras nem atendem sozinhos ao
-requisito de gráficos baseados em dados reais da carteira.
+Gráficos demonstrativos permanecem rotulados; gráficos de fechamento em Ativos
+e custo versus valor em Visão Geral usam dados reais no incremento 04.
+
+## Integração financeira — Grande Incremento 03
+
+Carteiras mantém seleção por ID e adiciona posições e cards com capital alocado
+a custo, realizado, número de ativos e movimentações. Carteira sem operações
+mantém estado vazio real. Carteira encerrada pode ter histórico e resultado
+realizado, mesmo sem posições abertas.
+
+Movimentações utiliza histórico do SQLite, filtros de tipo/ativo/período e busca
+por símbolo. Colunas incluem data/hora, BUY/SELL, ativo, quantidade, preço, taxas,
+bruto e total/líquido. Não há ações enganosas de editar/excluir.
+TransactionDialog tem somente BUY/SELL, carteira global, símbolo, quantidade,
+preço, taxas e data/hora; aceita somente após commit e apresenta erros legíveis.
+
+Visão Geral separa uma área real de métricas/posições de seções demonstrativas
+identificadas individualmente. Custo de posições não é patrimônio de mercado;
+cotações e valor de mercado são indisponíveis na área real. As demais páginas
+mantêm seus badges demonstrativos. Valores monetários formatam duas casas apenas
+na apresentação; quantidade preserva seus dígitos, sem converter para float.
+
+
+## Mercado — Grande Incremento 04
+
+Ativos substitui dados inline/demo por busca, cotação e gráfico real de fechamento.
+Há estados buscando/carregando, vazio, sem acesso/limite/indisponível; falha limpa
+valor/série anterior. Período da série é próprio (1M/3M/1A), separado do seletor
+global ainda desabilitado. Fonte, moeda, horário de mercado e consulta aparecem
+nos detalhes; ausência de horário não é ocultada.
+
+Carteiras e Visão Geral acrescentam preço atual, valor, não realizado e retorno
+aberto às posições. Cards de carteira incluem valor/não realizado/total; Overview
+mantém KPIs locais e adiciona KPIs de mercado e barras reais de custo/valor das
+posições BRL cotadas. Não chama esse valor de patrimônio total. Métricas faltantes
+usam “—”, com motivo e tooltip por ativo; agregado incompleto nunca soma parcial.
+
+Atualizar mercado (topbar) e Atualizar ativo são ações manuais reais. Novos botões
+usam PrimaryButton/SecondaryButton; texto dos KPIs quebra linha para preservar
+largura e tabela selecionada mantém contraste. Revisão de outras escalas pendente.
+
+Evolução patrimonial, alocação por categoria, insights, caixa, metas e alertas
+continuam abaixo da separação demo, com badges individuais. Um gráfico indisponível
+na área real não recebe dataset demonstrativo como fallback.

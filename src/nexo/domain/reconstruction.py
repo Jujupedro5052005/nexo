@@ -18,14 +18,8 @@ class ReconstructionResult:
     closed_positions: tuple[Position, ...]
 
 
-def rebuild_positions(transactions: Iterable[Transaction]) -> ReconstructionResult:
-    """Replay chronologically, then by known ID, then stable input order.
-
-    At equal timestamps known IDs precede missing IDs. Missing IDs and complete
-    ties retain input order. Output is sorted by portfolio ID and asset symbol.
-    All timestamps must be naive, or all aware (normalized to UTC).
-    Arithmetic uses a fresh local Decimal context, at least 50 significant digits.
-    """
+def order_transactions(transactions: Iterable[Transaction]) -> list[Transaction]:
+    """Official order shared by ledger reads and reconstruction."""
     history = list(transactions)
     if any(not isinstance(item, Transaction) for item in history):
         raise DomainValidationError("history must contain Transaction objects.")
@@ -39,8 +33,21 @@ def rebuild_positions(transactions: Iterable[Transaction]) -> ReconstructionResu
             date = date.astimezone(timezone.utc)
         return date, item.id is None, item.id if item.id is not None else 0
 
+    return sorted(history, key=order)
+
+
+def rebuild_positions(transactions: Iterable[Transaction]) -> ReconstructionResult:
+    """Replay chronologically, then by known ID, then stable input order.
+
+    At equal timestamps known IDs precede missing IDs. Missing IDs and complete
+    ties retain input order. Output is sorted by portfolio ID and asset symbol.
+    All timestamps must be naive, or all aware (normalized to UTC).
+    Arithmetic uses a fresh local Decimal context, at least 50 significant digits.
+    """
+    history = order_transactions(transactions)
+
     groups: dict[tuple[int, Asset], list[Transaction]] = {}
-    for item in sorted(history, key=order):
+    for item in history:
         groups.setdefault((item.portfolio_id, item.asset), []).append(item)
     snapshots = [_rebuild_position(group) for group in groups.values()]
     snapshots.sort(key=lambda p: (p.portfolio_id, p.asset.symbol))
@@ -73,16 +80,15 @@ def _rebuild_position(history: list[Transaction]) -> Position:
             realized = previous.realized_profit_loss
             if item.transaction_type is TransactionType.BUY:
                 quantity = previous.quantity + item.quantity
-                basis = (
-                    previous.cost_basis + item.quantity * item.unit_price + item.fees
-                )
+                basis = previous.cost_basis + item.amounts()[1]
                 average = basis / quantity
             else:
                 if item.quantity > previous.quantity:
                     raise InsufficientPositionError(
-                        f"Insufficient position: portfolio {item.portfolio_id}, "
-                        f"{item.asset.symbol}, available {previous.quantity}, "
-                        f"requested {item.quantity}."
+                        item.portfolio_id,
+                        item.asset.symbol,
+                        previous.quantity,
+                        item.quantity,
                     )
                 quantity = previous.quantity - item.quantity
                 # Consume the exact remaining basis on closure, including any
@@ -92,7 +98,7 @@ def _rebuild_position(history: list[Transaction]) -> Position:
                     if quantity == 0
                     else item.quantity * previous.average_cost
                 )
-                realized += item.quantity * item.unit_price - item.fees - removed
+                realized += item.amounts()[1] - removed
                 basis = previous.cost_basis - removed if quantity else zero
                 average = previous.average_cost if quantity else zero
             previous = Position(

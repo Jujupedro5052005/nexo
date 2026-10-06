@@ -47,12 +47,14 @@ dependências. Algumas bibliotecas permanecem reservadas para etapas futuras.
 
 `default_database_path()` resolve `data/nexo.db` a partir de `session.py` no
 checkout instalado em modo editável, sem depender do current working directory.
-A inicialização cria o diretório e a tabela `portfolios`, sem apagar dados
+A inicialização cria o diretório e as tabelas `portfolios`/`transactions`, sem apagar dados
 existentes. Os testes usam bancos temporários próprios.
 
-O `.env` ainda não é carregado. As variáveis de banco, mercado e e-mail em
-`.env.example` permanecem exemplos para configuração futura; não alteram o
-caminho usado neste incremento. Nenhuma credencial é necessária. Não versione
+O `.env` é carregado opcionalmente para BRAPI_TOKEN/BRAPI_API_KEY e BRAPI_BATCH_SIZE.
+Ambiente exportado tem prioridade; app inicia sem token. Configurações legadas
+genéricas de banco, mercado e e-mail em `.env.example` permanecem exemplos para
+configuração futura; não alteram o banco ou adapter. Nenhuma credencial é necessária
+para iniciar e experimentar os tickers públicos. Não versione
 `.env` nem bancos locais. A distribuição executável/wheel fora do checkout e
 seu diretório de dados ainda não foram definidos.
 

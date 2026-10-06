@@ -3,43 +3,61 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
-    QVBoxLayout,
 )
 
+from nexo.application.portfolio.financial_summary import FinancialSummary
 from nexo.application.portfolio.list_portfolios import ListPortfolios
+from nexo.application.portfolio.load_portfolio_positions import LoadPortfolioPositions
+from nexo.calculations.valuation.portfolio import PortfolioValuation
+from nexo.domain.errors import DomainValidationError
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
+from nexo.domain.interfaces.transaction_repository import TransactionRepositoryError
 from nexo.domain.models.portfolio import Portfolio
-from nexo.ui.components.charts import line_chart
+from nexo.domain.reconstruction import ReconstructionResult
 from nexo.ui.components.common import (
     Badge,
     DataTable,
     PageContent,
     SectionCard,
-    connect_planned_action,
-    filter_buttons,
 )
 from nexo.ui.components.empty_state import EmptyState
-from nexo.ui.demo.data import ASSETS, DEMO_NOTICE
+from nexo.ui.financial_formatting import (
+    MARKET_HEADERS,
+    apply_valuation,
+    currency_text,
+    market_status,
+    money_text,
+    position_rows,
+    replace_rows,
+)
+from nexo.ui.pages.assets_page import AssetsPage as AssetsPage  # noqa: PLC0414
 
 
 class PortfoliosPage(PageContent):
     dialog_requested = Signal(str)
     portfolio_selected = Signal(int)
+    refreshed = Signal()
 
-    def __init__(self, list_portfolios: ListPortfolios) -> None:
+    def __init__(
+        self,
+        list_portfolios: ListPortfolios,
+        load_positions: LoadPortfolioPositions | None = None,
+    ) -> None:
         super().__init__("portfolios")
         self._list_portfolios = list_portfolios
+        self._load_positions = load_positions
+        self._summaries: dict[int, FinancialSummary] = {}
         self._portfolios: list[Portfolio] = []
         self.selected_portfolio_id: int | None = None
         self.selection_buttons: dict[int, QPushButton] = {}
+        self.market_labels: dict[int, tuple[QLabel, QLabel, QLabel]] = {}
         actions = QHBoxLayout()
         actions.addWidget(Badge("Carteiras locais"))
         actions.addStretch()
         refresh = QPushButton("Atualizar")
         refresh.setObjectName("SecondaryButton")
-        refresh.clicked.connect(self.reload)
+        refresh.clicked.connect(self._reload_and_notify)
         actions.addWidget(refresh)
         create = QPushButton("+  Nova carteira")
         create.setObjectName("PrimaryButton")
@@ -70,20 +88,53 @@ class PortfoliosPage(PageContent):
         self.cards = QGridLayout()
         self.cards.setSpacing(14)
         self.page_layout.addLayout(self.cards)
+        positions = SectionCard("Posições abertas — carteira selecionada")
+        self.positions_table = DataTable(MARKET_HEADERS, [])
+        self.positions_table.setObjectName("portfolio_positions_table")
+        positions.content.addWidget(self.positions_table)
+        self.positions_empty = QLabel(
+            "Selecione uma carteira para consultar suas posições."
+        )
+        positions.content.addWidget(self.positions_empty)
+        self.market_feedback = QLabel("Mercado ainda não consultado.")
+        self.market_feedback.setWordWrap(True)
+        positions.content.addWidget(self.market_feedback)
+        self.page_layout.addWidget(positions)
         self.page_layout.addStretch()
         self.reload()
+
+    def _reload_and_notify(self) -> None:
+        if self.reload():
+            self.refreshed.emit()
 
     def reload(self) -> bool:
         """Replace displayed data only after a successful repository read."""
         try:
             portfolios = self._list_portfolios.execute()
-        except PortfolioRepositoryError:
-            self.feedback.setText("Não foi possível carregar as carteiras. Tente atualizar.")
+            summaries = (
+                {
+                    p.id: self._load_positions.summary(p.id)
+                    for p in portfolios
+                    if p.id is not None
+                }
+                if self._load_positions is not None
+                else {}
+            )
+        except (
+            PortfolioRepositoryError,
+            TransactionRepositoryError,
+            DomainValidationError,
+        ):
+            self.feedback.setText(
+                "Não foi possível carregar as carteiras. Tente atualizar."
+            )
             self.feedback.show()
             return False
         self.feedback.hide()
         self._portfolios = portfolios
+        self._summaries = summaries
         self.selection_buttons.clear()
+        self.market_labels.clear()
         while self.cards.count():
             item = self.cards.takeAt(0)
             if item is not None and (widget := item.widget()) is not None:
@@ -99,29 +150,71 @@ class PortfoliosPage(PageContent):
         card = SectionCard(portfolio.name)
         card.setProperty("portfolioId", portfolio.id)
         card.content.addWidget(Badge(f"Carteira #{portfolio.id}"))
-        card.content.addWidget(QLabel("Carteira vazia"))
-        metadata = QLabel("0 ativos  •  Sem movimentações")
+        summary = (
+            self._summaries.get(portfolio.id) if portfolio.id is not None else None
+        )
+        if summary is None or summary.transactions_count == 0:
+            card.content.addWidget(QLabel("Carteira vazia"))
+            metadata = QLabel("0 ativos  •  Sem movimentações")
+        else:
+            metadata = QLabel(
+                f"{summary.positions_count} ativos • {summary.transactions_count} movimentações"
+            )
+            card.content.addWidget(
+                QLabel(f"Capital alocado a custo: {money_text(summary.cost_basis)}")
+            )
+            card.content.addWidget(
+                QLabel(
+                    f"Resultado realizado: {money_text(summary.realized_profit_loss)}"
+                )
+            )
         metadata.setObjectName("SecondaryText")
         card.content.addWidget(metadata)
         if portfolio.id is not None:
+            labels = (
+                QLabel("Valor atual: —"),
+                QLabel("Não realizado: —"),
+                QLabel("Resultado total: —"),
+            )
+            self.market_labels[portfolio.id] = labels
+            for label in labels:
+                card.content.addWidget(label)
             button = QPushButton("Selecionar")
             button.setObjectName("FilterButton")
             button.setCheckable(True)
             button.setProperty("portfolioId", portfolio.id)
-            button.setAccessibleName(f"Selecionar {portfolio.name}, carteira {portfolio.id}")
+            button.setAccessibleName(
+                f"Selecionar {portfolio.name}, carteira {portfolio.id}"
+            )
             button.clicked.connect(
-                lambda _checked=False, portfolio_id=portfolio.id: self._select(portfolio_id)
+                lambda _checked=False, portfolio_id=portfolio.id: self._select(
+                    portfolio_id
+                )
             )
             self.selection_buttons[portfolio.id] = button
             card.content.addWidget(button)
         return card
+
+    def set_financial_data(
+        self, portfolio_id: int | None, result: ReconstructionResult
+    ) -> None:
+        replace_rows(
+            self.positions_table, [row + ("—",) * 4 for row in position_rows(result)]
+        )
+        self.positions_empty.setVisible(not result.positions)
+        self.positions_empty.setText(
+            "Nenhuma posição aberta nesta carteira."
+            if portfolio_id
+            else "Selecione uma carteira para consultar suas posições."
+        )
 
     def set_selected_portfolio(self, portfolio_id: int | None) -> None:
         selected = next((p for p in self._portfolios if p.id == portfolio_id), None)
         self.selected_portfolio_id = selected.id if selected is not None else None
         self.selection_label.setText(
             f"Selecionada: {selected.name}  •  Carteira #{selected.id}"
-            if selected is not None else "Nenhuma carteira selecionada"
+            if selected is not None
+            else "Nenhuma carteira selecionada"
         )
         for identity, button in self.selection_buttons.items():
             checked = identity == self.selected_portfolio_id
@@ -133,72 +226,43 @@ class PortfoliosPage(PageContent):
         if self.selected_portfolio_id is not None:
             self.portfolio_selected.emit(self.selected_portfolio_id)
 
+    @property
+    def portfolio_ids(self) -> tuple[int, ...]:
+        return tuple(p.id for p in self._portfolios if p.id is not None)
 
-class AssetsPage(PageContent):
-    dialog_requested = Signal(str)
+    def set_market_data(
+        self, values: dict[int, PortfolioValuation], selected_id: int | None
+    ) -> None:
+        for identity, labels in self.market_labels.items():
+            valuation = values.get(identity)
+            amounts = (
+                (
+                    valuation.current_market_value,
+                    valuation.unrealized_profit_loss,
+                    valuation.total_profit_loss,
+                )
+                if valuation
+                else (None, None, None)
+            )
+            for label, title, amount in zip(
+                labels,
+                ("Valor atual", "Não realizado", "Resultado total"),
+                amounts,
+                strict=True,
+            ):
+                label.setText(f"{title}: {currency_text(amount)}")
+                label.setToolTip(
+                    market_status(valuation) if valuation else "Sem cotação"
+                )
+        if selected_id in values:
+            value = values[selected_id]
+            apply_valuation(self.positions_table, value)
+            self.market_feedback.setText(market_status(value))
 
-    def __init__(self) -> None:
-        super().__init__("assets")
-        top = QHBoxLayout()
-        top.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
-        top.addStretch()
-        self.page_layout.addLayout(top)
-        search_row = QHBoxLayout()
-        search = QLineEdit()
-        search.setObjectName("asset_search")
-        search.setPlaceholderText("Buscar ativo por código ou nome")
-        search.setMinimumHeight(42)
-        search_button = QPushButton("Buscar")
-        search_button.setObjectName("PrimaryButton")
-        connect_planned_action(
-            search_button,
-            "A consulta externa será conectada em uma próxima etapa.",
-        )
-        search_row.addWidget(search, 1)
-        search_row.addWidget(search_button)
-        self.page_layout.addLayout(search_row)
-        self.page_layout.addLayout(filter_buttons(("Todos", "Ações", "FIIs", "ETFs", "Renda fixa", "Cripto", "Internacional")))
-
-        body = QGridLayout()
-        body.setSpacing(14)
-        list_card = SectionCard("Ativos encontrados")
-        table = DataTable(("CÓDIGO", "NOME", "TIPO", "PREÇO", "VARIAÇÃO", "NA CARTEIRA?"), ASSETS)
-        table.setObjectName("assets_table")
-        table.selectRow(0)
-        list_card.content.addWidget(table)
-        body.addWidget(list_card, 0, 0, 1, 2)
-        body.addWidget(self._details(), 0, 2)
-        body.setColumnStretch(0, 2)
-        body.setColumnStretch(1, 2)
-        body.setColumnStretch(2, 2)
-        self.page_layout.addLayout(body)
-        self.page_layout.addStretch()
-
-    def _details(self) -> SectionCard:
-        card = SectionCard("PETR4  ·  Petrobras PN")
-        value = QLabel("R$ 36,82")
-        value.setObjectName("MetricValue")
-        change = QLabel("+1,24% hoje")
-        change.setObjectName("Positive")
-        stats = QGridLayout()
-        for index, (label, amount) in enumerate((
-            ("Máxima", "R$ 37,10"), ("Mínima", "R$ 35,92"),
-            ("Volume", "R$ 1,2 bi"), ("P/L", "4,82"), ("Dividend Yield", "12,1%"),
-        )):
-            caption = QLabel(label)
-            caption.setObjectName("SecondaryText")
-            number = QLabel(amount)
-            stats.addWidget(caption, (index // 2) * 2, index % 2)
-            stats.addWidget(number, (index // 2) * 2 + 1, index % 2)
-        card.content.addWidget(value)
-        card.content.addWidget(change)
-        card.content.addLayout(stats)
-        card.content.addWidget(line_chart((("Preço", [34, 35, 34.6, 36, 35.8, 36.82], "#10C7C7"),), 170))
-        actions = QVBoxLayout()
-        for label, key in (("Adicionar à carteira", "asset"), ("Criar alerta", "alert"), ("Analisar ativo", "notice")):
-            button = QPushButton(label)
-            button.setObjectName("PrimaryButton" if key == "asset" else "SecondaryButton")
-            button.clicked.connect(lambda _checked=False, value=key: self.dialog_requested.emit(value))
-            actions.addWidget(button)
-        card.content.addLayout(actions)
-        return card
+    def clear_market_data(self, message: str) -> None:
+        for labels in self.market_labels.values():
+            for label, title in zip(
+                labels, ("Valor atual", "Não realizado", "Resultado total"), strict=True
+            ):
+                label.setText(f"{title}: —")
+        self.market_feedback.setText(message)

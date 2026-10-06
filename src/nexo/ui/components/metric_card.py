@@ -26,6 +26,7 @@ class MetricCard(QFrame):
         top = QHBoxLayout()
         label_widget = QLabel(label)
         label_widget.setObjectName("MetricLabel")
+        label_widget.setWordWrap(True)
         top.addWidget(label_widget)
         top.addStretch()
         if icon is not None:
@@ -34,9 +35,15 @@ class MetricCard(QFrame):
             top.addWidget(icon_label)
         value_widget = QLabel(value)
         value_widget.setObjectName("MetricValue")
+        self.value_label = value_widget
         detail_widget = QLabel(detail)
+        detail_widget.setWordWrap(True)
         detail_widget.setObjectName(
-            "Positive" if trend == "positive" else "Negative" if trend == "negative" else "MetricDetail"
+            "Positive"
+            if trend == "positive"
+            else "Negative"
+            if trend == "negative"
+            else "MetricDetail"
         )
         layout.addLayout(top)
         layout.addWidget(value_widget)

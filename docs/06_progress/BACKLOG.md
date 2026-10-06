@@ -21,46 +21,47 @@
 ## P1 — Persistência
 
 - [x] Implementar schema de `portfolios(id, name)`.
-- [ ] Definir e implementar schema de `transactions`.
+- [x] Definir e implementar schema de `transactions`.
 - [x] Implementar abstração e PortfolioRepository SQLAlchemy concreto.
-- [ ] Implementar `TransactionRepository` por carteira.
+- [x] Implementar `TransactionRepository` por carteira.
 - [x] Mapear Portfolio ORM/domínio sem contaminar Domain/Application.
 - [x] Testar rollback e reabertura de carteiras.
-- [ ] Testar vínculo de transações e preservação decimal.
+- [x] Testar vínculo de transações e preservação decimal.
 
 ## P1 — Casos de uso de carteira
 
 - [x] Criar e listar carteiras pelos casos de uso.
 - [ ] Atualizar e excluir carteiras conforme políticas definidas.
-- [ ] Registrar compra e venda.
-- [ ] Carregar carteira e reconstruir posições.
-- [ ] Rejeitar venda insuficiente sem gravação parcial.
+- [x] Registrar compra e venda.
+- [x] Carregar carteira e reconstruir posições.
+- [x] Rejeitar venda insuficiente sem gravação parcial.
 - [ ] Comparar carteiras por métricas definidas.
 
 ## P1 — Integração de mercado
 
-- [ ] Selecionar provedor e registrar restrições.
-- [ ] Definir `MarketDataProvider` mínimo.
-- [ ] Implementar adaptador em `infrastructure/market_data/adapters`.
-- [ ] Tratar timeout, erros, limites e credenciais.
-- [ ] Testar com provider falso e integração separada.
+- [x] Selecionar provedor e registrar restrições.
+- [x] Definir `MarketDataProvider` mínimo.
+- [x] Implementar adaptador em `infrastructure/market_data/adapters`.
+- [x] Tratar timeout, erros, limites e credenciais.
+- [x] Testar com provider falso e integração separada.
 
 ## P1 — UI
 
 - [x] Implementar shell, navegação e seleção explícita de carteira por ID.
 - [x] Integrar formulário de criação e estado vazio de carteiras reais.
-- [ ] Integrar formulários de compra e venda.
-- [ ] Exibir histórico, posições e estados vazios.
-- [ ] Integrar mercado sem HTTP direto.
+- [x] Integrar formulários de compra e venda.
+- [x] Exibir histórico, posições e estados vazios.
+- [x] Integrar mercado sem HTTP direto.
 - [x] Cobrir criar/listar/selecionar com pytest-qt e reabertura SQLite.
 - [ ] Cobrir fluxos financeiros e roteiro interativo Windows.
 
 ## P2 — Dashboard e análise
 
 - [ ] Definir métricas e período de comparação.
-- [ ] Implementar dashboard e gráficos funcionais.
-- [ ] Integrar cálculos priorizados de `calculations`.
-- [ ] Exibir valor atual e rentabilidade quando houver cotação.
+- [x] Implementar KPIs, custo/valor aberto e gráfico real de ativo.
+- [ ] Evolução histórica de carteira, benchmarks e análises adicionais.
+- [x] Integrar cálculos priorizados de `calculations`.
+- [x] Exibir valor atual e rentabilidade quando houver cotação.
 
 ## P3 — Alertas
 
@@ -81,9 +82,32 @@
 - [ ] Preparar demonstrações e explicações técnicas.
 - [ ] Validar checklist final no Windows.
 
-## Entrega do incremento 02
+## Entrega histórica do incremento 02
 
 Domínio e replay concluídos em memória. Rejeição de saldo insuficiente é regra
 testada do domínio; caso de uso com garantia de gravação atômica permanece
 pendente até o ledger persistente. Arredondamento visual é futuro; o contexto
 matemático Decimal local está definido e testado.
+
+## Grande Incremento 03 entregue
+
+Ledger CREATE/READ, validação integral antes do INSERT, FK, Decimal/datetime
+preservados, rollback, schema antigo, formulário financeiro, parser, filtros,
+reabertura, posições e resumos reais concluídos. A garantia financeira assume
+uma instância escritora local; suporte a escritores concorrentes é futuro.
+O item de roteiro interativo Windows/DPI permanece aberto apesar dos testes UI.
+Dashboard tem métricas reais, mas gráficos de mercado continuam demonstrativos;
+Comparação, edição/exclusão e complementos seguem pendentes. API entregue no 04.
+
+
+## Grande Incremento 04 entregue
+
+brapi v2, token opcional, HTTP isolado, Decimal direto, batch entre carteiras,
+falhas parciais/offline, histórico/busca, valuation BRL e workers Qt com gerações.
+Ativos real; Carteiras/Overview com métricas/posições e gráfico de custo/valor.
+Sem persistir quotes/valuation, sem conversões de moeda/ticker fictícias.
+
+Próximo incremento recomendado: comparação de carteiras por métricas existentes,
+com denominadores, moedas e disponibilidade explícitos. Não implementado aqui.
+Cache TTL, escrituras concorrentes, edição/exclusão e cancelamento HTTP instantâneo
+somente se caso de uso posterior justificar. Demos complementares ainda pendentes.

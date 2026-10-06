@@ -8,14 +8,33 @@ não mantém custódia e não oferece recomendação personalizada.
 
 ## Status
 
-**Incremento funcional 01: criar, listar e selecionar carteiras persistentes.**
-A página Carteiras usa dados reais de `Portfolio`, aceita nomes iguais com IDs
-distintos e preserva as carteiras após reinício. A seleção vive somente na
-sessão atual. Carteiras vazias não exibem métricas fictícias.
+**Grande Incremento 04: mercado real, valuation e dashboard.**
+Crie/selecione uma carteira, registre BUY/SELL simulados, consulte o ledger e
+posições, e reencontre as operações após reabrir o aplicativo. Carteiras e Visão
+Geral exibem custo, realizado e contagens locais; cotações disponíveis da brapi
+adicionam valor das posições abertas, não realizado, resultado total e retorno
+sobre o custo aberto. O dashboard inclui gráfico real de custo versus valor.
 
-As outras nove páginas continuam demonstrativas. Transações, posições,
-cálculos financeiros, mercado, comparação, edição e exclusão de carteiras
-ainda não foram implementados.
+Em Ativos, busque código/nome (ex.: PETR), selecione PETR4 e consulte cotação,
+moeda, variação e histórico diário de 1 mês, 3 meses ou 1 ano. O gráfico usa
+fechamentos da API; período, fonte e horários ficam identificados.
+
+Sem internet/token válido, o ledger continua funcionando. Métricas de mercado
+indisponíveis mostram “—”, nunca um preço demo. Sem token, os símbolos públicos
+PETR4, VALE3, ITUB4 e MGLU3 permitem experimentar a integração; busca do catálogo
+não exige autenticação. Acesso/períodos/limites dependem do plano e da API.
+
+Evolução patrimonial histórica, alocação por categoria, benchmarks, insights,
+fluxo de caixa, metas, alertas, planejamento e análises complementares permanecem
+demo, rotulados por seção. Mercado das posições abertas não é patrimônio total:
+caixa/aportes/retiradas ainda não são modelados. Edição/exclusão e comparação
+continuam pendentes. Não há persistência de quotes, posições ou valuation.
+
+Entradas numéricas aceitam `10`, `10,50`, `10.50`, `0,25`, `0.25` e `1.234,56`.
+Um ponto isolado é decimal: `1.234` representa 1,234. Agrupamento brasileiro
+exige vírgula decimal. Quantidade/preço são positivos; taxas podem ser zero.
+Não use prefixo R$, sinais ou notação exponencial no formulário. Datas da UI
+são horários sem fuso; o armazenamento não lhes atribui timezone.
 
 ## Funcionalidades previstas
 
@@ -31,15 +50,17 @@ Planejamento, educação, IA e notificações externas são complementos futuros
 ## Arquitetura
 
 ```text
-UI -> Application -> Domain + PortfolioRepository
+UI -> Application -> Domain + contratos de repositories / MarketDataProvider
                                   ^
-                 SqlAlchemyPortfolioRepository -> SQLite
+                 Implementações SQLAlchemy -> SQLite (portfolios + transactions)
 
+MarketDataProvider <- BrapiMarketDataProvider -> httpx -> brapi v2
+Application -> Calculations (valuation Decimal)
 main.py compõe as dependências.
 ```
 
-O primeiro fluxo usa Python, PySide6, SQLite e SQLAlchemy. Calculations está
-reservada aos cálculos futuros. HTTP e outras integrações ainda não existem.
+O fluxo usa Python, PySide6, SQLite, SQLAlchemy e httpx. HTTP fica exclusivamente
+na Infrastructure; workers Qt executam casos de uso fora da thread de interface.
 
 ## Instalação e execução
 
@@ -70,8 +91,29 @@ python3 -m venv .venv
 
 `requirements.txt` é a fonte única das dependências de execução, lida pelo
 setuptools em `pyproject.toml`. O banco `data/nexo.db` é criado na raiz deste
-checkout, independentemente da pasta de onde a aplicação é iniciada. O `.env`
-não é necessário nem carregado neste incremento.
+checkout, independentemente da pasta de onde a aplicação é iniciada.
+
+## Configuração de mercado
+
+O app carrega opcionalmente `.env` da raiz do checkout, preservando variáveis já
+exportadas pelo ambiente. Copie `.env.example` para `.env` e preencha apenas se
+precisar de acesso autenticado:
+
+```dotenv
+BRAPI_TOKEN=
+BRAPI_BATCH_SIZE=5
+```
+
+`BRAPI_API_KEY` também é aceito, com prioridade para `BRAPI_TOKEN`. O token viaja
+somente no header Bearer; não copie credenciais para código, testes ou logs.
+`.env` e variantes são ignorados pelo Git, exceto `.env.example`. As variáveis
+legadas genéricas MARKET_API_KEY/BASE_URL não configuram este adapter.
+O timeout é explícito de 10 segundos por operação de rede; não há polling ou
+retry automático. “Atualizar mercado” força consulta nova; “Atualizar ativo”
+atualiza cotação/histórico. Sem cache de provider ou tabela de preços; somente
+a última fotografia da tela é reutilizada enquanto o contexto não muda.
+
+[Integração, endpoints, fórmulas e restrições](docs/02_architecture/API_ARCHITECTURE.md).
 
 ## Verificações
 

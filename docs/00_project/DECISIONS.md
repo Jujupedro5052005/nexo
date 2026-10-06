@@ -21,8 +21,7 @@ devem receber ADR em `docs/02_architecture/decisions/`.
 | Cálculos em `calculations` | Indicadores, projeções, risco e valuation ficam fora da UI. |
 | Complementos não bloqueiam o núcleo | Planejamento, educação, IA e notificações externas têm prioridade inferior. |
 
-Permanecem sem decisão: provedor de mercado, estratégia assíncrona da UI,
-papel de `core` e uso efetivo de controllers/viewmodels. A localização do banco
+Permanecem sem decisão: papel de `core` e uso efetivo de controllers/viewmodels. A localização do banco
 para distribuição fora do checkout também permanece futura; no modo editável,
 o caminho é `<raiz do checkout>/data/nexo.db`, independente de cwd.
 
@@ -47,3 +46,43 @@ o caminho é `<raiz do checkout>/data/nexo.db`, independente de cwd.
 - Sem caso de uso artificial, mudança de UI ou tabela nova.
 
 Fórmulas e detalhes: [DOMAIN_MODEL.md](../02_architecture/DOMAIN_MODEL.md).
+
+## Grande Incremento 03 — decisões vigentes da integração
+
+O escopo foi ampliado por solicitação explícita: ledger e UI financeira no mesmo
+incremento, antecipando o fluxo antes previsto para 04. Decisões de escopo 02
+acima são históricas; as regras financeiras permanecem.
+
+- TransactionModel separado, FK ativa em toda conexão e IDs AUTOINCREMENT.
+- Decimal em TEXT via str/Decimal; datetime ISO TEXT preservando offset e naive.
+- CREATE/READ somente; Position permanece derivada, sem tabela ou repository.
+- RegisterTransaction reconstrói histórico completo antes de inserir, inclusive
+  retroatividade. Mesmo timestamp: novo ID maior conserva ordem validada.
+- Commit/rollback por operação; validação e escrita separadas, assumindo uma
+  instância escritora local. Concorrência entre escritores não é suportada.
+- Transaction.amounts centraliza política de taxas; UI só coleta/formata dados.
+- Parser com ponto/vírgula decimal; agrupamento brasileiro apenas com vírgula
+  decimal. Um ponto é decimal. Prefixos, sinais, expoentes e não finitos rejeitados.
+- Formulário captura datetime naive; não atribui timezone silenciosamente.
+- Dados locais reais em Carteiras/Movimentações/posições e métricas apropriadas
+  da Visão Geral. Cotações, gráficos de mercado e complementos seguem demo.
+- Após registro/troca, histórico, posições e resumo atualizam; falhas não expõem
+  detalhes SQL nem conservam dados selecionados de outra carteira.
+
+
+## Grande Incremento 04 — mercado e valuation
+
+- brapi v2 com httpx, ABC MarketDataProvider e erros seguros independentes.
+- Token opcional BRAPI_TOKEN (alias BRAPI_API_KEY), somente header Bearer.
+- Lotes deduplicados entre carteiras; chunk configurável por plano; falhas parciais.
+- Modelos de mercado imutáveis; JSON decimal lido com parse_float=Decimal.
+- Valuation em calculations: valor aberto, não realizado, total e retorno aberto.
+- Realizado vem exclusivamente do ledger, incluindo posições encerradas.
+- Ledger BRL; moeda estrangeira preservada por linha, agregado indisponível sem FX.
+- Dados ausentes não viram zero; carteira sem posições tem zero aberto legítimo.
+- QRunnable/QThreadPool, sinais enfileirados e gerações contra respostas atrasadas.
+- Refresh ao carregar/manual; sem cache do provider, somente fotografia da tela.
+- Quotes e valuation não são persistidos. Offline preserva registro histórico.
+- Renomeações/conversões de ticker não modificam automaticamente o ledger.
+
+Detalhes e documentação oficial: [API_ARCHITECTURE.md](../02_architecture/API_ARCHITECTURE.md).

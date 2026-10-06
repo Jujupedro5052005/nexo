@@ -40,9 +40,9 @@ funcionalidade implementada.
 com sessões por operação e conversão para entidades. `main.py` inicializa o
 schema e injeta os casos de uso na `MainWindow`.
 
-Somente Carteiras usa esse fluxo real. A seleção por ID vive na janela durante
-a sessão; as outras páginas continuam demonstrativas. O incremento 02 implementa
-o domínio financeiro em memória, sem conectar esse fluxo às telas.
+O incremento 03 amplia o fluxo real para Movimentações, posições e resumos de
+Carteiras/Visão Geral. A seleção por ID vive na janela durante a sessão;
+recursos complementares permanecem demonstrativos; mercado real foi entregue no 04.
 
 ## Responsabilidades
 
@@ -145,7 +145,7 @@ Erros de formato pertencem à UI, invariantes ao Domain, coordenação à
 Application e falhas técnicas à Infrastructure. Escritas devem evitar estado
 parcial; detalhes SQL e credenciais nunca chegam ao usuário.
 
-## Fluxo implementado no incremento 02
+## Fluxo histórico implementado no incremento 02
 
 Asset, Transaction e Position imutáveis estão em domain/models; TransactionType
 (BUY/SELL) em domain/enums. domain/reconstruction.py concentra replay por
@@ -156,3 +156,49 @@ e precisão estão em [DOMAIN_MODEL.md](DOMAIN_MODEL.md).
 Reconstrução usa somente biblioteca padrão e domínio. Não exige nova Application,
 repository ou integração ORM. Transaction permanece em memória; o diagrama de
 TransactionRepository acima representa o fluxo futuro. Position não é persistida.
+
+## Fluxo atual — Grande Incremento 03
+
+main.py compõe engine/session factory, repositories de Portfolio e Transaction,
+CreatePortfolio, ListPortfolios, RegisterTransaction, ListTransactions,
+LoadPortfolioPositions e MainWindow. UI não importa SQLAlchemy nem executa SQL.
+TransactionRepository é ABC mínima; implementação fica na Infrastructure.
+
+RegisterTransaction valida replay completo antes de add. ListTransactions usa a
+ordem oficial compartilhada com o replay. LoadPortfolioPositions reconstrói sem
+persistir snapshots; seu método summary fornece métricas para cards. A Application
+agrega custo/realizado preservando Decimal. Transaction.amounts centraliza
+bruto/total líquido e taxas, utilizado também pela reconstrução e apresentação.
+
+MainWindow.selected_portfolio_id coordena formulário, histórico, posições e
+resumos. Registro bem-sucedido atualiza imediatamente as três páginas; troca de
+carteira limpa dados antigos inclusive quando a leitura falha. Cards financeiros
+usam custo de aquisição, nunca uma cotação inventada. Demos são identificadas por
+seção. Dependências opcionais da MainWindow preservam construção do shell em
+testes antigos; main.py sempre injeta todos os casos de uso reais.
+
+Detalhes de TEXT Decimal, ISO datetime, IDs crescentes, FK e limitação de
+concorrência: [DATABASE.md](DATABASE.md). As seções dos incrementos 01/02 acima
+registram sua entrega histórica; o fluxo atual inclui persistência e UI.
+
+
+## Fluxo atual — Grande Incremento 04
+
+main.py também compõe MarketSettings, BrapiMarketDataProvider, GetAssetQuote,
+SearchAssets, GetAssetHistory e LoadPortfolioValuation. HTTP/JSON/autenticação
+ficam na Infrastructure; Application depende da ABC MarketDataProvider no Domain.
+calculations/valuation combina Position reconstruída e Quote com Decimal,
+produzindo ValuedPosition/PortfolioValuation sem HTTP, SQL ou Qt.
+
+MainWindow e AssetsPage delegam casos de uso a TaskRunner (QRunnable/QThreadPool).
+Sinais enfileirados entregam resultado na thread GUI, com gerações por contexto
+para descartar respostas atrasadas. Workers nunca acessam widgets. Sessões de
+banco continuam locais a cada operação. Encerramento espera workers antes de
+fechar provider/engine. Não há cache ou persistência de preços; refresh manual.
+
+Ledger permanece independente de mercado. Valuation agrega somente quando todas
+as posições podem ser expressas em BRL; ausências/moedas estrangeiras preservam
+linhas e métricas locais, mas tornam agregado de mercado indisponível. Gráficos
+Qt recebem float somente nas coordenadas, depois dos cálculos financeiros.
+
+Contrato, endpoints, fórmulas e limites: [API_ARCHITECTURE.md](API_ARCHITECTURE.md).

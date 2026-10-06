@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import Context, Decimal, localcontext
 
 from nexo.domain._validation import validate_decimal, validate_identity
 from nexo.domain.enums.transaction_type import TransactionType
@@ -34,6 +34,23 @@ class Transaction:
         validate_decimal(self.quantity, "quantity", positive=True)
         validate_decimal(self.unit_price, "unit_price", positive=True)
         validate_decimal(self.fees, "fees")
+
+    def amounts(self) -> tuple[Decimal, Decimal]:
+        """Return gross and settlement: buy fees add cost; sell fees reduce proceeds."""
+        values = (self.quantity, self.unit_price, self.fees)
+        span = (
+            max(n.adjusted() for n in values)
+            - min(int(n.as_tuple().exponent) for n in values)
+            + 1
+        )
+        with localcontext(Context(prec=max(50, 2 * span + 10))):
+            gross = self.quantity * self.unit_price
+            settlement = (
+                gross + self.fees
+                if self.transaction_type is TransactionType.BUY
+                else gross - self.fees
+            )
+            return gross, settlement
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Transaction):

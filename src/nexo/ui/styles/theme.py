@@ -66,6 +66,7 @@ QMenu::item {{ border-radius: 5px; padding: 7px 22px; }}
 QMenu::item:selected {{ background: #16404A; color: #E8FFFF; }}
 QCheckBox, QRadioButton {{ color: #CDD7E3; spacing: 8px; }}
 QTableWidget {{ background: transparent; alternate-background-color: #0E1A2B; border: none; gridline-color: #1C2A40; selection-background-color: #123B48; }}
+QTableWidget::item:selected {{ color: #F1F5F9; }}
 QTableWidget::item {{ border-bottom: 1px solid #1B293D; padding: 8px; }}
 QHeaderView::section {{ background: #0A1423; border: none; border-bottom: 1px solid {BORDER}; color: #8391A5; font-size: 10px; font-weight: 650; padding: 8px; }}
 QProgressBar {{ background: #152136; border: none; border-radius: 4px; min-height: 8px; max-height: 8px; text-align: center; }}

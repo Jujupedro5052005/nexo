@@ -1,6 +1,8 @@
 from collections.abc import Callable
+from typing import Any
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -13,9 +15,24 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from nexo.application.assets.market_data import (
+    GetAssetHistory,
+    GetAssetQuote,
+    SearchAssets,
+)
 from nexo.application.portfolio.create_portfolio import CreatePortfolio
+from nexo.application.portfolio.financial_summary import summarize_portfolio
 from nexo.application.portfolio.list_portfolios import ListPortfolios
+from nexo.application.portfolio.list_transactions import ListTransactions
+from nexo.application.portfolio.load_portfolio_positions import LoadPortfolioPositions
+from nexo.application.portfolio.load_portfolio_valuation import LoadPortfolioValuation
+from nexo.application.portfolio.register_transaction import RegisterTransaction
+from nexo.calculations.valuation.portfolio import PortfolioValuation
+from nexo.domain.errors import DomainValidationError
+from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
+from nexo.domain.interfaces.transaction_repository import TransactionRepositoryError
 from nexo.domain.models.portfolio import Portfolio
+from nexo.domain.reconstruction import ReconstructionResult
 from nexo.ui.components.common import Badge
 from nexo.ui.components.navigation_button import NavigationButton
 from nexo.ui.dialogs.forms import (
@@ -37,13 +54,26 @@ from nexo.ui.pages.analysis_reports_settings import (
 from nexo.ui.pages.goals_alerts import AlertsPage, GoalsPage
 from nexo.ui.pages.overview_page import OverviewPage
 from nexo.ui.pages.portfolio_assets import AssetsPage, PortfoliosPage
+from nexo.ui.workers import TaskRunner
 
 PAGE_INFO = (
-    ("Visão Geral", "Acompanhe seu patrimônio e sua organização financeira.", "overview"),
+    (
+        "Visão Geral",
+        "Acompanhe posições, custos e resultado realizado.",
+        "overview",
+    ),
     ("Carteiras", "Crie e selecione suas carteiras de investimento.", "portfolio"),
     ("Ativos", "Pesquise ativos e visualize informações de mercado.", "assets"),
-    ("Movimentações", "Consulte e registre o histórico financeiro das carteiras.", "transactions"),
-    ("Planejamento", "Visualize receitas, despesas e capacidade de aporte.", "planning"),
+    (
+        "Movimentações",
+        "Consulte e registre o histórico financeiro das carteiras.",
+        "transactions",
+    ),
+    (
+        "Planejamento",
+        "Visualize receitas, despesas e capacidade de aporte.",
+        "planning",
+    ),
     ("Metas", "Acompanhe objetivos financeiros e seu progresso.", "goals"),
     ("Alertas", "Monitore condições relevantes para suas estratégias.", "alerts"),
     ("Análises", "Explore métricas e comparações demonstrativas.", "analytics"),
@@ -59,18 +89,41 @@ class MainWindow(QMainWindow):
     INITIAL_HEIGHT = 900
 
     def __init__(
-        self, create_portfolio: CreatePortfolio, list_portfolios: ListPortfolios,
+        self,
+        create_portfolio: CreatePortfolio,
+        list_portfolios: ListPortfolios,
+        register_transaction: RegisterTransaction | None = None,
+        list_transactions: ListTransactions | None = None,
+        load_positions: LoadPortfolioPositions | None = None,
+        *,
+        load_valuation: LoadPortfolioValuation | None = None,
+        search_assets: SearchAssets | None = None,
+        get_quote: GetAssetQuote | None = None,
+        get_history: GetAssetHistory | None = None,
     ) -> None:
         super().__init__()
         self._create_portfolio = create_portfolio
+        self._list_portfolios = list_portfolios
+        self._register_transaction = register_transaction
+        self._list_transactions = list_transactions
+        self._load_positions = load_positions
+        self._load_valuation = load_valuation
+        self._asset_cases = (search_assets, get_quote, get_history)
+        self.market_runner = TaskRunner(self)
+        self._market_generation = 0
+        self._market_key: object = None
+        self._market_values: dict[int, PortfolioValuation] = {}
         self.selected_portfolio_id: int | None = None
-        self.portfolios_page = PortfoliosPage(list_portfolios)
+        self.portfolios_page = PortfoliosPage(list_portfolios, load_positions)
         self.portfolios_page.portfolio_selected.connect(self._select_portfolio)
+        self.portfolios_page.refreshed.connect(self._portfolio_list_refreshed)
         self.setObjectName("main_window")
         self.setWindowTitle("Nexo Invest")
         self.resize(self.INITIAL_WIDTH, self.INITIAL_HEIGHT)
         self.setMinimumSize(1180, 720)
-        self.active_dialog: DemoFormDialog | NoticeDialog | PortfolioDialog | None = None
+        self.active_dialog: (
+            DemoFormDialog | NoticeDialog | PortfolioDialog | TransactionDialog | None
+        ) = None
 
         root = QWidget()
         root.setObjectName("AppRoot")
@@ -96,11 +149,14 @@ class MainWindow(QMainWindow):
         self.show_page(0)
 
     def _add_pages(self) -> None:
+        self.overview_page = OverviewPage()
+        self.transactions_page = TransactionsPage()
+        self.assets_page = AssetsPage(*self._asset_cases)
         pages = (
-            OverviewPage(),
+            self.overview_page,
             self.portfolios_page,
-            AssetsPage(),
-            TransactionsPage(),
+            self.assets_page,
+            self.transactions_page,
             PlanningPage(),
             GoalsPage(),
             AlertsPage(),
@@ -133,18 +189,26 @@ class MainWindow(QMainWindow):
         layout.addStretch()
         period = QComboBox()
         period.setObjectName("period_selector")
-        period.addItems(("Hoje", "7 dias", "Este mês", "3 meses", "6 meses", "1 ano", "Máximo"))
-        period.setCurrentText("Este mês")
-        period.setMinimumWidth(130)
-        period.setToolTip("Período: Este mês")
-        period.currentTextChanged.connect(
-            lambda value: period.setToolTip(f"Período: {value}")
+        period.addItems(
+            ("Hoje", "7 dias", "Este mês", "3 meses", "6 meses", "1 ano", "Máximo")
         )
+        period.setCurrentText("Este mês")
+        period.setEnabled(False)
+        period.setToolTip(
+            "Use os filtros da página Movimentações para o histórico local."
+        )
+        period.setMinimumWidth(130)
         period_label = QLabel("Período:")
         period_label.setObjectName("SecondaryText")
         layout.addWidget(period_label)
         layout.addWidget(period)
-        layout.addWidget(Badge("●  Atualizado agora", "SuccessBadge"))
+        layout.addWidget(Badge("●  Banco local", "SuccessBadge"))
+        self.market_refresh = QPushButton("Atualizar mercado")
+        self.market_refresh.setObjectName("SecondaryButton")
+        self.market_refresh.setProperty("action", "market_refresh")
+        self.market_refresh.setEnabled(self._load_valuation is not None)
+        self.market_refresh.clicked.connect(self.refresh_market)
+        layout.addWidget(self.market_refresh)
         notifications = QPushButton()
         notifications.setObjectName("IconButton")
         notifications.setIcon(icon("bell", "#AAB8CA"))
@@ -228,6 +292,8 @@ class MainWindow(QMainWindow):
         if index == 1:
             self.portfolios_page.reload()
             self.selected_portfolio_id = self.portfolios_page.selected_portfolio_id
+        if index in (0, 1, 3):
+            self._refresh_financial_data()
         self.page_stack.setCurrentIndex(index)
         title, subtitle, _icon_name = PAGE_INFO[index]
         self.page_title.setText(title)
@@ -236,6 +302,17 @@ class MainWindow(QMainWindow):
             button.setChecked(button.page_index == index)
 
     def open_dialog(self, kind: str) -> None:
+        if kind == "transaction":
+            transaction_dialog = TransactionDialog(
+                self,
+                register_transaction=self._register_transaction,
+                portfolio_id=self.selected_portfolio_id,
+            )
+            transaction_dialog.transaction_created.connect(self._transaction_created)
+            transaction_dialog.finished.connect(self._portfolio_dialog_finished)
+            self.active_dialog = transaction_dialog
+            transaction_dialog.open()
+            return
         if kind == "portfolio":
             dialog = PortfolioDialog(self._create_portfolio, self)
             dialog.portfolio_created.connect(self._portfolio_created)
@@ -244,25 +321,155 @@ class MainWindow(QMainWindow):
             dialog.open()
             return
         factories: dict[str, Callable[[], DemoFormDialog | NoticeDialog]] = {
-            "transaction": lambda: TransactionDialog(self),
             "asset": lambda: AssetDialog(self),
             "alert": lambda: AlertDialog(self),
             "goal": lambda: GoalDialog(self),
-            "report": lambda: NoticeDialog("Relatórios", "A geração de relatórios será conectada em uma próxima etapa.", self),
-            "notifications": lambda: NoticeDialog("Notificações", "As notificações serão conectadas quando alertas reais estiverem disponíveis.", self),
-            "logout": lambda: NoticeDialog("Perfil", "Autenticação e encerramento de sessão não fazem parte deste protótipo.", self),
-            "notice": lambda: NoticeDialog("Recurso demonstrativo", "Esta funcionalidade será conectada ao domínio em uma próxima etapa.", self),
+            "report": lambda: NoticeDialog(
+                "Relatórios",
+                "A geração de relatórios será conectada em uma próxima etapa.",
+                self,
+            ),
+            "notifications": lambda: NoticeDialog(
+                "Notificações",
+                "As notificações serão conectadas quando alertas reais estiverem disponíveis.",
+                self,
+            ),
+            "logout": lambda: NoticeDialog(
+                "Perfil",
+                "Autenticação e encerramento de sessão não fazem parte deste protótipo.",
+                self,
+            ),
+            "notice": lambda: NoticeDialog(
+                "Recurso demonstrativo",
+                "Esta funcionalidade será conectada ao domínio em uma próxima etapa.",
+                self,
+            ),
         }
         self.active_dialog = factories.get(kind, factories["notice"])()
         self.active_dialog.open()
 
     def _select_portfolio(self, portfolio_id: int) -> None:
-        self.selected_portfolio_id = portfolio_id
+        self.portfolios_page.set_selected_portfolio(portfolio_id)
+        self.selected_portfolio_id = self.portfolios_page.selected_portfolio_id
+        self._refresh_financial_data()
 
     def _portfolio_created(self, portfolio: Portfolio) -> None:
         if self.portfolios_page.reload():
             self.portfolios_page.set_selected_portfolio(portfolio.id)
             self.selected_portfolio_id = portfolio.id
+            self._refresh_financial_data()
+
+    def _transaction_created(self, _transaction: object) -> None:
+        self._market_key = None
+        self.portfolios_page.reload()
+        self._refresh_financial_data()
+
+    def _refresh_financial_data(self) -> None:
+        identity = self.selected_portfolio_id
+        result = ReconstructionResult((), ())
+        history = []
+        summary = None
+        count = None
+        error = False
+        try:
+            count = len(self._list_portfolios.execute())
+            if (
+                identity is not None
+                and self._list_transactions is not None
+                and self._load_positions is not None
+            ):
+                history = self._list_transactions.execute(identity)
+                result = self._load_positions.execute(identity)
+                summary = summarize_portfolio(history, result)
+        except (
+            PortfolioRepositoryError,
+            TransactionRepositoryError,
+            DomainValidationError,
+        ):
+            # Never leave another portfolio's data on screen after a failed switch.
+            result = ReconstructionResult((), ())
+            history = []
+            summary = None
+            error = True
+        self.transactions_page.set_data(identity, history)
+        self.portfolios_page.set_financial_data(identity, result)
+        self.overview_page.set_financial_data(identity, count, result, summary)
+        if error:
+            message = "Não foi possível carregar os dados financeiros. Tente atualizar."
+            self.transactions_page.feedback.setText(message)
+            self.transactions_page.feedback.show()
+            self.portfolios_page.feedback.setText(message)
+            self.portfolios_page.feedback.show()
+            self.overview_page.context_label.setText(message)
+        self._update_market(not error, tuple(item.id for item in history))
+
+    def _portfolio_list_refreshed(self) -> None:
+        self.selected_portfolio_id = self.portfolios_page.selected_portfolio_id
+        self._market_key = None
+        self._refresh_financial_data()
+
+    def refresh_market(self) -> None:
+        self._market_key = None
+        self.portfolios_page.reload()
+        self._refresh_financial_data()
+        if self.page_stack.currentIndex() == 2:
+            self.assets_page.refresh_asset()
+
+    def _apply_market(self) -> None:
+        identity = self.selected_portfolio_id
+        self.portfolios_page.set_market_data(self._market_values, identity)
+        if identity in self._market_values:
+            self.overview_page.set_market_data(self._market_values[identity])
+
+    def _update_market(
+        self, local_available: bool, history_ids: tuple[int | None, ...]
+    ) -> None:
+        case = self._load_valuation
+        identity = self.selected_portfolio_id
+        identities = self.portfolios_page.portfolio_ids
+        key = (identity, identities, history_ids)
+        if local_available and key == self._market_key:
+            self._apply_market()
+            return
+        self._market_generation += 1
+        generation = self._market_generation
+        self._market_key = key if local_available else None
+        self._market_values = {}
+        message = (
+            "Consultando mercado…"
+            if case is not None and local_available and identities
+            else "Mercado indisponível ou nenhuma carteira cadastrada."
+        )
+        self.portfolios_page.clear_market_data(message)
+        self.overview_page.clear_market_data(message)
+        if case is None or not local_available or not identities:
+            return
+
+        def completed(result: Any, error: Exception | None) -> None:
+            if (
+                generation != self._market_generation
+                or identity != self.selected_portfolio_id
+            ):
+                return
+            if error is not None:
+                self._market_key = None
+                message = "Mercado indisponível. Dados locais preservados; tente Atualizar mercado."
+                self.portfolios_page.clear_market_data(message)
+                self.overview_page.clear_market_data(message)
+                return
+            self._market_values = result
+            self._apply_market()
+
+        self.market_runner.submit(lambda: case.execute_many(identities), completed)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self.market_runner.stop()
+        self.assets_page.runner.stop()
+        super().closeEvent(event)
+
+    def wait_for_market(self) -> None:
+        self.market_runner.wait()
+        self.assets_page.runner.wait()
 
     def _portfolio_dialog_finished(self, _result: int) -> None:
         self.active_dialog = None

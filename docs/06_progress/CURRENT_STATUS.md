@@ -2,89 +2,84 @@
 
 ## Fase atual
 
-**Incremento funcional 02 concluído: domínio financeiro e reconstrução
-determinística em memória. Carteiras persistentes do incremento 01 preservadas;
-fluxo financeiro da interface ainda demonstrativo.**
+**Grande Incremento 04: mercado real, valuation das carteiras e dashboard.**
+Em 06/10/2026, preservando o fluxo financeiro do incremento 03.
 
-## Implementado
+## Funcionalidades reais
 
-- pacote editável com runtime declarado a partir de `requirements.txt`;
-- entry point `python -m nexo.main`;
-- janela PySide6, tema dark, ícones e navegação entre dez páginas;
-- `Portfolio` imutável com `id: int | None`, nome obrigatório e trim;
-- igualdade de entidades persistidas pelo ID, sem unicidade de nome;
-- abstração `PortfolioRepository` e erro independente de detalhes SQL;
-- casos de uso `CreatePortfolio` e `ListPortfolios`;
-- `PortfolioModel` distinto da entidade de domínio;
-- implementação SQLAlchemy em `infrastructure/database/`;
-- schema real somente `portfolios(id INTEGER PRIMARY KEY, name TEXT NOT NULL)`;
-- sessões por operação, commit antes do retorno e rollback em falha;
-- banco `data/nexo.db` resolvido pelo checkout, sem depender de cwd;
-- composição de banco, repositório, casos de uso e janela em `main.py`;
-- página Carteiras real, com estado vazio, atualização e seleção por ID;
-- `PortfolioDialog` funcional, somente com campo nome e feedback de erro;
-- `MainWindow.selected_portfolio_id`, sem persistir seleção entre execuções;
-- carteiras vazias sem patrimônio/rentabilidade fictícios;
-- falhas de leitura/gravação sem expor detalhes técnicos na UI;
-- correção dos dois acessos potencialmente `None` apontados pelo mypy no overview.
+- Portfolio persistido: criar/listar/selecionar por ID, nomes iguais permitidos.
+- Ledger SQLite BUY/SELL, validação do replay antes do INSERT, FK/rollback,
+  Decimal TEXT e datas ISO preservadas. Formulário histórico funciona offline.
+- Histórico local com filtros; Position derivada, média, custo e realizado.
+- MarketDataProvider independente, BrapiMarketDataProvider/httpx isolado.
+- brapi v2: quotes em lote, catálogo/search e histórico diário real.
+- Token opcional externo, app inicia sem token; símbolos públicos disponíveis
+  conforme API. Falhas de acesso/limite/conexão traduzidas sem expor credenciais.
+- Decimal direto do literal JSON; nenhum cálculo financeiro em float.
+- LoadPortfolioValuation compartilha batch deduplicado entre carteiras.
+- calculations/valuation: custo investido aberto, valor atual, não realizado,
+  realizado incluindo encerradas, total e retorno sobre custo aberto.
+- BRL agregado somente completo; moedas diferentes não convertidas/somadas.
+- Ativos: busca real, seleção, cotação/moeda/variação, fonte/referência/consulta,
+  período 1M/3M/1A e gráfico real de fechamento (pode ser ajustado pela API).
+- Carteiras: cards reais e posições com preço/valor/não realizado/retorno;
+  “Atualizar” renova dados locais e valuation.
+- Overview: KPIs reais, posições e barras reais custo versus valor BRL cotado.
+- TaskRunner Qt fora da thread GUI, callbacks enfileirados e gerações para
+  descartar respostas antigas após trocar carteira/ativo/busca/período.
+- Atualização inicial/de contexto e manual, sem polling. Sem cache do provider;
+  fotografia visual reutilizada no mesmo contexto, com timestamps identificados.
+- Sem tabelas/colunas/repositories de Quote, Asset, Position ou valuation.
 
-## Ainda demonstrativo ou não implementado
+## Offline e estados incompletos
 
-As outras nove páginas conservam dados demonstrativos em `ui/demo/data.py` e
-constantes inline. Seus gráficos/valores não são calculados de carteiras
-persistidas. Os outros formulários continuam demonstrativos.
+Ledger, média, custo, realizado e transações continuam disponíveis. Mercado
+indisponível usa “—”, nunca zero/demo. Quotes parciais conservam linhas válidas,
+mas agregado dependente de todas fica indisponível. Moeda estrangeira exibe
+preço/valor na moeda própria, sem P/L contra BRL. Sem posições abertas, valor
+aberto é zero legítimo e resultado realizado encerrado é preservado.
 
-Não há edição/exclusão/comparação real de carteiras, ledger persistente,
-compras/vendas pela UI, API de mercado, alertas, metas, planejamento, relatórios,
-IA ou notificações funcionais. Asset, Transaction, TransactionType, Position,
-saldo e custo médio existem e são testados somente no domínio em memória.
-O parser de transações permanece deliberadamente inalterado.
+## Ainda demonstrativo ou futuro
 
-`infrastructure/database/` é o local oficial da persistência SQL.
-`infrastructure/persistence/` permanece vazio. Não há Alembic ou tabelas
-antecipadas.
+Evolução patrimonial histórica, alocação por categoria, benchmarks, insights,
+fluxo de caixa, metas, alertas, planejamento, projeções e análises complementares
+seguem demo com badges. Não há caixa/aportes/retiradas, dividendos/JCP, impostos,
+splits, conversão de ticker/câmbio, fundamentos detalhados, IA ou Alembic.
+Mercado das posições abertas não é patrimônio total. Comparação e edição/exclusão
+de Portfolio/Transaction continuam pendentes.
 
-## Testado em 05/10/2026
+## Validação em 06/10/2026
 
-- Windows, Python 3.14.0, PySide6/Qt 6.11.2 e SQLAlchemy 2.1.3;
-- instalação editável com runtime/dev em `.venv` inicialmente sem dependências;
-- 43 testes aprovados: 11 Domain, 6 Application, 7 banco, 19 UI;
-- os 9 smoke tests anteriores foram preservados;
-- UI cria no SQLite temporário e reabre com novo repositório/janela;
-- falha após flush provoca rollback e permite nova gravação;
-- Ruff, mypy, compileall e pip check aprovados;
-- processos offscreen distintos criam nomes iguais e reabrem por ID;
-- iniciar de outra pasta cria/carrega o banco padrão sem traceback;
-- página Carteiras renderizada e inspecionada com o backend nativo Windows,
-  sem exibir a janela na tela.
+- Baseline 245 casos aprovada; nenhuma remoção/alteração de testes antigos no 04.
+- 77 novos casos: adapter MockTransport, fake substituível, batch/parciais,
+  moeda, precisão, SQLite/configuração/reabertura e Qt/concorrência.
+- Suíte completa: 322 coletados/aprovados, zero falhas.
+- Ruff, mypy src (56 arquivos), compileall e git diff --check aprovados.
+- Imports auditados: Domain/Application/Calculations sem HTTP/ORM/Qt;
+  UI sem SQL/HTTP/infra. main.py compõe as dependências concretas.
+- Smoke real online sem token pelo adapter: 2 quotes PETR4/VALE3, 9 resultados
+  PETR e 21 pontos PETR4/1mo. Preços observados não são hardcoded ou persistidos.
+- Timeout/conexão/autenticação/limite/JSON inválido cobertos sem internet.
+- Roteiro UI com tema real/banco temporário: Mercado teste, BUY10 PETR4@30,
+  quote HTTP controlada40, quantidade10, média30, custo300, valor400, não
+  realizado100; reabertura com quote45 =>450, ledger permanece uma operação.
+- Cenário custo528/quantidade15/realizado33 + quote40 =>600/72/105 validado.
+- Capturas Overview/Ativos revisadas; contraste de seleção/botões e largura
+  dos KPIs ajustados. Entry point iniciou/encerrou em processo sem token.
+- Sem commit/push ou mudanças de schema neste incremento; edições 03 preservadas.
 
-A renderização offscreen no Windows não reproduziu as fontes nativas; o backend
-Windows renderizou os textos corretamente. Escalas de tela e uso interativo
-prolongado continuam pendentes.
+## Limites e próximos passos
 
-## Próximas pendências
+1. Comparação de carteiras com métricas, moedas e disponibilidade documentadas.
+2. Políticas de edição/exclusão e evolução histórica/benchmarks reais.
+3. Revisão prolongada/DPI e teste de plano autenticado real.
+4. Proposta aprovada, calendário e confirmação acadêmica de A-008.
 
-1. Incremento 03: persistir ledger Transaction por carteira, sem Position no banco.
-2. Incremento 04: integrar compra/venda e consultas por carteira selecionada na UI.
-3. Selecionar e integrar o provedor de mercado.
-4. Migrar gradualmente as demais páginas para resultados da Application.
-5. Validar interface em escalas/monitores distintos.
-6. Registrar proposta aprovada, calendário e tratamento acadêmico de A-008.
+Validação e INSERT separados assumem uma instância escritora local; escritores
+concorrentes não são suportados. A API pode atrasar/limitar dados conforme plano.
+Workers pendentes são limpos ao fechar; os ativos terminam sob timeout antes de
+fechar client/engine, sem cancelamento HTTP instantâneo. Papel de core e
+localização do banco para distribuição continuam futuros.
 
-Permanecem indefinidos o papel de `core/`, a estratégia assíncrona de mercado
-e a distribuição executável. Não foram adicionados controllers, viewmodels,
-serviços genéricos ou frameworks de injeção.
-
-## Incremento 02 — testado em 06/10/2026
-
-- Asset, TransactionType (BUY/SELL), Transaction e Position imutáveis implementados.
-- Invariantes com Decimal finito, sem conversão implícita ou quantize.
-- Replay independente por carteira/ativo, com ordenação estável.
-- Custo médio ponderado, taxas, venda parcial, lucro/prejuízo, zeragem e recompra.
-- positions contém abertas; closed_positions preserva resultado realizado.
-  Ambas são tuplas de snapshots imutáveis.
-- Contexto Decimal local previsível, mínimo 50 dígitos e precisão ampliável.
-- Nenhuma alteração em Portfolio, Application, Infrastructure ou UI.
-- 159 testes coletados/aprovados, zero falhas: 116 novos e 43 anteriores preservados.
-- Ruff, mypy src, compileall e git diff --check aprovados.
-- Regras e ordenação em [DOMAIN_MODEL.md](../02_architecture/DOMAIN_MODEL.md).
+Detalhes: [API_ARCHITECTURE.md](../02_architecture/API_ARCHITECTURE.md) e
+[TESTING.md](../04_development/TESTING.md).

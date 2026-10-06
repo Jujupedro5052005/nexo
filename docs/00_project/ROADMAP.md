@@ -26,32 +26,34 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 - [x] implementar `Asset`, `Transaction`, `TransactionType` e `Position`;
 - [x] cobrir invariantes e cálculos com testes unitários;
 - [x] implementar persistência estrutural de carteiras;
-- [ ] implementar ledger de transações por carteira;
+- [x] implementar ledger de transações por carteira;
 - [x] reconstruir posições sem tabela própria;
 - [x] testar SQLite, mapeamento de Portfolio, reabertura e rollback;
-- [ ] testar mapeamento do ledger e preservação decimal.
+- [x] testar mapeamento do ledger e preservação decimal.
 
 ## 3 — Dados de mercado
 
-- [ ] selecionar provedor e documentar restrições;
-- [ ] definir contrato mínimo e adaptador externo;
-- [ ] tratar timeout, limites, erros e credenciais;
-- [ ] testar a integração sem tornar a suíte dependente da internet.
+- [x] selecionar provedor e documentar restrições;
+- [x] definir contrato mínimo e adaptador externo;
+- [x] tratar timeout, limites, erros e credenciais;
+- [x] testar a integração sem tornar a suíte dependente da internet.
 
 ## 4 — Carteiras completas
 
 - [x] criar, listar e selecionar carteiras por ID;
 - [ ] atualizar e excluir carteiras conforme políticas definidas;
-- [ ] registrar compras e vendas;
-- [ ] carregar histórico e posições reconstruídas;
+- [x] registrar compras e vendas;
+- [x] carregar histórico e posições reconstruídas;
 - [ ] comparar carteiras;
 - [ ] validar fluxos completos no Windows.
 
 ## 5 — Dashboard e análise
 
-- [ ] implementar métricas e gráficos funcionais;
-- [ ] integrar indicadores priorizados de `calculations`;
-- [ ] exibir valor atual e rentabilidade quando houver dados;
+- [x] implementar KPIs, gráfico de custo/valor e histórico real de ativo;
+- [ ] implementar evolução histórica da carteira e benchmarks;
+- [x] integrar valuation de `calculations`;
+- [ ] integrar indicadores adicionais priorizados;
+- [x] exibir valor atual e rentabilidade quando houver dados;
 - [ ] revisar usabilidade e consistência visual.
 
 ## 6 — Alertas
@@ -78,7 +80,8 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 
 1. Concluído: Portfolio persistente e criação/listagem/seleção pela UI.
 2. Concluído: domínio financeiro e reconstrução determinística em memória.
-3. Próximo: ledger Transaction persistente por carteira, preservando Decimal.
-4. Posterior: compra/venda pela UI e consulta de históricos/posições reais.
-
-Ledger persistente e registro pela interface permanecem pendentes.
+3. Concluído: ledger persistente e fluxo completo de compra/venda pela UI,
+   histórico, posições e métricas a custo. Escopo ampliado inclui o antigo 04.
+4. Concluído: mercado brapi v2, valuation, busca/histórico real e dashboard.
+5. Próximo sugerido: comparação real de carteiras por métricas documentadas,
+   estados de disponibilidade e moedas; não implementado neste incremento.

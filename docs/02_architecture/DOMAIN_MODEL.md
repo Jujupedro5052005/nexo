@@ -1,21 +1,20 @@
 # Modelo de domínio do Nexo Invest
 
-## Estado implementado — incrementos 01 e 02
+## Estado implementado — Grande Incremento 03
 
 Portfolio permanece a entidade estrutural persistida do incremento 01, sem
 campos financeiros: `id: int | None` e `name: str`. Nome recebe trim e não pode
 ser vazio; IDs são inteiros positivos e nomes iguais são permitidos.
 PortfolioRepository continua oferecendo somente add e list_all.
 
-O incremento 02 implementa Asset, TransactionType, Transaction, Position e
-rebuild_positions em memória. Não há persistência de transações, integração
-financeira com a UI nem casos de uso novos. Ledger persistente pertence ao
-incremento 03; compra/venda pela UI pertence ao incremento 04.
+O incremento 02 implementou o núcleo em memória. O Grande Incremento 03
+implementa Transaction persistente e compra/venda pela UI, antecipando o fluxo
+anteriormente previsto para o incremento 04. Domain permanece independente do ORM.
 
 ```text
 Portfolio (id, name; persistido)
     ^ portfolio_id
-Transaction (entidade imutável; em memória)
+Transaction (entidade imutável; ledger persistido via repository)
     | contém
     v
 Asset (value object imutável; symbol)
@@ -51,8 +50,9 @@ fracionárias são válidas. Asset, Enum e datetime são validados em execução
 Entidade frozen/slots: como Portfolio, entidades com ID são iguais pelo ID;
 sem ID, somente pela identidade do objeto. Reconstrução não elimina operações
 pela igualdade: cada entrada é processada, inclusive empates completos.
-Existência da carteira no banco será verificada futuramente na Application/
-Infrastructure; a entidade não acessa o banco.
+Existência da carteira é garantida pela FK na Infrastructure; a entidade não
+acessa o banco. Transaction.amounts encapsula bruto e custo/receita líquida com
+Decimal local, compartilhando a política de taxas com reconstrução e exibição.
 
 ## Position e resultado
 
@@ -87,7 +87,7 @@ suposição de que toda compra anteceda vendas no mesmo timestamp.
 Datas podem ser todas naive ou todas aware; mistura é rejeitada com erro de
 domínio. Datas aware são ordenadas pelo instante UTC, sem timezone externo nem
 alterar Transaction. Históricos fora de ordem são integralmente reprocessados,
-permitindo retroatividade futura sem depender de Position persistida.
+permitindo retroatividade validada sem depender de Position persistida.
 
 ## Custo médio e taxas
 
@@ -150,8 +150,41 @@ tipos; frozen/slots e validação encapsulam invariantes. Transaction contém As
 e referencia Portfolio por identidade. Position contém Asset. Reconstrução
 abstrai replay sem service layer genérica, herança artificial ou dependências
 de ORM, HTTP e PySide6. calculations permanece para indicadores, projeções,
-risco e valuation. PriceAlert/dados de mercado são futuros, assim como ledger
-persistente, edição/exclusão, dividendos, splits, transferências e impostos.
+risco e valuation. PriceAlert, edição/exclusão, dividendos,
+splits, transferências e impostos continuam futuros. Ledger já é persistido.
 
 Referências: [ADR-001](decisions/ADR-001-transaction-ledger.md),
 [ARCHITECTURE.md](ARCHITECTURE.md) e [DATABASE.md](DATABASE.md).
+
+## Integração no incremento 03
+
+TransactionRepository é contrato append-only do domínio, implementado fora dele.
+IDs novos são crescentes globalmente. order_transactions centraliza o critério
+usado pelo replay e pelas listagens. InsufficientPositionError expõe carteira,
+símbolo, saldo e quantidade solicitada para mensagens compreensíveis da UI.
+A Application valida histórico + candidato antes da persistência; mesma data
+mantém a interpretação financeira após atribuição do ID. Datas da UI são naive;
+API do domínio continua aceitando históricos inteiramente aware.
+
+
+## Mercado e valuation — Grande Incremento 04
+
+Quote, HistoricalPrice, PriceHistory e AssetSearchResult são snapshots/value
+objects imutáveis independentes do provider. Preços são Decimal; timestamps de
+mercado são aware, separados das datas históricas naive aceitas pelo ledger.
+MarketDataProvider é ABC de consulta em lote, cotação individual, busca e histórico;
+QuoteBatch permite falhas por ativo sem descartar outras cotações.
+
+Position mantém quantidade, média, custo e realizado derivados exclusivamente do
+ledger. ValuedPosition compõe Position + Quote e métricas temporais, sem alterar
+entidades ou schema. PortfolioValuation inclui realizado das encerradas. Ambos
+vivem em calculations/valuation, junto à função pura value_portfolio.
+
+Valor atual = quantidade × preço; não realizado = valor atual - custo restante;
+retorno aberto = não realizado / custo restante quando >0; total = realizado +
+não realizado. Mercado agregado exige todas as posições disponíveis em BRL;
+moeda diferente mantém preço/valor na moeda própria e não é convertida. Ausência
+é None, distinta de zero legítimo de carteira sem posições. Não há retorno total
+percentual ou patrimônio incluindo caixa fictício.
+
+Regras completas: [API_ARCHITECTURE.md](API_ARCHITECTURE.md).

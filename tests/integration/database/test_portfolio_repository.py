@@ -29,11 +29,11 @@ def database(tmp_path):
         engine.dispose()
 
 
-def test_schema_contains_only_portfolios_with_id_and_name(database) -> None:
+def test_schema_preserves_portfolios_with_id_and_name(database) -> None:
     path, engine = database
     assert path.is_file()
     inspector = inspect(engine)
-    assert inspector.get_table_names() == ["portfolios"]
+    assert inspector.get_table_names() == ["portfolios", "transactions"]
     assert [column["name"] for column in inspector.get_columns("portfolios")] == ["id", "name"]
     assert inspector.get_pk_constraint("portfolios")["constrained_columns"] == ["id"]
 
