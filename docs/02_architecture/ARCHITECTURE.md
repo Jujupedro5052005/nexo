@@ -41,8 +41,8 @@ com sessões por operação e conversão para entidades. `main.py` inicializa o
 schema e injeta os casos de uso na `MainWindow`.
 
 Somente Carteiras usa esse fluxo real. A seleção por ID vive na janela durante
-a sessão; as outras páginas continuam demonstrativas. Os conceitos financeiros
-descritos abaixo são arquitetura planejada, ainda sem implementação.
+a sessão; as outras páginas continuam demonstrativas. O incremento 02 implementa
+o domínio financeiro em memória, sem conectar esse fluxo às telas.
 
 ## Responsabilidades
 
@@ -144,3 +144,15 @@ automaticamente para cada classe.
 Erros de formato pertencem à UI, invariantes ao Domain, coordenação à
 Application e falhas técnicas à Infrastructure. Escritas devem evitar estado
 parcial; detalhes SQL e credenciais nunca chegam ao usuário.
+
+## Fluxo implementado no incremento 02
+
+Asset, Transaction e Position imutáveis estão em domain/models; TransactionType
+(BUY/SELL) em domain/enums. domain/reconstruction.py concentra replay por
+(portfolio_id, Asset), valida saldo e produz resultado imutável com abertas e
+encerradas separadas. Regras de custo médio, taxas, zeragem, recompra, ordenação
+e precisão estão em [DOMAIN_MODEL.md](DOMAIN_MODEL.md).
+
+Reconstrução usa somente biblioteca padrão e domínio. Não exige nova Application,
+repository ou integração ORM. Transaction permanece em memória; o diagrama de
+TransactionRepository acima representa o fluxo futuro. Position não é persistida.

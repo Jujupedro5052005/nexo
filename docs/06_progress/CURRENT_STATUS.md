@@ -2,8 +2,9 @@
 
 ## Fase atual
 
-**Incremento funcional 01 concluído: criar, listar e selecionar carteiras
-persistentes, com o restante da aplicação ainda demonstrativo.**
+**Incremento funcional 02 concluído: domínio financeiro e reconstrução
+determinística em memória. Carteiras persistentes do incremento 01 preservadas;
+fluxo financeiro da interface ainda demonstrativo.**
 
 ## Implementado
 
@@ -33,10 +34,11 @@ As outras nove páginas conservam dados demonstrativos em `ui/demo/data.py` e
 constantes inline. Seus gráficos/valores não são calculados de carteiras
 persistidas. Os outros formulários continuam demonstrativos.
 
-Não há edição/exclusão/comparação real de carteiras, `Asset`, `Transaction`,
-`TransactionType`, `Position`, compras/vendas, saldo, custo médio, cálculos,
-API de mercado, alertas, metas, planejamento, relatórios, IA ou notificações
-funcionais. O parser de transações permanece deliberadamente inalterado.
+Não há edição/exclusão/comparação real de carteiras, ledger persistente,
+compras/vendas pela UI, API de mercado, alertas, metas, planejamento, relatórios,
+IA ou notificações funcionais. Asset, Transaction, TransactionType, Position,
+saldo e custo médio existem e são testados somente no domínio em memória.
+O parser de transações permanece deliberadamente inalterado.
 
 `infrastructure/database/` é o local oficial da persistência SQL.
 `infrastructure/persistence/` permanece vazio. Não há Alembic ou tabelas
@@ -62,8 +64,8 @@ prolongado continuam pendentes.
 
 ## Próximas pendências
 
-1. Definir regras financeiras e implementar domínio de transações/posições.
-2. Persistir o ledger e integrar operações por carteira selecionada.
+1. Incremento 03: persistir ledger Transaction por carteira, sem Position no banco.
+2. Incremento 04: integrar compra/venda e consultas por carteira selecionada na UI.
 3. Selecionar e integrar o provedor de mercado.
 4. Migrar gradualmente as demais páginas para resultados da Application.
 5. Validar interface em escalas/monitores distintos.
@@ -72,3 +74,17 @@ prolongado continuam pendentes.
 Permanecem indefinidos o papel de `core/`, a estratégia assíncrona de mercado
 e a distribuição executável. Não foram adicionados controllers, viewmodels,
 serviços genéricos ou frameworks de injeção.
+
+## Incremento 02 — testado em 06/10/2026
+
+- Asset, TransactionType (BUY/SELL), Transaction e Position imutáveis implementados.
+- Invariantes com Decimal finito, sem conversão implícita ou quantize.
+- Replay independente por carteira/ativo, com ordenação estável.
+- Custo médio ponderado, taxas, venda parcial, lucro/prejuízo, zeragem e recompra.
+- positions contém abertas; closed_positions preserva resultado realizado.
+  Ambas são tuplas de snapshots imutáveis.
+- Contexto Decimal local previsível, mínimo 50 dígitos e precisão ampliável.
+- Nenhuma alteração em Portfolio, Application, Infrastructure ou UI.
+- 159 testes coletados/aprovados, zero falhas: 116 novos e 43 anteriores preservados.
+- Ruff, mypy src, compileall e git diff --check aprovados.
+- Regras e ordenação em [DOMAIN_MODEL.md](../02_architecture/DOMAIN_MODEL.md).

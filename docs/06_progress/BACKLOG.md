@@ -12,11 +12,11 @@
 
 ## P1 — Domínio e cálculos fundamentais
 
-- [ ] Implementar `Asset` como objeto de valor.
+- [x] Implementar `Asset` como objeto de valor.
 - [x] Implementar `Portfolio` com ID/nome validados e nomes iguais permitidos.
-- [ ] Implementar `TransactionType` e `Transaction` vinculada à carteira.
-- [ ] Implementar `Position` derivada e reconstrução do ledger.
-- [ ] Definir e testar preço médio, venda, precisão e arredondamento com `Decimal`.
+- [x] Implementar `TransactionType` e `Transaction` vinculada à carteira.
+- [x] Implementar `Position` derivada e reconstrução do ledger.
+- [x] Definir e testar preço médio, venda, precisão e arredondamento com `Decimal`.
 
 ## P1 — Persistência
 
@@ -80,3 +80,10 @@
 - [x] Documentar instalação editável e execução do incremento 01.
 - [ ] Preparar demonstrações e explicações técnicas.
 - [ ] Validar checklist final no Windows.
+
+## Entrega do incremento 02
+
+Domínio e replay concluídos em memória. Rejeição de saldo insuficiente é regra
+testada do domínio; caso de uso com garantia de gravação atômica permanece
+pendente até o ledger persistente. Arredondamento visual é futuro; o contexto
+matemático Decimal local está definido e testado.

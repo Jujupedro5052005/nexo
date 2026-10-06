@@ -25,3 +25,25 @@ Permanecem sem decisão: provedor de mercado, estratégia assíncrona da UI,
 papel de `core` e uso efetivo de controllers/viewmodels. A localização do banco
 para distribuição fora do checkout também permanece futura; no modo editável,
 o caminho é `<raiz do checkout>/data/nexo.db`, independente de cwd.
+
+## Incremento 02 — decisões financeiras
+
+- Asset imutável com trim/uppercase e igualdade/hash pelo símbolo.
+- Transaction imutável associada à carteira por ID; somente BUY/SELL.
+- Replay integral no domínio, isolado por carteira/ativo.
+- Compra incorpora taxas ao custo e recalcula média ponderada.
+- Venda parcial remove quantidade vezes média; taxas reduzem receita líquida,
+  sem alterar média remanescente. Resultado realizado é acumulado.
+- Venda insuficiente lança InsufficientPositionError.
+- Venda total consome custo restante exato e fixa quantidade/custo/média em zero.
+  Recompra começa nova média e preserva resultado realizado anterior.
+- positions retorna somente abertas; closed_positions preserva encerradas.
+  Position não possui persistência ou repository.
+- Decimal finito obrigatório, sem float/quantize; contexto local independente,
+  ROUND_HALF_EVEN, mínimo 50 dígitos, ampliado pela magnitude/escala do histórico.
+- Ordenação por data e ID crescente; IDs conhecidos precedem ausentes no mesmo
+  timestamp. Ausentes e empates completos preservam ordem de entrada.
+- Datas todas naive ou todas aware; aware ordenadas em UTC, mistura rejeitada.
+- Sem caso de uso artificial, mudança de UI ou tabela nova.
+
+Fórmulas e detalhes: [DOMAIN_MODEL.md](../02_architecture/DOMAIN_MODEL.md).

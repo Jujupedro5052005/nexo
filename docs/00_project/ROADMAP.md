@@ -23,11 +23,11 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 ## 2 — Implementar domínio e persistência
 
 - [x] implementar `Portfolio` com identidade e nome validados;
-- [ ] implementar `Asset`, `Transaction`, `TransactionType` e `Position`;
-- [ ] cobrir invariantes e cálculos com testes unitários;
+- [x] implementar `Asset`, `Transaction`, `TransactionType` e `Position`;
+- [x] cobrir invariantes e cálculos com testes unitários;
 - [x] implementar persistência estrutural de carteiras;
 - [ ] implementar ledger de transações por carteira;
-- [ ] reconstruir posições sem tabela própria;
+- [x] reconstruir posições sem tabela própria;
 - [x] testar SQLite, mapeamento de Portfolio, reabertura e rollback;
 - [ ] testar mapeamento do ledger e preservação decimal.
 
@@ -73,3 +73,12 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 - [x] documentar instalação editável e execução reais;
 - [ ] preparar e ensaiar demonstração e explicações técnicas;
 - [ ] validar checklist final e artefatos confirmados pelo professor.
+
+## Sequência dos incrementos funcionais
+
+1. Concluído: Portfolio persistente e criação/listagem/seleção pela UI.
+2. Concluído: domínio financeiro e reconstrução determinística em memória.
+3. Próximo: ledger Transaction persistente por carteira, preservando Decimal.
+4. Posterior: compra/venda pela UI e consulta de históricos/posições reais.
+
+Ledger persistente e registro pela interface permanecem pendentes.

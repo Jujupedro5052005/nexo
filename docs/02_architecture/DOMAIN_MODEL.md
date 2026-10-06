@@ -1,111 +1,157 @@
 # Modelo de domínio do Nexo Invest
 
-## Estado implementado no incremento 01
+## Estado implementado — incrementos 01 e 02
 
-Somente `Portfolio` está implementado: entidade imutável com `name: str` e
-`id: int | None`. O nome recebe trim e não pode ser vazio; não há limite de
-tamanho arbitrário nem unicidade por nome. IDs persistidos são inteiros positivos.
-Entidades persistidas com o mesmo ID são iguais, independentemente do nome;
-entidades novas sem ID só são iguais a si mesmas. A persistência retorna uma
-nova entidade com ID sem modificar a original.
+Portfolio permanece a entidade estrutural persistida do incremento 01, sem
+campos financeiros: `id: int | None` e `name: str`. Nome recebe trim e não pode
+ser vazio; IDs são inteiros positivos e nomes iguais são permitidos.
+PortfolioRepository continua oferecendo somente add e list_all.
 
-Ainda não há positions ou campos financeiros em Portfolio. O contrato
-`PortfolioRepository` possui somente `add` e `list_all`. Os demais conceitos
-e relacionamentos deste documento descrevem o modelo planejado.
-
-## Princípio central
-
-O sistema suporta múltiplas carteiras simuladas. Cada `Portfolio` possui
-identidade e dados estruturais persistidos; seu estado financeiro é reconstruído
-a partir do histórico de `Transaction`.
+O incremento 02 implementa Asset, TransactionType, Transaction, Position e
+rebuild_positions em memória. Não há persistência de transações, integração
+financeira com a UI nem casos de uso novos. Ledger persistente pertence ao
+incremento 03; compra/venda pela UI pertence ao incremento 04.
 
 ```text
-Portfolio
-├── id
-├── name
-├── Transaction history
-└── derived Positions
-    └── cada Position contém um Asset
+Portfolio (id, name; persistido)
+    ^ portfolio_id
+Transaction (entidade imutável; em memória)
+    | contém
+    v
+Asset (value object imutável; symbol)
 
-Transaction contém o Asset negociado.
-PriceAlert contém o Asset e a condição configurada.
+Iterable[Transaction]
+    | rebuild_positions (replay integral)
+    v
+ReconstructionResult (imutável)
+    +-- positions: tuple[Position, ...]        (somente abertas)
+    +-- closed_positions: tuple[Position, ...] (realizado preservado)
+                   +-- portfolio_id + Asset
 ```
 
-O relacionamento interno enfatizado é composição. Não há hierarquia de
-subclasses de ativos.
+## Asset
 
-## `Asset`
+Value object frozen/slots com symbol: str. Exige string, aplica strip().upper()
+e rejeita símbolo vazio. Igualdade/hash usam o símbolo normalizado:
+`Asset(" petr4 ") == Asset("PETR4")`. Aceita AAPL, BTC-USD e BRK.B sem restringir
+ao formato B3. Não existem subclasses por categoria.
 
-Objeto de valor identificado por `symbol`, como `PETR4`, `VALE3`, `HGLG11` ou
-`IVVB11`. O símbolo é normalizado e validado, e determina igualdade. Categoria
-ou metadados podem surgir por requisito real, mas não existem subclasses
-específicas por categoria na arquitetura atual.
+## Transaction e TransactionType
 
-## `Portfolio`
+Enum contém exatamente BUY e SELL. Transaction possui id: int | None,
+portfolio_id: int, asset: Asset, transaction_type: TransactionType,
+quantity: Decimal, unit_price: Decimal, fees: Decimal e occurred_at: datetime.
+ID opcional fica no fim do construtor, como Portfolio.
 
-Entidade que representa uma carteira criada pelo usuário:
+IDs informados devem ser inteiros positivos, excluindo booleanos. Quantidade e
+preço são Decimal finitos estritamente positivos; taxas são Decimal finitas
+não negativas. Não aceita conversão implícita de float, int ou str. Quantidades
+fracionárias são válidas. Asset, Enum e datetime são validados em execução.
+
+Entidade frozen/slots: como Portfolio, entidades com ID são iguais pelo ID;
+sem ID, somente pela identidade do objeto. Reconstrução não elimina operações
+pela igualdade: cada entrada é processada, inclusive empates completos.
+Existência da carteira no banco será verificada futuramente na Application/
+Infrastructure; a entidade não acessa o banco.
+
+## Position e resultado
+
+Snapshot imutável derivado, sem identidade própria, tabela, modelo ORM ou
+repository. Campos: portfolio_id, asset, quantity, average_cost, cost_basis e
+realized_profit_loss. Os quatro valores financeiros são Decimal. Resultado
+realizado pode ser negativo. Quantidade/custo são não negativos; posição aberta
+exige custo/média positivos; encerrada exige quantidade/custo/média zero exato.
+Não contém cotação, valor atual, rentabilidade ou lucro não realizado.
+
+ReconstructionResult.positions contém somente abertas. closed_positions retém
+snapshots encerrados e seus resultados realizados. Ambas são tuplas ordenadas
+por (portfolio_id, asset.symbol). Na recompra, a posição volta à coleção aberta
+com resultado realizado acumulado preservado.
+
+## Reconstrução e ordenação
+
+`domain/reconstruction.py` oferece
+`rebuild_positions(transactions: Iterable[Transaction]) -> ReconstructionResult`.
+Materializa o iterável uma vez, valida, ordena e reconstrói estado local do zero
+por (portfolio_id, Asset), sem modificar entradas. Histórico vazio produz duas
+tuplas vazias. Venda sem saldo lança InsufficientPositionError, derivada de
+DomainValidationError; nenhum resultado parcial é devolvido. Validação de
+objetos usa DomainValidationError, compatível com ValueError.
+
+Critério: occurred_at ASC, IDs conhecidos crescentes e desempate estável pela
+ordem de entrada. No mesmo timestamp, entradas com ID precedem as sem ID;
+entradas sem ID mantêm ordem relativa e empates completos também. Trocar a ordem
+de entradas sem desempate identificável pode mudar o resultado. Não há
+suposição de que toda compra anteceda vendas no mesmo timestamp.
+
+Datas podem ser todas naive ou todas aware; mistura é rejeitada com erro de
+domínio. Datas aware são ordenadas pelo instante UTC, sem timezone externo nem
+alterar Transaction. Históricos fora de ordem são integralmente reprocessados,
+permitindo retroatividade futura sem depender de Position persistida.
+
+## Custo médio e taxas
+
+Compra:
 
 ```text
-Portfolio
-├── id       (persistido)
-├── name     (persistido)
-└── positions (estado derivado)
+purchase_cost = quantity * unit_price + fees
+new_cost_basis = previous_cost_basis + purchase_cost
+new_quantity = previous_quantity + quantity
+average_cost = new_cost_basis / new_quantity
 ```
 
-Uma carteira pode existir sem transações. O sistema mantém históricos e
-resultados separados para permitir estratégias e comparações. O comportamento
-inclui reconstruir posições, validar vendas e produzir resumos coerentes.
+10 @ 30 + taxa 2 resulta em quantidade 10, custo 302 e média 30.2.
+Outra compra de 10 @ 40 + taxa 2 resulta em quantidade 20, custo 704 e média 35.2.
 
-## `Transaction`
+Venda parcial:
 
-Registra uma compra ou venda simulada e é a fonte principal de verdade
-financeira. Campos conceituais: `id`, `portfolio_id`, `asset`,
-`transaction_type`, `quantity`, `unit_price` e `date`.
+```text
+removed_cost = sell_quantity * previous_average_cost
+net_proceeds = sell_quantity * unit_price - fees
+realized_delta = net_proceeds - removed_cost
+new_cost_basis = previous_cost_basis - removed_cost
+new_quantity = previous_quantity - sell_quantity
+average_cost = previous_average_cost
+realized_profit_loss += realized_delta
+```
 
-`TransactionType` representa `BUY` ou `SELL`. Não são necessárias subclasses de
-compra e venda. Quantidade e preço devem ser positivos; carteira e ativo devem
-ser válidos; uma venda não pode exceder a quantidade reconstruída. Valores
-monetários usam `Decimal`, nunca `float`.
+Vender 5 @ 42 com taxa 1 produz receita líquida 209, custo removido 176,
+resultado realizado 33, quantidade 15, custo 528 e média 35.2.
+Taxas de venda reduzem receita, sem alterar a média remanescente.
 
-## `Position`
+Na venda total, custo removido é o custo restante exato, absorvendo resíduos da
+divisão periódica do custo médio. Quantidade/custo/média recebem Decimal zero
+exato. Resultado realizado permanece. Recompra inicia nova base sem média antiga:
+BUY 10 @ 20, SELL 10 @ 30, BUY 5 @ 50 resulta em quantidade 5, custo 250,
+média 50 e resultado realizado 100.
 
-Estado consolidado de um ativo na carteira. É uma projeção reconstruída, não
-uma fonte de verdade e não possui tabela própria inicialmente. Pode conter
-`asset`, `quantity`, `average_price`, `invested_value`, `current_value`,
-`profit_loss` e `return_percentage`; os três últimos dependem de dados de
-mercado.
+## Precisão Decimal
 
-Uma compra ou venda acrescenta uma transação ao ledger, não altera diretamente
-uma posição persistida. Compras recalculam preço médio; vendas validam saldo e
-aplicam a regra de custo definida e testada.
+Sem float, conversão indireta ou quantize monetário. Context novo em localcontext,
+ROUND_HALF_EVEN e mínimo 50 algarismos significativos. Entradas extensas ampliam
+a precisão previsivelmente:
 
-## `PriceAlert`
+```text
+span = max(value.adjusted()) - min(value.as_tuple().exponent) + 1
+precision = max(50, 2 * span + digits(number_of_transactions_for_this_position) + 10)
+```
 
-Representa uma condição configurada, como `PETR4 <= 30.00`. Pode ser persistido
-quando implementado. A primeira entrega pode exibir alertas no aplicativo;
-notificações externas são extensões futuras.
+Valores considerados: quantidade, preço e taxas do histórico de cada
+(portfolio_id, Asset), sem influência de carteiras ou ativos independentes. Reserva
+precisão para magnitude, escala, produtos e somas de entrada. Divisões periódicas
+são finitas conforme esse contexto. Acrescentar entradas pode ampliar a precisão
+de uma reconstrução integral. Contexto global, traps, arredondamento e flags
+não mudam. Formatação monetária/arredondamento visual pertencem à apresentação.
 
-## Classificação e persistência
+## POO e limites
 
-| Objeto | Papel | Persistência inicial |
-|---|---|---|
-| `Portfolio` | Entidade com identidade e nome | Estrutura persistida |
-| `Transaction` | Entidade histórica do ledger | Persistida e vinculada à carteira |
-| `Asset` | Objeto de valor pelo símbolo | Incorporado aos dados necessários; tabela própria não obrigatória |
-| `Position` | Estado/projeção calculada | Não persistida |
-| `PriceAlert` | Configuração do usuário | Pode ser persistida quando implementada |
+Asset demonstra value object; Portfolio/Transaction são entidades; Enum limita
+tipos; frozen/slots e validação encapsulam invariantes. Transaction contém Asset
+e referencia Portfolio por identidade. Position contém Asset. Reconstrução
+abstrai replay sem service layer genérica, herança artificial ou dependências
+de ORM, HTTP e PySide6. calculations permanece para indicadores, projeções,
+risco e valuation. PriceAlert/dados de mercado são futuros, assim como ledger
+persistente, edição/exclusão, dividendos, splits, transferências e impostos.
 
-## Serviços, contratos e precisão
-
-Comportamentos permanecem nos objetos quando natural. `domain/services` é
-reservado a regras que não pertençam a um único modelo; `domain/interfaces`
-abriga somente contratos necessários. Não se cria uma interface ou serviço por
-classe apenas para demonstrar POO.
-
-Polimorfismo é mais adequado nas bordas intercambiáveis. Herança só será usada
-diante de especialização real. Valores monetários usam `Decimal`; precisão e
-arredondamento devem ser explícitos e testados.
-
-Referências: [`ADR-001`](decisions/ADR-001-transaction-ledger.md),
-[`DATABASE.md`](DATABASE.md) e
-[`USER_FLOWS.md`](../03_design/USER_FLOWS.md).
+Referências: [ADR-001](decisions/ADR-001-transaction-ledger.md),
+[ARCHITECTURE.md](ARCHITECTURE.md) e [DATABASE.md](DATABASE.md).

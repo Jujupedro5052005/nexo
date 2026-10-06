@@ -21,8 +21,8 @@ Menção em Markdown não é evidência de implementação.
 | A-003 | Tema não substituído sem autorização | Comparação entre proposta e entrega | Pendente de confirmação |
 | A-004 | Autor compreende e explica | Apresentação e arguição | Não iniciado |
 | A-005 | Python 3.x | Aplicação executada no Windows com Python 3.14.0 | Testado |
-| A-006 | POO efetiva | Portfolio, casos de uso, contrato e implementação SQLAlchemy no fluxo real | Testado no incremento 01 |
-| A-007 | Classes, atributos, métodos e encapsulamento | Portfolio imutável valida nome/ID; testes em unit/domain | Testado no incremento 01 |
+| A-006 | POO efetiva | Portfolio/repository no fluxo real; Asset/Transaction/Position e replay em memória | Testado nos incrementos 01 e 02 |
+| A-007 | Classes, atributos, métodos e encapsulamento | Modelos imutáveis validam nome/ID, símbolos e Decimal; testes em unit/domain | Testado nos incrementos 01 e 02 |
 | A-008 | Associação e composição na redação oficial | Composição definida; orientação posterior rejeita associação no modelo atual | Pendente de confirmação |
 | A-009 | Herança quando pertinente | Widgets/diálogos Qt e implementação da ABC PortfolioRepository; sem subclasses financeiras artificiais | Implementado |
 | A-010 | Polimorfismo quando pertinente | Application usa PortfolioRepository SQLAlchemy ou fake nos testes | Testado |
@@ -44,10 +44,10 @@ Menção em Markdown não é evidência de implementação.
 
 | Conceito | Situação |
 |---|---|
-| Classes/objetos | Portfolio, casos de uso, repository e UI implementados. |
+| Classes/objetos | Portfolio, Asset, Transaction, Position, TransactionType, casos de uso, repository e UI implementados. |
 | Atributos/métodos | Portfolio.id/name e operações execute/add/list_all. |
-| Encapsulamento | Portfolio normaliza/valida dados e impede alteração direta. |
-| Composição | MainWindow recebe casos de uso prontos; cada caso recebe repository. |
+| Encapsulamento | Modelos frozen/slots normalizam e validam dados; invariantes financeiras testadas. |
+| Composição | Transaction/Position contêm Asset; resultado contém snapshots; MainWindow recebe casos de uso. |
 | Herança | Implementação de ABC e especialização Qt; sem hierarquia de ativos. |
 | Polimorfismo | Mesma Application opera com repository SQLAlchemy ou fake. |
 | Abstração | PortfolioRepository define somente add/list_all. |
@@ -60,3 +60,20 @@ Menção em Markdown não é evidência de implementação.
 3. Como conciliar a redação oficial de A-008 com a orientação posterior do
    professor de que associação não se aplica ao modelo.
 4. Obrigatoriedade de relatório, manuais ou slides como artefatos separados.
+
+## Evidência funcional do incremento 02
+
+| Requisito | Evidência | Limite |
+|---|---|---|
+| RF-002 | Transaction valida compra/venda, ativo, quantidade, preço, taxas e datetime | Em memória; registro pela UI pendente |
+| RF-003 | Portfolio já persiste | Ledger Transaction ainda não persiste |
+| RF-004 | rebuild_positions reconstrói quantidade, média e custo | Testado diretamente no domínio |
+| RF-005 | InsufficientPositionError rejeita venda sem saldo | Gravação atômica depende do futuro ledger |
+| RF-006 | Isolamento por portfolio_id + Asset | Consultas pela UI pendentes |
+| RNF-002 / RNF-004 | Domain usa biblioteca padrão e Decimal finito | Sem ORM, SQLite, PySide6 ou HTTP nos módulos novos |
+| RNF-007 | 116 testes novos de domínio, incluindo invariantes e determinismo | Sem dependências novas |
+
+Asset demonstra value object; Transaction/Portfolio demonstram entidades;
+TransactionType demonstra Enum. Transaction referencia Portfolio por identidade,
+sem ORM. Reconstrução abstrai comportamento financeiro sem hierarquia artificial.
+Essas evidências não resolvem a confirmação acadêmica de A-008, ainda pendente.
