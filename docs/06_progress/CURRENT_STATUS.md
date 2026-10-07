@@ -1,5 +1,60 @@
 # Status atual do projeto
 
+## Busca manual de ativos / Enter — 07/10/2026
+
+Corrigido bloqueio por budget local ao enviar pesquisa pelo Enter ou Buscar.
+SearchAssets recebe explicit=True apenas no worker da busca manual. Seleção
+do resultado propaga o escopo manual para cotação, histórico e análise sem
+invalidar caches válidos; mudança de período também é consulta manual.
+Atualizar ativo continua invalidando uma vez. Chamadas Application automáticas
+mantêm explicit=False e quotas/limites remotos permanecem respeitados.
+
+Regressão Qt: PETR4 + Enter → resultado → seleção → Atualizar ativo, com budget
+zero, bolsai ausente ou indisponível. Dados pela brapi, nenhuma chamada bolsai,
+consulta automática posterior bloqueada. Verificações sem rede.
+
+## Diagnóstico de Atualizar mercado — 07/10/2026
+
+Teste externo à suíte com composição real e cópia SQLite do demo: clique no
+botão global propagou explicit=True ao worker e retornou valuation completo
+para as três carteiras via brapi. Consulta isolada PETR4 também respondeu;
+contador local acima do budget automático, sem apagar/resetar contadores.
+Banco normal e demo originais preservados. Falha relatada não reproduzida.
+
+Corrigido feedback que permanecia em Consultando mercado quando a consulta
+terminava sem carteira selecionada. Agora orienta seleção, mantendo os valores
+nos cards de Carteiras. Erros tipados seguros do worker aparecem na mensagem;
+detalhes de erros internos continuam ocultos. 321 testes direcionados passaram
+sem internet; Ruff, mypy src, compileall e git diff --check aprovados.
+
+## Atualizar ativo / fallback de fundamentos — 07/10/2026
+
+Atualizar ativo agora propaga o escopo manual para os workers de cotação,
+histórico e análise, invalidando o cache compartilhado uma única vez.
+Fundamentos: brapi → bolsai → CVM; erros ou ausência de campos financeiros
+permitem fallback, mantendo fonte e cálculos existentes. Cache brapi de
+fundamentos: 12 h. Cotação continua brapi → bolsai.
+
+318 testes de providers/market/analytics/brapi_config aprovados sem internet;
+cobertura inclui botão Qt sem chave bolsai, budget esgotado, prioridade brapi
+sem consultar bolsai e fallback bolsai após erro ou resposta vazia da brapi.
+Ruff, mypy src (90 arquivos), compileall e git diff --check aprovados.
+Disponibilidade online dos módulos continua condicionada ao plano do provider.
+
+## Diagnóstico PETR4 / integração — 07/10/2026
+
+- brapi continua prioritária para cotação. Falha automática observada ocorreu
+  com contador local271 acima do soft budget100; atualização explícita de
+  PETR4 retornou cotação brapi. Sem apagar contadores ou alterar budgets/plano.
+- Com a chave bolsai configurada, cotação e fundamentos PETR4 retornaram
+  corretamente em consultas pontuais; indisponibilidade anterior não reproduzida.
+- Se ambas as fontes falham, routing conserva categoria/diagnóstico da brapi e
+  informa o erro do fallback. bolsai diferencia HTTP, autenticação, plano,
+  limite e timeout; corpos/segredos não aparecem na mensagem.
+- Cópia da chave brapi removida de `.env.example`, mantendo a chave do `.env`.
+  Sete regressões adicionadas para prioridade PETR4, budget/fallback,
+  atualização explícita, status HTTP e timeout; testes sem internet.
+
 ## Revisão visual do dashboard — 07/10/2026
 
 - Concentração agora em donut com os pesos existentes, tabela completa,

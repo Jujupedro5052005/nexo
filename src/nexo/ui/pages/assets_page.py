@@ -95,7 +95,9 @@ class AssetsPage(PageContent):
         self.period = QComboBox()
         for label, value in (("1 mês", "1mo"), ("3 meses", "3mo"), ("1 ano", "1y")):
             self.period.addItem(label, value)
-        self.period.currentIndexChanged.connect(self.refresh_history)
+        self.period.currentIndexChanged.connect(
+            lambda: self.refresh_history(explicit=True)
+        )
         self.refresh_button = QPushButton("Atualizar ativo")
         self.refresh_button.setObjectName("SecondaryButton")
         self.refresh_button.clicked.connect(lambda: self.refresh_asset(refresh=True))
@@ -151,7 +153,7 @@ class AssetsPage(PageContent):
                 else "Nenhum ativo encontrado."
             )
 
-        self.runner.submit(lambda: case.execute(query), completed)
+        self.runner.submit(lambda: case.execute(query, explicit=True), completed)
 
     def _clear_history(self) -> None:
         self.history = None
@@ -177,16 +179,16 @@ class AssetsPage(PageContent):
         if 0 <= row < len(self.results):
             self.selected_asset = self.results[row]
             self.asset_selected.emit(self.selected_asset.asset)
-            self.refresh_asset()
+            self.refresh_asset(explicit=True)
 
-    def refresh_asset(self, *, refresh: bool = False) -> None:
+    def refresh_asset(self, *, refresh: bool = False, explicit: bool = False) -> None:
         selected, case = self.selected_asset, self._get_quote
         if selected is None or case is None:
             return
         operation = (
             case.prepare_refresh(selected.asset)
             if refresh
-            else partial(case.execute, selected.asset)
+            else partial(case.execute, selected.asset, explicit=explicit)
         )
         self._selection_generation += 1
         generation = self._selection_generation
@@ -209,10 +211,11 @@ class AssetsPage(PageContent):
             self.snapshot_panel.display(quote)
 
         self.runner.submit(operation, completed)
-        self.refresh_history()
-        self.analysis_panel.set_asset(selected.asset)
+        self.refresh_history(explicit=refresh or explicit)
+        self.analysis_panel.set_asset(selected.asset, load=False)
+        self.analysis_panel.analyze(explicit=refresh or explicit)
 
-    def refresh_history(self) -> None:
+    def refresh_history(self, *, explicit: bool = False) -> None:
         selected, case = self.selected_asset, self._get_history
         if selected is None or case is None:
             return
@@ -245,4 +248,6 @@ class AssetsPage(PageContent):
                 self.chart = historical_chart(history)
                 self.chart_layout.addWidget(self.chart)
 
-        self.runner.submit(lambda: case.execute(selected.asset, period), completed)
+        self.runner.submit(
+            lambda: case.execute(selected.asset, period, explicit=explicit), completed
+        )

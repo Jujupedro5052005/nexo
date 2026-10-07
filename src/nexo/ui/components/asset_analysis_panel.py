@@ -145,7 +145,7 @@ class AssetAnalysisPanel(SectionCard):
         if asset is not None and load:
             self.analyze()
 
-    def analyze(self, *, refresh: bool = False) -> None:
+    def analyze(self, *, refresh: bool = False, explicit: bool = False) -> None:
         case = self._case
         if case is None:
             return
@@ -194,6 +194,7 @@ class AssetAnalysisPanel(SectionCard):
                 include_jcp=include_jcp,
                 refresh=refresh,
                 include_actions=include_actions,
+                explicit=explicit,
             ),
             completed,
         )

@@ -23,7 +23,7 @@ Position ou schema do SQLite. Splits consultados não modificam o ledger.
 | Quote | brapi | bolsai |
 | History ≤3mo | brapi | Yahoo |
 | History >3mo | Yahoo | — |
-| Fundamentals | bolsai | CVM |
+| Fundamentals | brapi | bolsai → CVM |
 | Dividends | Yahoo | brapi if enabled |
 | Company registry | CVM | bolsai metadata |
 | DFP/ITR | CVM | — |
@@ -46,7 +46,7 @@ Histórico longo pula a brapi por decisão prévia de capacidade do plano.
   minutos de atraso, dividendos desabilitados e fundamentos limitados. Batch
   default é 1; configuração maior exige capacidade compatível. Adaptador v2 e
   diagnósticos existentes são preservados.
-- **bolsai:** fundamentos primários e metadados de companhia; cotação fallback
+- **bolsai:** fallback de fundamentos e metadados de companhia; cotação fallback
   representa fechamento diário/EOD. Header X-API-Key, sem chave em URL. Endpoints
   consumidos: companies, companies/{ticker}, fundamentals/{ticker},
   stocks/{ticker}/quote e corporate-events somente se habilitado. Informações
@@ -135,6 +135,7 @@ futura internacional, sem implementação ou configuração de outra chave.
 | brapi quote | 60 s |
 | brapi search | 15 min |
 | brapi history | 30 min |
+| brapi fundamentals | 12 h |
 | bolsai quote | 6 h |
 | bolsai company | 7 dias |
 | bolsai fundamentals | 12 h |
@@ -185,6 +186,13 @@ ticker; yfinance pode executar múltiplos HTTP internos de sessão/consulta.
 
 Exceder soft budget exige atualização explícita no escopo daquela operação de
 worker. Isso não contorna plano, capability negativa ou HTTP 429 do serviço.
+O botão Atualizar ativo invalida o cache uma vez antes de iniciar os workers e
+propaga esse escopo explícito para cotação, histórico e análise. Fundamentos
+usam brapi, depois bolsai em caso de erro ou resposta sem campos financeiros,
+e por último CVM. Uma resposta parcial válida mantém sua fonte sem mesclar dados.
+Enter/Buscar, seleção de resultado e troca de período também propagam o escopo
+manual no respectivo worker, reutilizando cache válido. Consultas automáticas
+mantêm o soft budget; nenhuma destas ações ignora limites remotos do serviço.
 O header bolsai com remaining=0 bloqueia novas chamadas até o próximo dia UTC.
 
 ## UI e disponibilidade

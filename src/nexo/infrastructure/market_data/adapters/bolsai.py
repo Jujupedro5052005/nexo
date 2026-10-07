@@ -85,23 +85,29 @@ class BolsaiProvider(
             remaining = response.headers.get("X-RateLimit-Remaining")
             if remaining and remaining.isdigit():
                 self.policy.update_quota("bolsai", int(remaining))
-            errors: dict[int, type[MarketDataError]] = {
-                401: MarketInvalidTokenError,
-                403: MarketPlanAccessError,
-                404: AssetNotFoundError,
-                429: MarketRateLimitError,
+            errors: dict[int, tuple[type[MarketDataError], str]] = {
+                401: (MarketInvalidTokenError, "Chave bolsai não aceita (HTTP 401)."),
+                403: (MarketPlanAccessError, "Recurso bolsai restrito pelo plano (HTTP 403)."),
+                404: (AssetNotFoundError, "Dados não encontrados na bolsai (HTTP 404)."),
+                429: (MarketRateLimitError, "Limite de consultas bolsai atingido (HTTP 429)."),
             }
             if response.status_code in errors:
-                raise errors[response.status_code](
-                    "bolsai: acesso recusado, restrito ou dados indisponíveis."
+                error_type, message = errors[response.status_code]
+                raise error_type(message)
+            if response.status_code != 200:
+                raise MarketDataUnavailableError(
+                    f"bolsai: resposta HTTP {response.status_code}. Tente novamente mais tarde."
                 )
-            response.raise_for_status()
             payload = json.loads(response.text, parse_float=Decimal)
             if not isinstance(payload, dict):
                 raise TypeError("Expected object")
             return payload
         except httpx.ConnectError:
             raise MarketOfflineError("bolsai offline. Verifique sua conexão.") from None
+        except httpx.TimeoutException:
+            raise MarketDataUnavailableError(
+                "bolsai: tempo limite de resposta excedido. Tente novamente."
+            ) from None
         except (httpx.HTTPError, ValueError, TypeError):
             raise MarketDataUnavailableError(
                 "bolsai: resposta indisponível ou inválida."

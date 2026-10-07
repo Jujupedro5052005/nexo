@@ -256,6 +256,67 @@ def test_quote_fallback_cached_eod_prevents_retrying_failed_primary(policy):
     assert len(primary_calls) == len(fallback_calls) == 1
 
 
+def test_petr4_brapi_priority_never_calls_bolsai_when_primary_succeeds(policy):
+    asset = Asset("PETR4")
+    primary, primary_calls = brapi(policy, {"results": [{
+        "symbol": "PETR4", "data": {"regularMarketPrice": 30, "currency": "BRL"}
+    }]})
+    fallback, fallback_calls = bolsai(policy, {}, status=503)
+    router = RoutedMarketDataProvider(primary, fallback, None, policy)
+    assert router.get_quote(asset).source == "brapi"
+    assert len(primary_calls) == 1 and not fallback_calls
+
+
+def test_failed_fallback_does_not_hide_primary_local_budget(policy):
+    policy.usage.budgets["brapi"] = 0
+    primary, primary_calls = brapi(policy, {})
+    fallback, fallback_calls = bolsai(policy, {}, status=503)
+    router = RoutedMarketDataProvider(primary, fallback, None, policy)
+    with pytest.raises(MarketRateLimitError) as failure:
+        router.get_quote(Asset("PETR4"))
+    assert "brapi (prioritária): Budget local atingido" in str(failure.value)
+    assert "bolsai (fallback): bolsai: resposta HTTP 503" in str(failure.value)
+    assert not primary_calls and len(fallback_calls) == 1
+    assert "fixture-only" not in str(failure.value)
+
+
+def test_explicit_refresh_returns_to_brapi_after_budget_fallback(policy):
+    asset = Asset("PETR4")
+    policy.usage.budgets["brapi"] = 0
+    primary, calls = brapi(policy, {"results": [{
+        "symbol": "PETR4", "data": {"regularMarketPrice": 30, "currency": "BRL"}
+    }]})
+    fallback, fallback_calls = bolsai(policy, {
+        "ticker": "PETR4", "trade_date": "2026-10-06", "close": 29
+    })
+    router = RoutedMarketDataProvider(primary, fallback, None, policy)
+    assert router.get_quote(asset).source == "bolsai"
+    assert not calls
+    router.invalidate(asset)
+    with router.refresh_context(True):
+        assert router.get_quote(asset).source == "brapi"
+    assert len(calls) == len(fallback_calls) == 1
+
+
+@pytest.mark.parametrize("status", [302, 500, 503])
+def test_bolsai_unexpected_http_status_is_reported_without_response_body(policy, status):
+    api, _ = bolsai(policy, {"secret": "fixture-only"}, status=status)
+    with pytest.raises(MarketDataUnavailableError, match=f"HTTP {status}") as failure:
+        api._request("/stocks/PETR4/quote", "quote")
+    assert "fixture-only" not in str(failure.value)
+
+
+def test_bolsai_timeout_is_distinct_from_invalid_json(policy):
+    def handler(request):
+        raise httpx.ReadTimeout("fixture-only", request=request)
+
+    api = BolsaiProvider(MarketSettings(bolsai_api_key="fixture-only"), policy,
+                        client=httpx.Client(transport=httpx.MockTransport(handler)))
+    with pytest.raises(MarketDataUnavailableError, match="tempo limite") as failure:
+        api._request("/stocks/PETR4/quote", "quote")
+    assert "fixture-only" not in str(failure.value)
+
+
 @pytest.mark.parametrize(
     "period,brapi_count", [("1mo", 1), ("3mo", 1), ("1y", 0), ("5y", 0)]
 )
@@ -357,6 +418,40 @@ def test_fundamental_priority_and_raw_official_fallback(policy):
     assert router.get_fundamentals(A).source == "bolsai"
     router.get_fundamentals(A)
     assert len(calls) == 1
+
+
+@pytest.mark.parametrize("status", [200, 503])
+def test_brapi_fundamentals_take_priority_and_reuse_cache(policy, status):
+    fallback, bolsai_calls = bolsai(policy, {}, status=status)
+    primary, brapi_calls = brapi(
+        policy,
+        {"results": [{"symbol": A.symbol, "data": {"trailingEps": 4, "bookValue": 20}}]},
+    )
+
+    class Official:
+        def get_statements(self, asset):
+            raise AssertionError("Valid brapi inputs must precede CVM")
+
+    router = RoutedFundamentalDataProvider(
+        fallback, Official(), policy, brapi=primary
+    )
+    for _ in range(2):
+        result = router.get_fundamentals(A)
+        assert result.source == "brapi" and result.eps == 4 and result.bvps == 20
+    assert not bolsai_calls and len(brapi_calls) == 2
+
+
+@pytest.mark.parametrize("status", [200, 503])
+def test_fundamentals_use_bolsai_only_after_brapi_failure_or_empty(policy, status):
+    primary, brapi_calls = brapi(
+        policy, {"results": [{"symbol": A.symbol, "data": {}}]}, status=status
+    )
+    fallback, bolsai_calls = bolsai(policy, {"queried_ticker": A.symbol, "lpa": 3})
+    router = RoutedFundamentalDataProvider(fallback, None, policy, brapi=primary)
+    for _ in range(2):
+        result = router.get_fundamentals(A)
+        assert result.source == "bolsai" and result.eps == 3
+    assert len(brapi_calls) == 2 and len(bolsai_calls) == 1
 
 
 def test_search_falls_back_to_bolsai_without_screener(policy):

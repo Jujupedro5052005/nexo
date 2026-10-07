@@ -16,12 +16,13 @@ class GetAssetQuote:
     def invalidate_cache(self, asset: Asset) -> None:
         self._provider.invalidate(asset)
 
-    def execute(self, asset: Asset, *, refresh: bool = False) -> Quote:
-        return (
-            self.prepare_refresh(asset)()
-            if refresh
-            else self._provider.get_quote(asset)
-        )
+    def execute(
+        self, asset: Asset, *, refresh: bool = False, explicit: bool = False
+    ) -> Quote:
+        if refresh:
+            return self.prepare_refresh(asset)()
+        with self._provider.refresh_context(explicit):
+            return self._provider.get_quote(asset)
 
     def prepare_refresh(self, asset: Asset) -> Callable[[], Quote]:
         """Invalidate once before submitting parallel UI tasks; run remote I/O in worker."""
@@ -38,13 +39,19 @@ class SearchAssets:
     def __init__(self, provider: MarketDataProvider) -> None:
         self._provider = provider
 
-    def execute(self, query: str) -> tuple[AssetSearchResult, ...]:
-        return self._provider.search_assets(query.strip())
+    def execute(
+        self, query: str, *, explicit: bool = False
+    ) -> tuple[AssetSearchResult, ...]:
+        with self._provider.refresh_context(explicit):
+            return self._provider.search_assets(query.strip())
 
 
 class GetAssetHistory:
     def __init__(self, provider: MarketDataProvider) -> None:
         self._provider = provider
 
-    def execute(self, asset: Asset, period: str = "1mo") -> PriceHistory:
-        return self._provider.get_history(asset, period)
+    def execute(
+        self, asset: Asset, period: str = "1mo", *, explicit: bool = False
+    ) -> PriceHistory:
+        with self._provider.refresh_context(explicit):
+            return self._provider.get_history(asset, period)

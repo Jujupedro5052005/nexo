@@ -90,8 +90,10 @@ class AnalyzeAsset:
         include_jcp: bool = False,
         refresh: bool = False,
         include_actions: bool = False,
+        explicit: bool = False,
     ) -> AssetAnalysis:
-        with self._market.refresh_context(refresh):
+        # A coordinated UI refresh has already invalidated the shared cache.
+        with self._market.refresh_context(refresh or explicit):
             return self._execute(
                 asset,
                 period=period,

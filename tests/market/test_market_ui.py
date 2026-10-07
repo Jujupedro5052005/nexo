@@ -100,6 +100,40 @@ def test_real_metrics_and_rows_are_shared_by_overview_and_portfolios(
     assert sets[0].at(0) == 300 and sets[1].at(0) == 400
 
 
+def test_global_refresh_without_selection_finishes_with_selection_guidance(
+    market_window, qtbot
+):
+    window, first, _, _ = market_window
+    assert window.selected_portfolio_id is None
+    window.market_refresh.click()
+    qtbot.waitUntil(
+        lambda: "Consulta de mercado concluída" in window.overview_page.market_feedback.text(),
+        timeout=10000,
+    )
+    assert "Selecione uma carteira" in window.overview_page.market_feedback.text()
+    assert "R$ 400,00" in window.portfolios_page.market_labels[first][0].text()
+    assert window.selected_portfolio_id is None
+
+
+@pytest.mark.parametrize("safe", [False, True])
+def test_global_refresh_shows_safe_provider_errors_only(market_window, qtbot, monkeypatch, safe):
+    window, _, _, _ = market_window
+    error = MarketDataUnavailableError("Contador local inválido.") if safe else RuntimeError("private-internal-data")
+
+    def fail(identities, *, explicit=False):
+        raise error
+
+    monkeypatch.setattr(window._load_valuation, "execute_many", fail)
+    window.market_refresh.click()
+    qtbot.waitUntil(
+        lambda: "Mercado indisponível" in window.overview_page.market_feedback.text(),
+        timeout=10000,
+    )
+    message = window.overview_page.market_feedback.text()
+    assert ("Contador local inválido." in message) is safe
+    assert "private-internal-data" not in message
+
+
 def test_manual_refresh_replaces_quote_without_changing_cost(
     market_window, qtbot, provider
 ):

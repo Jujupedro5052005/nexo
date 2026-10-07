@@ -47,7 +47,7 @@ class ProviderServices:
             self.brapi, self.bolsai, self.yahoo, self.policy
         )
         self.fundamentals = RoutedFundamentalDataProvider(
-            self.bolsai, self.cvm, self.policy
+            self.bolsai, self.cvm, self.policy, brapi=self.brapi
         )
         self.dividends = RoutedDividendDataProvider(
             self.yahoo,
@@ -68,12 +68,12 @@ class ProviderServices:
             self.policy.health(
                 "brapi",
                 bool(self.settings.token),
-                "market data primary · sandbox público sem chave",
+                "market data/fundamentals primary · sandbox público sem chave",
             ),
             self.policy.health(
                 "bolsai",
                 bool(self.settings.bolsai_api_key),
-                "fundamentals primary · quote EOD fallback",
+                "fundamentals/quote EOD fallback · company metadata",
             ),
             self.policy.health(
                 "Yahoo Finance", True, "fallback · dividends/history/actions"

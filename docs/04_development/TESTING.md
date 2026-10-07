@@ -267,3 +267,30 @@ restritos aos testes. A barreira de rede da suíte continua ativa.
 Seed offline: `python scripts/create_demo_dataset.py`.
 Verificação nativa online opcional: `python scripts/check_demo_presentation.py --online`.
 Limites e evidências em [DEMO_PRESENTATION.md](DEMO_PRESENTATION.md).
+
+## Correção de Atualizar ativo — 07/10/2026
+
+315 casos de providers/market/analytics/brapi_config aprovados, sem internet.
+Três casos novos cobrem bolsai com HTTP 503 ou fundamentos vazios seguida de
+fallback brapi/cache, e dois cliques no botão Qt com budgets locais esgotados:
+cotação, histórico e análise atualizam nos workers, com uma única cotação por
+ciclo. Uma consulta automática posterior mantém o limite local. Ruff, mypy
+src (90 arquivos), compileall e git diff --check aprovados. Não houve nova
+validação online nesta correção; a disponibilidade de cada módulo depende do plano.
+
+Atualização da prioridade: brapi → bolsai → CVM nos fundamentos. 318 casos de
+providers/market/analytics/brapi_config aprovados. Testes verificam que brapi
+válida evita qualquer chamada bolsai, erro/resposta vazia permite fallback e
+o botão Atualizar ativo funciona sem BOLSAI_API_KEY. Credenciais permanecem
+opcionais no fallback; nenhuma regra financeira foi alterada.
+
+Atualizar mercado: 321 testes direcionados aprovados. Três regressões novas
+verificam conclusão sem carteira selecionada (valores nos cards e orientação
+na Visão geral) e exposição apenas de erros tipados seguros. Teste nativo online
+separado, com banco demo copiado, retornou as três carteiras completas pela
+brapi; a falha relatada não foi reproduzida. Bancos originais preservados.
+
+Busca manual: regressões Qt adicionais cobrem PETR4 + Enter e seleção de
+resultado com budget local zero, com/sem chave bolsai. Busca, cotação, análise
+e histórico retornam pela brapi; atualização subsequente funciona e o contexto
+manual não se propaga para consultas automáticas posteriores. Sem rede.

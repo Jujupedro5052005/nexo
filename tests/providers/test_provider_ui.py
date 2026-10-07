@@ -305,3 +305,97 @@ def test_snapshot_old_data_is_cleared_between_selections(qtbot):
         panel.metrics["high"].value_label.text() == "—"
         and panel.symbol.text() == "ITSA4"
     )
+
+
+@pytest.mark.parametrize("without_bolsai_key", [False, True])
+@pytest.mark.parametrize("search_with_enter", [False, True])
+def test_update_asset_refreshes_all_workers_with_bolsai_down_and_budget_exhausted(
+    qtbot, policy, without_bolsai_key, search_with_enter
+):
+    from nexo.domain.models.market_data import AssetSearchResult
+    from nexo.ui.pages.assets_page import AssetsPage
+
+    asset = Asset("PETR4")
+    calls = []
+
+    def handler(request):
+        calls.append(request.url.path)
+        if request.url.path.endswith("tickers"):
+            return httpx.Response(
+                200, json={"results": [{"symbol": "PETR4", "name": "Petrobras", "currency": "BRL"}]}
+            )
+        if request.url.path.endswith("historical"):
+            data = {"historicalDataPrice": [{"date": "2026-10-01T12:00:00Z", "close": 40}]}
+        elif request.url.path.endswith("statistics"):
+            data = {"trailingEps": 4, "bookValue": 20}
+        elif request.url.path.endswith("financial-data"):
+            data = {"returnOnEquity": 0.2}
+        else:
+            data = {"regularMarketPrice": 40, "currency": "BRL"}
+        return httpx.Response(200, json={"results": [{"symbol": "PETR4", "data": data}]})
+
+    primary = BrapiMarketDataProvider(
+        MarketSettings(token="fixture-only"),
+        usage=policy.usage,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    fallback, fallback_calls = bolsai(policy, {}, status=503)
+    if without_bolsai_key:
+        fallback.close()
+        from nexo.infrastructure.market_data.adapters.bolsai import BolsaiProvider
+
+        fallback = BolsaiProvider(MarketSettings(), policy)
+    yf, _ = yahoo(policy)
+    market = RoutedMarketDataProvider(primary, fallback, yf, policy)
+    fundamentals = RoutedFundamentalDataProvider(fallback, None, policy, brapi=primary)
+    analysis = AnalyzeAsset(
+        market, fundamentals, dividends=RoutedDividendDataProvider(yf, primary, policy)
+    )
+    policy.usage.budgets["brapi"] = 0
+    policy.usage.budgets["Yahoo Finance"] = 0
+    page = AssetsPage(
+        search_assets=SearchAssets(market),
+        get_quote=GetAssetQuote(market),
+        get_history=GetAssetHistory(market),
+        analyze_asset=analysis,
+    )
+    qtbot.addWidget(page)
+    if not search_with_enter:
+        page.selected_asset = AssetSearchResult(asset, "Petrobras", "BRL")
+    try:
+        for cycle in range(2):
+            if search_with_enter and cycle == 0:
+                from PySide6.QtCore import Qt
+
+                page.search_input.setText("PETR4")
+                qtbot.keyClick(page.search_input, Qt.Key.Key_Return)
+                qtbot.waitUntil(lambda: page.table.rowCount() == 1, timeout=5000)
+                page.table.selectRow(0)
+            else:
+                page.refresh_button.click()
+            qtbot.waitUntil(
+                lambda: page.quote is not None
+                and page.history is not None
+                and page.analysis_panel.analysis is not None,
+                timeout=5000,
+            )
+            result = page.analysis_panel.analysis
+            assert page.quote.source == page.history.source == "brapi"
+            assert result.fundamentals.source == "brapi"
+            assert result.fundamentals.eps == 4
+            assert result.dividends is not None
+            assert not any("Budget" in issue or "bolsai" in issue for issue in result.issues)
+            assert len(calls) == 4 * (cycle + 1) + int(search_with_enter)
+            assert not fallback_calls
+        market.invalidate(asset)
+        # The manual context must not leak into subsequent automatic requests.
+        from nexo.domain.interfaces.market_data_provider import MarketRateLimitError
+
+        with pytest.raises(MarketRateLimitError):
+            GetAssetHistory(market).execute(asset)
+        assert len(calls) == 8 + int(search_with_enter)
+    finally:
+        page.runner.wait()
+        page.analysis_panel.runner.wait()
+        primary.close()
+        fallback.close()

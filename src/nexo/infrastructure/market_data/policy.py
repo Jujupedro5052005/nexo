@@ -25,6 +25,7 @@ TTL = {
     ("brapi", "quote"): 60,
     ("brapi", "search"): 900,
     ("brapi", "history"): 1800,
+    ("brapi", "fundamentals"): 43200,
     ("brapi", "dividends"): 43200,
     ("bolsai", "quote"): 21600,
     ("bolsai", "search"): 900,

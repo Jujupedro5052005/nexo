@@ -36,6 +36,7 @@ from nexo.application.portfolio.load_portfolio_valuation import LoadPortfolioVal
 from nexo.application.portfolio.register_transaction import RegisterTransaction
 from nexo.calculations.valuation.portfolio import PortfolioValuation
 from nexo.domain.errors import DomainValidationError
+from nexo.domain.interfaces.market_data_provider import MarketDataError
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
 from nexo.domain.interfaces.transaction_repository import TransactionRepositoryError
 from nexo.domain.models.portfolio import Portfolio
@@ -464,6 +465,13 @@ class MainWindow(QMainWindow):
         self.portfolios_page.set_market_data(self._market_values, identity)
         if identity in self._market_values:
             self.overview_page.set_market_data(self._market_values[identity])
+        elif identity is None and self._market_values:
+            message = (
+                "Consulta de mercado concluída. Selecione uma carteira em Carteiras "
+                "para visualizar os valores na Visão geral."
+            )
+            self.overview_page.clear_market_data(message)
+            self.portfolios_page.market_feedback.setText(message)
 
     def _update_market(
         self, local_available: bool, history_ids: tuple[int | None, ...]
@@ -500,6 +508,8 @@ class MainWindow(QMainWindow):
             if error is not None:
                 self._market_key = None
                 message = "Mercado indisponível. Dados locais preservados; tente Atualizar mercado."
+                if isinstance(error, MarketDataError):
+                    message += f"\n{error}"
                 self.portfolios_page.clear_market_data(message)
                 self.overview_page.clear_market_data(message)
                 return

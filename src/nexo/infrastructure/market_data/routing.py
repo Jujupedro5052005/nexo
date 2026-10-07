@@ -57,16 +57,23 @@ class RoutedMarketDataProvider(MarketDataProvider):
             cached = self.policy.cached(name, "quote", (asset,))
             if cached:
                 return cached
-        last: MarketDataError | None = None
+        primary_error: MarketDataError | None = None
         for name, provider in (("brapi", self.brapi), ("bolsai", self.bolsai)):
             try:
                 return self.policy.call(
                     name, "quote", (asset,), partial(provider.get_quote, asset)
                 )
             except MarketDataError as error:
-                last = error
-        assert last is not None
-        raise last
+                if name == "brapi":
+                    primary_error = error
+                else:
+                    assert primary_error is not None
+                    # Keep the primary failure category, so missing fallback
+                    # credentials cannot disguise a local budget/plan failure.
+                    raise type(primary_error)(
+                        f"brapi (prioritária): {primary_error} | bolsai (fallback): {error}"
+                    ) from None
+        raise MarketDataUnavailableError("Nenhuma fonte de cotação disponível.")
 
     def get_quotes(self, assets: Iterable[Asset]) -> QuoteBatch:
         quotes, issues = [], []
@@ -190,29 +197,37 @@ class RoutedFundamentalDataProvider(FundamentalDataProvider):
         bolsai: FundamentalDataProvider,
         cvm: OfficialFinancialStatementProvider,
         policy: ProviderPolicy,
+        *,
+        brapi: FundamentalDataProvider | None = None,
     ) -> None:
         self.bolsai, self.cvm, self.policy = bolsai, cvm, policy
+        self.brapi = brapi
 
     def get_fundamentals(self, asset: Asset) -> CompanyFundamentals:
         with self.policy.coalesce_route("fundamentals", (asset,)):
             return self._fundamentals(asset)
 
     def _fundamentals(self, asset: Asset) -> CompanyFundamentals:
-        for name in ("bolsai", "CVM"):
+        providers: list[tuple[str, FundamentalDataProvider]] = []
+        if self.brapi is not None:
+            providers.append(("brapi", self.brapi))
+        providers.append(("bolsai", self.bolsai))
+        for name in [*(name for name, _ in providers), "CVM"]:
             cached = self.policy.cached(name, "fundamentals", (asset,))
             if cached is not None and (name == "CVM" or self._has_inputs(cached)):
                 return cached
-        try:
-            result = self.policy.call(
-                "bolsai",
-                "fundamentals",
-                (asset,),
-                lambda: self.bolsai.get_fundamentals(asset),
-            )
-            if self._has_inputs(result):
-                return result
-        except MarketDataError:
-            pass
+        for name, provider in providers:
+            try:
+                result = self.policy.call(
+                    name,
+                    "fundamentals",
+                    (asset,),
+                    partial(provider.get_fundamentals, asset),
+                )
+                if self._has_inputs(result):
+                    return result
+            except MarketDataError:
+                pass
 
         def official() -> CompanyFundamentals:
             rows = self.cvm.get_statements(asset)
