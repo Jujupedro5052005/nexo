@@ -15,11 +15,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from nexo.application.assets.analyze_asset import AnalyzeAsset
 from nexo.application.assets.market_data import (
     GetAssetHistory,
     GetAssetQuote,
     SearchAssets,
 )
+from nexo.application.assets.market_integration import (
+    GetMarketIntegrationStatus,
+    TestMarketConnection,
+)
+from nexo.application.assets.provider_status import GetProviderHealth
+from nexo.application.portfolio.compare_portfolios import ComparePortfolios
 from nexo.application.portfolio.create_portfolio import CreatePortfolio
 from nexo.application.portfolio.financial_summary import summarize_portfolio
 from nexo.application.portfolio.list_portfolios import ListPortfolios
@@ -76,7 +83,7 @@ PAGE_INFO = (
     ),
     ("Metas", "Acompanhe objetivos financeiros e seu progresso.", "goals"),
     ("Alertas", "Monitore condições relevantes para suas estratégias.", "alerts"),
-    ("Análises", "Explore métricas e comparações demonstrativas.", "analytics"),
+    ("Análises", "Analise ativos e compare carteiras com dados reais.", "analytics"),
     ("Relatórios", "Prepare relatórios para consulta e exportação.", "reports"),
     ("Configurações", "Gerencie preferências e informações da aplicação.", "settings"),
 )
@@ -100,6 +107,11 @@ class MainWindow(QMainWindow):
         search_assets: SearchAssets | None = None,
         get_quote: GetAssetQuote | None = None,
         get_history: GetAssetHistory | None = None,
+        analyze_asset: AnalyzeAsset | None = None,
+        compare_portfolios: ComparePortfolios | None = None,
+        integration_status: GetMarketIntegrationStatus | None = None,
+        test_connection: TestMarketConnection | None = None,
+        provider_health: GetProviderHealth | None = None,
     ) -> None:
         super().__init__()
         self._create_portfolio = create_portfolio
@@ -109,9 +121,14 @@ class MainWindow(QMainWindow):
         self._load_positions = load_positions
         self._load_valuation = load_valuation
         self._asset_cases = (search_assets, get_quote, get_history)
+        self._analyze_asset = analyze_asset
+        self._compare_portfolios = compare_portfolios
+        self._integration_cases = (integration_status, test_connection)
+        self._provider_health = provider_health
         self.market_runner = TaskRunner(self)
         self._market_generation = 0
         self._market_key: object = None
+        self._explicit_market_refresh = False
         self._market_values: dict[int, PortfolioValuation] = {}
         self.selected_portfolio_id: int | None = None
         self.portfolios_page = PortfoliosPage(list_portfolios, load_positions)
@@ -151,7 +168,15 @@ class MainWindow(QMainWindow):
     def _add_pages(self) -> None:
         self.overview_page = OverviewPage()
         self.transactions_page = TransactionsPage()
-        self.assets_page = AssetsPage(*self._asset_cases)
+        self.analysis_page = AnalysisPage(
+            self._analyze_asset, self._list_portfolios, self._compare_portfolios
+        )
+        self.assets_page = AssetsPage(
+            *self._asset_cases, analyze_asset=self._analyze_asset
+        )
+        self.assets_page.asset_selected.connect(self.analysis_page.set_asset)
+        self.assets_page.integration_requested.connect(lambda: self.show_page(9))
+        self.settings_page = SettingsPage(*self._integration_cases, provider_health=self._provider_health)
         pages = (
             self.overview_page,
             self.portfolios_page,
@@ -160,9 +185,9 @@ class MainWindow(QMainWindow):
             PlanningPage(),
             GoalsPage(),
             AlertsPage(),
-            AnalysisPage(),
+            self.analysis_page,
             ReportsPage(),
-            SettingsPage(),
+            self.settings_page,
         )
         for page in pages:
             signal = getattr(page, "dialog_requested", None)
@@ -289,12 +314,16 @@ class MainWindow(QMainWindow):
         return lambda _checked: self.show_page(index)
 
     def show_page(self, index: int) -> None:
+        if index == 7:
+            self.analysis_page.load()
         if index == 1:
             self.portfolios_page.reload()
             self.selected_portfolio_id = self.portfolios_page.selected_portfolio_id
         if index in (0, 1, 3):
             self._refresh_financial_data()
         self.page_stack.setCurrentIndex(index)
+        if index == 9:
+            self.settings_page.provider_panel.refresh()
         title, subtitle, _icon_name = PAGE_INFO[index]
         self.page_title.setText(title)
         self.page_subtitle.setText(subtitle)
@@ -354,12 +383,14 @@ class MainWindow(QMainWindow):
         self._refresh_financial_data()
 
     def _portfolio_created(self, portfolio: Portfolio) -> None:
+        self.analysis_page.invalidate_portfolios()
         if self.portfolios_page.reload():
             self.portfolios_page.set_selected_portfolio(portfolio.id)
             self.selected_portfolio_id = portfolio.id
             self._refresh_financial_data()
 
     def _transaction_created(self, _transaction: object) -> None:
+        self.analysis_page.invalidate_portfolios()
         self._market_key = None
         self.portfolios_page.reload()
         self._refresh_financial_data()
@@ -404,16 +435,29 @@ class MainWindow(QMainWindow):
         self._update_market(not error, tuple(item.id for item in history))
 
     def _portfolio_list_refreshed(self) -> None:
+        if self._load_valuation is not None:
+            self._load_valuation.invalidate_cache()
+        self.analysis_page.invalidate_portfolios()
         self.selected_portfolio_id = self.portfolios_page.selected_portfolio_id
         self._market_key = None
         self._refresh_financial_data()
 
     def refresh_market(self) -> None:
+        self._explicit_market_refresh = True
+        if self._load_valuation is not None:
+            self._load_valuation.invalidate_cache()
+        self.analysis_page.invalidate_portfolios()
         self._market_key = None
         self.portfolios_page.reload()
         self._refresh_financial_data()
+        self.analysis_page.asset_panel.invalidate()
         if self.page_stack.currentIndex() == 2:
-            self.assets_page.refresh_asset()
+            self.assets_page.refresh_asset(refresh=True)
+        elif self.page_stack.currentIndex() == 7:
+            if self.analysis_page.tabs.currentIndex() == 0:
+                self.analysis_page.load()
+            elif len(self.analysis_page.comparison_panel.selected_ids()) >= 2:
+                self.analysis_page.comparison_panel.compare()
 
     def _apply_market(self) -> None:
         identity = self.selected_portfolio_id
@@ -424,6 +468,8 @@ class MainWindow(QMainWindow):
     def _update_market(
         self, local_available: bool, history_ids: tuple[int | None, ...]
     ) -> None:
+        explicit = self._explicit_market_refresh
+        self._explicit_market_refresh = False
         case = self._load_valuation
         identity = self.selected_portfolio_id
         identities = self.portfolios_page.portfolio_ids
@@ -460,16 +506,22 @@ class MainWindow(QMainWindow):
             self._market_values = result
             self._apply_market()
 
-        self.market_runner.submit(lambda: case.execute_many(identities), completed)
+        self.market_runner.submit(lambda: case.execute_many(identities, explicit=explicit), completed)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         self.market_runner.stop()
         self.assets_page.runner.stop()
+        self.assets_page.analysis_panel.runner.stop()
+        self.analysis_page.stop()
+        self.settings_page.market_panel.runner.stop()
         super().closeEvent(event)
 
     def wait_for_market(self) -> None:
         self.market_runner.wait()
         self.assets_page.runner.wait()
+        self.assets_page.analysis_panel.runner.wait()
+        self.analysis_page.wait()
+        self.settings_page.market_panel.runner.wait()
 
     def _portfolio_dialog_finished(self, _result: int) -> None:
         self.active_dialog = None

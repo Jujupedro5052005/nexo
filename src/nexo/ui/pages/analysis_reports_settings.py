@@ -1,4 +1,4 @@
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -8,81 +8,21 @@ from PySide6.QtWidgets import (
     QRadioButton,
 )
 
-from nexo.ui.components.charts import bar_chart, donut_chart, line_chart
+from nexo.application.assets.market_integration import (
+    GetMarketIntegrationStatus,
+    TestMarketConnection,
+)
+from nexo.application.assets.provider_status import GetProviderHealth
 from nexo.ui.components.common import (
     Badge,
     PageContent,
     SectionCard,
     connect_planned_action,
 )
-from nexo.ui.components.metric_card import MetricCard
-from nexo.ui.demo.data import ALLOCATION, DEMO_NOTICE
-from nexo.ui.icons import icon
-
-
-class AnalysisPage(PageContent):
-    def __init__(self) -> None:
-        super().__init__("analysis")
-        self.page_layout.addWidget(Badge(DEMO_NOTICE, "DemoBadge"), alignment=Qt.AlignmentFlag.AlignLeft)
-        metrics = QGridLayout()
-        metrics.setSpacing(12)
-        values = (
-            ("RENTABILIDADE", "+12,42%", "No período selecionado"),
-            ("VOLATILIDADE", "14,8%", "Estimativa demonstrativa"),
-            ("CONCENTRAÇÃO", "34%", "Maior classe"),
-            ("DIVERSIFICAÇÃO", "Boa", "6 classes"),
-            ("DRAWDOWN", "-8,4%", "Maior queda"),
-            ("DIVIDENDOS", "R$ 3.240", "Últimos 12 meses"),
-        )
-        for index, (label, value, detail) in enumerate(values):
-            metrics.addWidget(MetricCard(label, value, detail, icon("analytics", "#10C7C7")), index // 3, index % 3)
-        self.page_layout.addLayout(metrics)
-
-        first = QGridLayout()
-        first.setSpacing(14)
-        cumulative = SectionCard("Rentabilidade acumulada")
-        cumulative.content.addWidget(
-            line_chart(
-                (
-                    ("Carteira", [100, 102, 104, 103, 107, 109, 112, 115], "#10C7C7"),
-                    ("CDI", [100, 101, 102, 103, 104, 105, 106, 107], "#4D7CFF"),
-                    ("Ibovespa", [100, 98, 104, 101, 106, 105, 110, 108], "#FFB020"),
-                )
-            )
-        )
-        monthly = SectionCard("Rentabilidade mensal")
-        monthly.content.addWidget(
-            bar_chart(["Abr", "Mai", "Jun", "Jul", "Ago", "Set"], (("Rentabilidade", [1.2, 0.8, 1.9, -0.4, 2.1, 1.4], "#10C7C7"),))
-        )
-        first.addWidget(cumulative, 0, 0)
-        first.addWidget(monthly, 0, 1)
-        self.page_layout.addLayout(first)
-
-        second = QGridLayout()
-        by_class = SectionCard("Distribuição por classe")
-        by_class.content.addWidget(donut_chart(ALLOCATION))
-        by_sector = SectionCard("Distribuição por setor")
-        sectors = [
-            ("Financeiro", 29, "", "#10C7C7"),
-            ("Commodities", 24, "", "#4D7CFF"),
-            ("Energia", 18, "", "#8B6CFF"),
-            ("Consumo", 16, "", "#3DDC84"),
-            ("Outros", 13, "", "#6E7D91"),
-        ]
-        by_sector.content.addWidget(donut_chart(sectors))
-        compare = SectionCard("Comparação")
-        for label, value, kind in (("Carteira", "+12,42%", "Positive"), ("CDI", "+8,10%", "AccentText"), ("Ibovespa", "+6,72%", "Warning")):
-            row = QHBoxLayout()
-            row.addWidget(QLabel(label))
-            row.addStretch()
-            result = QLabel(value)
-            result.setObjectName(kind)
-            row.addWidget(result)
-            compare.content.addLayout(row)
-        second.addWidget(by_class, 0, 0)
-        second.addWidget(by_sector, 0, 1)
-        second.addWidget(compare, 0, 2)
-        self.page_layout.addLayout(second)
+from nexo.ui.components.market_integration_panel import MarketIntegrationPanel
+from nexo.ui.components.provider_health_panel import ProviderHealthPanel
+from nexo.ui.demo.data import DEMO_NOTICE
+from nexo.ui.pages.analysis_page import AnalysisPage as AnalysisPage  # noqa: PLC0414
 
 
 class ReportsPage(PageContent):
@@ -90,12 +30,17 @@ class ReportsPage(PageContent):
 
     def __init__(self) -> None:
         super().__init__("reports")
-        self.page_layout.addWidget(Badge(DEMO_NOTICE, "DemoBadge"), alignment=Qt.AlignmentFlag.AlignLeft)
+        self.page_layout.addWidget(
+            Badge(DEMO_NOTICE, "DemoBadge"), alignment=Qt.AlignmentFlag.AlignLeft
+        )
         options = QGridLayout()
         options.setSpacing(14)
         report_names = (
             ("Relatório da carteira", "Posições, alocação e resumo consolidado."),
-            ("Relatório de movimentações", "Histórico filtrado de compras, vendas e aportes."),
+            (
+                "Relatório de movimentações",
+                "Histórico filtrado de compras, vendas e aportes.",
+            ),
             ("Relatório de rentabilidade", "Evolução e comparação por período."),
             ("Relatório de proventos", "Proventos recebidos e evolução mensal."),
             ("Planejamento financeiro", "Receitas, despesas e capacidade de aporte."),
@@ -134,23 +79,35 @@ class ReportsPage(PageContent):
 
 
 class SettingsPage(PageContent):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        integration_status: GetMarketIntegrationStatus | None = None,
+        test_connection: TestMarketConnection | None = None,
+        provider_health: GetProviderHealth | None = None,
+    ) -> None:
         super().__init__("settings")
         grid = QGridLayout()
         grid.setSpacing(14)
         grid.addWidget(self._appearance(), 0, 0)
         grid.addWidget(self._currency(), 0, 1)
-        grid.addWidget(self._market(), 1, 0)
+        self.market_panel = MarketIntegrationPanel(integration_status, test_connection)
+        grid.addWidget(self.market_panel, 1, 0)
         grid.addWidget(self._notifications(), 1, 1)
         grid.addWidget(self._privacy(), 2, 0)
         grid.addWidget(self._local_data(), 2, 1)
         grid.addWidget(self._about(), 3, 0, 1, 2)
         self.page_layout.addLayout(grid)
+        self.provider_panel = ProviderHealthPanel(provider_health)
+        self.page_layout.addWidget(self.provider_panel)
 
     @staticmethod
     def _appearance() -> SectionCard:
         card = SectionCard("Aparência")
-        for label, enabled, checked in (("Dark", True, True), ("Light  ·  Em breve", False, False), ("Sistema  ·  Em breve", False, False)):
+        for label, enabled, checked in (
+            ("Dark", True, True),
+            ("Light  ·  Em breve", False, False),
+            ("Sistema  ·  Em breve", False, False),
+        ):
             option = QRadioButton(label)
             option.setEnabled(enabled)
             option.setChecked(checked)
@@ -169,23 +126,22 @@ class SettingsPage(PageContent):
         return card
 
     @staticmethod
-    def _market() -> SectionCard:
-        card = SectionCard("Dados de mercado")
-        card.content.addWidget(QLabel("Provider: ainda não configurado"))
-        card.content.addWidget(Badge("Desconectado", "WarningBadge"), alignment=Qt.AlignmentFlag.AlignLeft)
-        return card
-
-    @staticmethod
     def _notifications() -> SectionCard:
         card = SectionCard("Notificações")
-        card.content.addWidget(QLabel("Alertas no aplicativo serão conectados futuramente."))
-        card.content.addWidget(Badge("Em breve", "MutedBadge"), alignment=Qt.AlignmentFlag.AlignLeft)
+        card.content.addWidget(
+            QLabel("Alertas no aplicativo serão conectados futuramente.")
+        )
+        card.content.addWidget(
+            Badge("Em breve", "MutedBadge"), alignment=Qt.AlignmentFlag.AlignLeft
+        )
         return card
 
     @staticmethod
     def _privacy() -> SectionCard:
         card = SectionCard("Privacidade")
-        text = QLabel("Os dados financeiros serão armazenados localmente quando a persistência for implementada.")
+        text = QLabel(
+            "Os dados financeiros serão armazenados localmente quando a persistência for implementada."
+        )
         text.setObjectName("SecondaryText")
         text.setWordWrap(True)
         card.content.addWidget(text)
@@ -206,8 +162,9 @@ class SettingsPage(PageContent):
     @staticmethod
     def _about() -> SectionCard:
         card = SectionCard("Sobre")
-        card.content.addWidget(QLabel("NEXO  •  versão 0.1.0  •  Projeto acadêmico de Programação Orientada a Objetos"))
+        card.content.addWidget(
+            QLabel(
+                "NEXO  •  versão 0.1.0  •  Projeto acadêmico de Programação Orientada a Objetos"
+            )
+        )
         return card
-
-
-from PySide6.QtCore import Qt

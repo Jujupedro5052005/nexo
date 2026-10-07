@@ -48,7 +48,7 @@ MARKET_HEADERS = (
     "CUSTO MÉDIO",
     "CUSTO TOTAL",
     "REALIZADO",
-    "PREÇO ATUAL",
+    "PREÇO DE REFERÊNCIA",
     "VALOR ATUAL",
     "NÃO REALIZADO",
     "RETORNO ABERTO",
@@ -105,7 +105,7 @@ def market_status(valuation: PortfolioValuation) -> str:
         else "não informado"
     )
     return (
-        f"Origem: {', '.join(sorted({q.source for q in quotes}))} • Consultado: {updated} • Cotação mais antiga: {timestamp}"
+        f"Origem: {', '.join(sorted({q.source + (' · fechamento diário / EOD' if q.price_kind == 'eod' else '') for q in quotes}))} • Consultado: {updated} • Cotação mais antiga: {timestamp}"
         + (
             " • Valuation incompleto: cotação ausente ou moeda sem conversão."
             if not valuation.complete
@@ -119,7 +119,7 @@ def apply_valuation(table: DataTable, valuation: PortfolioValuation) -> None:
     for row, position in enumerate(valuation.positions):
         quote = position.quote
         detail = position.unavailable_reason or (
-            f"{quote.source}; consultado {quote.retrieved_at.isoformat()}; mercado {quote.market_time.isoformat() if quote.market_time else 'não informado'}"
+            f"{quote.source}; {quote.freshness}; consultado {quote.retrieved_at.isoformat()}; mercado {quote.market_time.isoformat() if quote.market_time else 'não informado'}"
             if quote
             else "Sem cotação"
         )

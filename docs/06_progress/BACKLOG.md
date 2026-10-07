@@ -1,5 +1,14 @@
 # Backlog priorizado
 
+## Aceite restante — 05.2
+
+- [x] Implementar quatro providers, routing fechado, budgets e snapshot avançado.
+- [x] Validar brapi/Yahoo online dentro do smoke limitado; preservar ledger.
+- [ ] Configurar BOLSAI_API_KEY local e validar ITSA4 fundamentos/bridge/CVM online.
+- [ ] Revisar uso prolongado/DPI das novas áreas e execução com dados CVM reais.
+
+Políticas completas: [DATA_PROVIDERS.md](../02_architecture/DATA_PROVIDERS.md).
+
 ## P0 — Validação e desenho
 
 - [ ] Registrar proposta aprovada e escopo aceito.
@@ -57,11 +66,11 @@
 
 ## P2 — Dashboard e análise
 
-- [ ] Definir métricas e período de comparação.
+- [x] Definir comparação por ID/fotografia atual, métricas, moedas e disponibilidade.
 - [x] Implementar KPIs, custo/valor aberto e gráfico real de ativo.
 - [ ] Evolução histórica de carteira, benchmarks e análises adicionais.
 - [x] Integrar cálculos priorizados de `calculations`.
-- [x] Exibir valor atual e rentabilidade quando houver cotação.
+- [x] Exibir valor atual e retorno sobre custo aberto quando houver cotação.
 
 ## P3 — Alertas
 
@@ -111,3 +120,15 @@ Próximo incremento recomendado: comparação de carteiras por métricas existen
 com denominadores, moedas e disponibilidade explícitos. Não implementado aqui.
 Cache TTL, escrituras concorrentes, edição/exclusão e cancelamento HTTP instantâneo
 somente se caso de uso posterior justificar. Demos complementares ainda pendentes.
+
+## Grande Incremento 05 entregue
+
+Fundamentos reais, indicadores, Graham/Bazin com yield explícito, margem neutra,
+risco do ativo, comparação por ID, pesos/maior/top 3/HHI e cache TTL compartilhado.
+Ativos/Análises reais e concentração em Carteiras/Overview; sem schema adicional.
+Os próximos itens sugeridos na seção 04 são históricos; comparação/cache concluídos.
+
+Próximo recomendado, sem implementação: caixa/aportes/retiradas explícitos, política
+de proventos/eventos, avaliações completas para preparar TWR. XIRR/MWR, Sharpe,
+benchmarks, edição/exclusão, FX, cancelamento HTTP instantâneo e DPI prolongado
+continuam futuros. Requisitos acadêmicos ainda pendentes são preservados.

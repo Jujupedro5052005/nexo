@@ -1,3 +1,6 @@
+import socket
+
+import httpx
 import pytest
 
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepository
@@ -24,3 +27,25 @@ class InMemoryPortfolioRepository(PortfolioRepository):
 @pytest.fixture
 def portfolio_repository() -> InMemoryPortfolioRepository:
     return InMemoryPortfolioRepository()
+
+
+@pytest.fixture(autouse=True)
+def forbid_external_network(monkeypatch):
+    """Fail even if an adapter swallows a network attempt. MockTransport stays usable."""
+    attempts = []
+
+    def blocked(*args, **kwargs):
+        attempts.append(True)
+        raise AssertionError("Internet real proibida na suíte comum; use fixtures/MockTransport.")
+
+    monkeypatch.setattr(socket.socket, "connect", blocked)
+    monkeypatch.setattr(socket.socket, "connect_ex", blocked)
+    monkeypatch.setattr(socket, "create_connection", blocked)
+    monkeypatch.setattr(httpx.HTTPTransport, "handle_request", blocked)
+    import requests
+    from curl_cffi.requests import Session
+    monkeypatch.setattr(requests.Session, "request", blocked)
+    monkeypatch.setattr(Session, "request", blocked)
+    yield
+    if attempts:
+        pytest.fail("Tentativa de internet real detectada durante o teste.")

@@ -44,7 +44,7 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 - [ ] atualizar e excluir carteiras conforme políticas definidas;
 - [x] registrar compras e vendas;
 - [x] carregar histórico e posições reconstruídas;
-- [ ] comparar carteiras;
+- [x] comparar carteiras por ID, valuation e concentração completos;
 - [ ] validar fluxos completos no Windows.
 
 ## 5 — Dashboard e análise
@@ -52,8 +52,8 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 - [x] implementar KPIs, gráfico de custo/valor e histórico real de ativo;
 - [ ] implementar evolução histórica da carteira e benchmarks;
 - [x] integrar valuation de `calculations`;
-- [ ] integrar indicadores adicionais priorizados;
-- [x] exibir valor atual e rentabilidade quando houver dados;
+- [x] integrar fundamentos, dez indicadores, Graham/Bazin e risco do ativo;
+- [x] exibir valor atual e retorno sobre custo aberto quando houver dados;
 - [ ] revisar usabilidade e consistência visual.
 
 ## 6 — Alertas
@@ -83,5 +83,16 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 3. Concluído: ledger persistente e fluxo completo de compra/venda pela UI,
    histórico, posições e métricas a custo. Escopo ampliado inclui o antigo 04.
 4. Concluído: mercado brapi v2, valuation, busca/histórico real e dashboard.
-5. Próximo sugerido: comparação real de carteiras por métricas documentadas,
-   estados de disponibilidade e moedas; não implementado neste incremento.
+5. Concluído: análises reais, fundamentos, indicadores, Graham/Bazin, risco do
+   ativo, concentração e comparação por ID; cache TTL compartilhado em memória.
+6. Recomendado (não implementado): caixa e fluxos externos explícitos para
+   preparar avaliação histórica e TWR, com política própria de eventos/moedas.
+
+## Extensão 05.2 — providers e snapshot
+
+- [x] Routing fechado por capability para brapi, bolsai, Yahoo e CVM.
+- [x] Snapshot avançado e detalhes técnicos; fontes/fallbacks visíveis.
+- [x] TTL, coalescing, negative capabilities, budgets e consumo persistente.
+- [x] Cadastro/DFP/ITR oficial, bridge exato e testes com datasets pequenos.
+- [x] Smoke brapi/Yahoo limitado e revisão visual do snapshot no Windows.
+- [ ] Validar ITSA4 fundamentos bolsai e cadastro CVM online com chave/bridge real.

@@ -28,6 +28,16 @@ class Quote:
     change: Decimal | None = None
     change_percent: Decimal | None = None
     source: str = "brapi"
+    day_high: Decimal | None = None
+    day_low: Decimal | None = None
+    open: Decimal | None = None
+    previous_close: Decimal | None = None
+    volume: int | None = None
+    market_cap: Decimal | None = None
+    latency_ms: Decimal | None = None
+    estimated_delay_minutes: int | None = None
+    price_kind: str = "delayed"
+    trading_date: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.asset, Asset):
@@ -41,9 +51,73 @@ class Quote:
         object.__setattr__(self, "currency", currency)
         _finite(self.change, "change")
         _finite(self.change_percent, "change_percent")
+        for field in (
+            "day_high",
+            "day_low",
+            "open",
+            "previous_close",
+            "market_cap",
+            "latency_ms",
+        ):
+            _finite(getattr(self, field), field)
+        if self.volume is not None and (
+            type(self.volume) is not int or self.volume < 0
+        ):
+            raise DomainValidationError("volume must be a nonnegative integer.")
         _aware(self.retrieved_at, "retrieved_at")
         if self.market_time is not None:
             _aware(self.market_time, "market_time")
+
+    @property
+    def freshness(self) -> str:
+        if self.price_kind == "eod":
+            return "Fechamento diário / EOD" + (
+                f" · {self.trading_date}" if self.trading_date else ""
+            )
+        if self.estimated_delay_minutes is not None:
+            age = (
+                f" · idade do dado na consulta: {self.data_age_seconds // 60} min (mercado pode estar fechado)"
+                if self.data_age_seconds is not None
+                else ""
+            )
+            return f"~{self.estimated_delay_minutes} min de atraso estimado" + age
+        return "Frescor não informado"
+
+    @property
+    def data_age_seconds(self) -> int | None:
+        return (
+            max(0, int((self.retrieved_at - self.market_time).total_seconds()))
+            if self.market_time
+            else None
+        )
+
+    @property
+    def symbol(self) -> str:
+        return self.asset.symbol
+
+    @property
+    def current_price(self) -> Decimal:
+        return self.price
+
+    @property
+    def daily_change(self) -> Decimal | None:
+        return self.change
+
+    @property
+    def daily_change_percent(self) -> Decimal | None:
+        return self.change_percent
+
+    @property
+    def market_timestamp(self) -> datetime | None:
+        return self.market_time
+
+    @property
+    def queried_at(self) -> datetime:
+        return self.retrieved_at
+
+
+# Quote remains the validated snapshot consumed by valuation and UI.
+MarketSnapshot = Quote
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +166,7 @@ class AssetSearchResult:
     name: str
     currency: str | None = None
     asset_type: str = ""
+    source: str = "brapi"
 
     def __post_init__(self) -> None:
         if not isinstance(self.asset, Asset) or not isinstance(self.name, str):

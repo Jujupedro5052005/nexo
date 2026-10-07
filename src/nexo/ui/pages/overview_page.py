@@ -12,7 +12,7 @@ from PySide6.QtWidgets import (
 from nexo.application.portfolio.financial_summary import FinancialSummary
 from nexo.calculations.valuation.portfolio import PortfolioValuation
 from nexo.domain.reconstruction import ReconstructionResult
-from nexo.ui.components.charts import bar_chart, donut_chart, line_chart
+from nexo.ui.components.charts import bar_chart, line_chart
 from nexo.ui.components.common import (
     Badge,
     DataTable,
@@ -20,10 +20,11 @@ from nexo.ui.components.common import (
     SectionCard,
     connect_planned_action,
 )
+from nexo.ui.components.concentration_panel import ConcentrationPanel
 from nexo.ui.components.metric_card import MetricCard
+from nexo.ui.components.responsive_pair import ResponsivePair
 from nexo.ui.demo.data import (
     ALERTS,
-    ALLOCATION,
     DEMO_NOTICE,
     GOALS,
     INVESTED_SERIES,
@@ -55,7 +56,7 @@ class OverviewPage(PageContent):
             "Selecione uma carteira para consultar suas posições."
         )
         self.page_layout.addWidget(self.context_label)
-        self.page_layout.addLayout(self._metrics())
+        local_metrics = self._metrics()
         market_metrics = QHBoxLayout()
         for key, title in (
             ("market", "VALOR DAS POSIÇÕES"),
@@ -63,10 +64,19 @@ class OverviewPage(PageContent):
             ("total", "RESULTADO TOTAL"),
             ("return", "RETORNO DAS POSIÇÕES ABERTAS"),
         ):
-            metric = MetricCard(title, "—", "Mercado • carteira selecionada • BRL")
+            detail = {
+                "market": "Posições abertas em BRL • sem caixa",
+                "unrealized": "Valor atual menos custo aberto",
+                "total": "Realizado + não realizado",
+                "return": "Não realizado / custo aberto",
+            }[key]
+            metric = MetricCard(title, "—", detail)
+            if key == "market":
+                metric.setProperty("highlight", True)
             self.metrics[key] = metric
             market_metrics.addWidget(metric, 1)
         self.page_layout.addLayout(market_metrics)
+        self.page_layout.addLayout(local_metrics)
         positions = SectionCard("Posições abertas — carteira selecionada")
         self.positions_table = DataTable(MARKET_HEADERS, [])
         self.positions_table.setObjectName("overview_positions_table")
@@ -77,6 +87,8 @@ class OverviewPage(PageContent):
         self.market_feedback.setWordWrap(True)
         positions.content.addWidget(self.market_feedback)
         self.page_layout.addWidget(positions)
+        self.concentration_panel = ConcentrationPanel()
+        self.page_layout.addWidget(self.concentration_panel)
         self.valuation_chart_card = SectionCard(
             "Custo e valor das posições cotadas — BRL"
         )
@@ -91,22 +103,10 @@ class OverviewPage(PageContent):
         demo_row.addStretch()
         self.page_layout.addLayout(demo_row)
 
-        charts = QGridLayout()
-        charts.setSpacing(14)
-        charts.addWidget(self._evolution(), 0, 0, 1, 2)
-        charts.addWidget(self._allocation(), 0, 2)
-        charts.setColumnStretch(0, 2)
-        charts.setColumnStretch(1, 2)
-        charts.setColumnStretch(2, 3)
-        self.page_layout.addLayout(charts)
-
-        middle = QGridLayout()
-        middle.setSpacing(14)
-        middle.addWidget(self._insights(), 0, 2)
-        middle.setColumnStretch(0, 2)
-        middle.setColumnStretch(1, 2)
-        middle.setColumnStretch(2, 2)
-        self.page_layout.addLayout(middle)
+        self.evolution_card = self._evolution()
+        self.insights_card = self._insights()
+        self.demo_charts = ResponsivePair(self.evolution_card, self.insights_card)
+        self.page_layout.addWidget(self.demo_charts)
 
         lower = QGridLayout()
         lower.setSpacing(14)
@@ -167,7 +167,9 @@ class OverviewPage(PageContent):
             else {}
         )
         for key in ("positions", "cost", "realized", "transactions"):
-            self.metrics[key].value_label.setText(values.get(key, "—"))
+            amount = summary.realized_profit_loss if summary is not None and key == "realized" else None
+            state = "positive" if amount is not None and amount > 0 else "negative" if amount is not None and amount < 0 else "neutral"
+            self.metrics[key].set_value(values.get(key, "—"), state)
         replace_rows(
             self.positions_table, [row + ("—",) * 4 for row in position_rows(result)]
         )
@@ -179,22 +181,25 @@ class OverviewPage(PageContent):
         )
 
     def clear_market_data(self, message: str) -> None:
+        self.concentration_panel.clear(message)
         self._clear_valuation_chart()
         self.chart_feedback.setText(message)
         for key in ("market", "unrealized", "total", "return"):
-            self.metrics[key].value_label.setText("—")
+            self.metrics[key].set_value("—")
         self.market_feedback.setText(message)
 
     def set_market_data(self, valuation: PortfolioValuation) -> None:
+        self.concentration_panel.display(valuation)
         for key, amount in (
             ("market", valuation.current_market_value),
             ("unrealized", valuation.unrealized_profit_loss),
             ("total", valuation.total_profit_loss),
         ):
-            self.metrics[key].value_label.setText(currency_text(amount))
-        self.metrics["return"].value_label.setText(
-            percent_text(valuation.unrealized_return)
-        )
+            state = "accent" if key == "market" and amount is not None else "positive" if amount is not None and amount > 0 else "negative" if amount is not None and amount < 0 else "neutral"
+            self.metrics[key].set_value(currency_text(amount), state)
+        return_value = valuation.unrealized_return
+        self.metrics["return"].set_value(percent_text(return_value),
+            "positive" if return_value is not None and return_value > 0 else "negative" if return_value is not None and return_value < 0 else "neutral")
         apply_valuation(self.positions_table, valuation)
         self.market_feedback.setText(market_status(valuation))
         self._clear_valuation_chart()
@@ -263,32 +268,6 @@ class OverviewPage(PageContent):
                 250,
             )
         )
-        return card
-
-    @staticmethod
-    def _allocation() -> SectionCard:
-        card = SectionCard("Alocação da Carteira", "Ver carteira completa  →")
-        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
-        row = QHBoxLayout()
-        chart = donut_chart(ALLOCATION)
-        chart.setMaximumWidth(255)
-        row.addWidget(chart, 1)
-        legend = QVBoxLayout()
-        for category, percent, value, color in ALLOCATION:
-            line = QHBoxLayout()
-            dot = QLabel("●")
-            dot.setStyleSheet(f"color: {color};")
-            name = QLabel(category)
-            name.setObjectName("SecondaryText")
-            numbers = QLabel(f"{percent}%  ·  {value}")
-            numbers.setObjectName("SecondaryText")
-            line.addWidget(dot)
-            line.addWidget(name)
-            line.addStretch()
-            line.addWidget(numbers)
-            legend.addLayout(line)
-        row.addLayout(legend, 2)
-        card.content.addLayout(row)
         return card
 
     @staticmethod

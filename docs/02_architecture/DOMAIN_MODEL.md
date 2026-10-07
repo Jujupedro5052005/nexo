@@ -188,3 +188,18 @@ moeda diferente mantém preço/valor na moeda própria e não é convertida. Aus
 percentual ou patrimônio incluindo caixa fictício.
 
 Regras completas: [API_ARCHITECTURE.md](API_ARCHITECTURE.md).
+
+## Fundamentos e concentração — Grande Incremento 05
+
+CompanyFundamentals, CashDividend e DividendSummary são value objects imutáveis
+com Decimal/None, origem e consulta aware. FundamentalDataProvider não altera a
+identidade de Asset e permanece separado do contrato de mercado. Fundamentals não são transações, nem crédito de proventos.
+Transaction continua fonte financeira; Position continua reconstruída.
+
+AssetAnalysis/ValuationEstimate e ComparedPortfolio são resultados da Application;
+Indicator, HistoricalRisk, SafetyMargin e Concentration são resultados dos cálculos.
+PortfolioValuation.concentration deriva pesos, maior/top 3 e HHI sem estado salvo.
+Não há AssetRepository/PositionRepository nem ORM desses snapshots.
+
+Políticas de None/zero, BRL, proventos, fórmulas, referência contábil e limites:
+[ANALYTICS.md](ANALYTICS.md).

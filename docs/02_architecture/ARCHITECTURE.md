@@ -1,5 +1,15 @@
 # Arquitetura de software do Nexo Invest
 
+## Composição atual — 05.2
+
+`main.py` injeta contratos separados de mercado, fundamentos, dividendos e dados
+oficiais. ProviderServices gerencia composição/lifecycle; não é um provider
+universal. ProviderPolicy compartilha TTL/coalescing/health; ProviderUsage reserva
+operações remotas com persistência local sem segredos. brapi, bolsai, Yahoo e CVM
+ficam exclusivamente em Infrastructure. Ledger/schema permanecem independentes.
+As seções 01–05 abaixo registram a evolução histórica; composição real e routing
+atual estão em [DATA_PROVIDERS.md](DATA_PROVIDERS.md).
+
 ## Visão geral
 
 O Nexo Invest adota uma separação prática compatível com a árvore atual. Não se
@@ -202,3 +212,21 @@ linhas e métricas locais, mas tornam agregado de mercado indisponível. Gráfic
 Qt recebem float somente nas coordenadas, depois dos cálculos financeiros.
 
 Contrato, endpoints, fórmulas e limites: [API_ARCHITECTURE.md](API_ARCHITECTURE.md).
+
+## Fluxo atual — Grande Incremento 05
+
+As seções 01–04 registram entregas anteriores. main.py agora compõe um único
+BrapiMarketDataProvider/httpx.Client com CachedMarketDataProvider compartilhado.
+FundamentalDataProvider permanece ABC separada. AnalyzeAsset coordena os dois
+contratos e calculations de indicadores/valuation/risco; ComparePortfolios usa
+ListPortfolios/ListTransactions/LoadPortfolioValuation, com IDs e batch existentes.
+UI só apresenta os DTOs imutáveis; não conhece payload, HTTP ou SQL.
+
+CompanyFundamentals/CashDividend/DividendSummary são snapshots externos, sem
+alterar Transaction/Position nem schema. Concentração é propriedade derivada de
+PortfolioValuation. Cache TTL em infraestrutura não é fonte financeira persistida.
+Qt preserva gerações, callbacks na GUI e encerramento coordenado. Não há serviço
+analítico genérico, tabela/repository de Position ou subclasses por categoria.
+
+Fórmulas, unidades, proventos, cache e desenho futuro TWR:
+[ANALYTICS.md](ANALYTICS.md).

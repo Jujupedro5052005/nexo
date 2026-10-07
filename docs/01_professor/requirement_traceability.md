@@ -117,3 +117,21 @@ As evidências 02/03 são históricas; o estado atual amplia a integração.
 
 77 testes novos e 245 anteriores preservados. Requisitos acadêmicos pendentes
 (A-008, proposta, calendário e arguição) não são considerados atendidos por API.
+
+## Evidência atual — Grande Incremento 05
+
+As seções 02–04 são históricas. Evidência atual, sem presumir aprovação acadêmica:
+
+| Requisito | Evidência | Limite |
+|---|---|---|
+| RF-007 / A-017 | Fundamentos/proventos brapi v2 por FundamentalDataProvider | B3/BRL/plano; falhas nullable |
+| RF-006 / RF-008 | Comparação de duas ou mais carteiras por ID, métricas e concentração | Foto atual, sem performance temporal |
+| RF-101 / A-014 | Graham/Bazin/margem e gráficos reais de valor/concentração | Yield explícito; sem recomendação |
+| RF-103 | Fórmula/origem/moeda/referência/consulta e razões visíveis | Referência pode faltar |
+| RNF-002/003/006 | UI recebe DTOs; HTTP/cache só infraestrutura; calculations puras | Schema mantém só portfolios/transactions |
+| RNF-004/007 | Decimal, testes controlados, Qt heartbeat/gerações, TTL/refresh | Suíte sem internet |
+| A-006/007/010 | Imutabilidade, composição e dois contratos com mesmo adapter/fake | Sem herança artificial de Asset |
+
+Os 322 testes anteriores permanecem intactos; suíte analytics adicionada. Fórmulas
+em [ANALYTICS.md](../02_architecture/ANALYTICS.md), resultados de verificação em
+[TESTING.md](../04_development/TESTING.md). A-008/proposta/calendário ainda pendentes.

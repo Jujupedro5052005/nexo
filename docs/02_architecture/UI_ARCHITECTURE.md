@@ -56,8 +56,10 @@ PySide6 podem coordenar componentes visuais.
 4. Infrastructure traduz falhas técnicas.
 5. UI apresenta mensagens claras sem SQL, stack trace ou dados sensíveis.
 
-Chamadas de rede futuras não podem bloquear a thread da interface; a estratégia
-assíncrona será escolhida quando a integração for implementada.
+TaskRunner (QRunnable/QThreadPool) executa casos de uso com rede fora da GUI;
+sinais enfileirados entregam modelos na thread de apresentação. Gerações por
+contexto descartam respostas antigas. Fechamento espera workers antes de fechar
+client/engine; sem cancelamento HTTP instantâneo.
 
 ## Testes
 
@@ -65,3 +67,22 @@ Casos de uso falsos podem ser fornecidos aos componentes para testar submissão,
 seleção de carteira, mensagens e estados vazios. Fluxos críticos também devem
 ser validados manualmente no Windows. Consulte
 [`TESTING.md`](../04_development/TESTING.md).
+
+## Análises e concentração — Grande Incremento 05
+
+AssetAnalysisPanel é compartilhado por Ativos/Análises, recebendo AnalyzeAsset;
+PortfolioComparisonPanel recebe ListPortfolios/ComparePortfolios. Os painéis
+apresentam DTOs, fonte/referência/consulta, fórmulas, motivos e premissas explícitas.
+A UI só converte o percentual de yield informado para a unidade do contrato e
+formata valores; Graham/Bazin/margem/risco/pesos/HHI ficam em calculations.
+
+MainWindow invalida comparação após criar carteira/registrar trade e recarrega
+análise visível após atualização global. Troca de ativo/período/yield/JCP/IDs limpa
+modelos/tabelas/gráficos e incrementa geração imediatamente; worker antigo não
+reaplica contexto. Cache está na infraestrutura compartilhada, acessado somente
+pelos casos de uso. ConcentrationPanel em Carteiras/Overview usa o mesmo modelo
+calculado, sem score/regra duplicada nem normalização de quotes parciais.
+
+A página Análises deixou de usar datasets demo. Evolução histórica/benchmarks e
+complementos continuam identificados como demos nas demais páginas; alocação por
+categoria demo foi removida do Overview. Ver [ANALYTICS.md](ANALYTICS.md).

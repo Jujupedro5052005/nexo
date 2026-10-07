@@ -1,85 +1,185 @@
 # Status atual do projeto
 
+## Revisão visual do dashboard — 07/10/2026
+
+- Concentração agora em donut com os pesos existentes, tabela completa,
+  maior posição, top 3/tickers e HHI; agrupamento visual “Outros” acima de oito
+  ativos, sem alteração de regras financeiras.
+- KPIs de mercado em destaque, microdescrições e cores de resultado; fundo
+  dark nos gráficos. Evolução/Insights compartilham um par responsivo 3:1,
+  alinhado no desktop e empilhado na janela estreita.
+- Mudanças exclusivamente na UI; schema, dataset, providers e cálculos preservados.
+- Entry point `--demo` iniciado/encerrado em Windows; modo normal validado com
+  banco isolado. Capturas em `tmp/dashboard_visuals/` (ignoradas); revisão de
+  gráficos/layout reutilizou cotações reais capturadas para poupar APIs.
+- Validação: **574 testes aprovados**, zero falhas (297,73 s), preservando os
+  566 anteriores; oito novos testes de donut/pesos/agrupamento, estados e layout.
+  Ruff, mypy src (90 arquivos), compileall e git diff --check aprovados.
+
+## Ambiente de demonstração acadêmica — 07/10/2026
+
+- `python scripts/create_demo_dataset.py`: seed offline, idempotente e atômico
+  exclusivo de `data/nexo_demo.db`, usando casos de uso/repositories existentes.
+- `python -m nexo.main --demo`: cria na primeira abertura, preserva nas demais,
+  seleciona Longo Prazo e identifica dados fictícios no título/status da janela.
+- Três carteiras, 93 movimentações, 21 posições, 16 tickers e 30 meses
+  (abril/2024–setembro/2026), compras recorrentes e nove vendas parciais.
+- Interface nativa: dez páginas, valuation completo de todas as carteiras,
+  gráficos de custo/valor/concentração e comparação com 21 posições conferidos.
+- PETR4/B3SA3: quote/OHLCV, 21 pontos históricos e quatro proventos cada;
+  fundamentos/cadastro indisponíveis sem chave bolsai. Nenhum fallback fictício.
+- Verificação e complementação: brapi20/Yahoo2/bolsai0/CVM0. Capturas/JSON
+  ignorados em `tmp/demo_presentation/`; banco normal preservado por comparação
+  de hash. Complementação visual reutilizou cotações reais capturadas.
+- Evolução patrimonial, caixa e funcionalidades demonstrativas anteriores
+  conservam suas limitações; dataset não as promove a cálculos funcionais.
+- Instruções, valores observados, cobertura e roteiro:
+  [DEMO_PRESENTATION.md](../04_development/DEMO_PRESENTATION.md).
+- Validação: suíte completa **566 aprovados**, zero falhas (271,66 s), incluindo
+  os 550 anteriores e 16 novos; Ruff, mypy src (89 arquivos), compileall e
+  git diff --check aprovados. Suíte e seed sem chamadas externas.
+
 ## Fase atual
 
-**Grande Incremento 04: mercado real, valuation das carteiras e dashboard.**
-Em 06/10/2026, preservando o fluxo financeiro do incremento 03.
+**Incremento 05.2: multi-provider, fontes oficiais, quotas e snapshot avançado.**
+Em 07/10/2026, preservando as entregas 01–05.1, domínio, ledger e schema.
 
-## Funcionalidades reais
+## Entrega 05.2
 
-- Portfolio persistido: criar/listar/selecionar por ID, nomes iguais permitidos.
-- Ledger SQLite BUY/SELL, validação do replay antes do INSERT, FK/rollback,
-  Decimal TEXT e datas ISO preservadas. Formulário histórico funciona offline.
-- Histórico local com filtros; Position derivada, média, custo e realizado.
-- MarketDataProvider independente, BrapiMarketDataProvider/httpx isolado.
-- brapi v2: quotes em lote, catálogo/search e histórico diário real.
-- Token opcional externo, app inicia sem token; símbolos públicos disponíveis
-  conforme API. Falhas de acesso/limite/conexão traduzidas sem expor credenciais.
-- Decimal direto do literal JSON; nenhum cálculo financeiro em float.
-- LoadPortfolioValuation compartilha batch deduplicado entre carteiras.
-- calculations/valuation: custo investido aberto, valor atual, não realizado,
-  realizado incluindo encerradas, total e retorno sobre custo aberto.
-- BRL agregado somente completo; moedas diferentes não convertidas/somadas.
-- Ativos: busca real, seleção, cotação/moeda/variação, fonte/referência/consulta,
-  período 1M/3M/1A e gráfico real de fechamento (pode ser ajustado pela API).
-- Carteiras: cards reais e posições com preço/valor/não realizado/retorno;
-  “Atualizar” renova dados locais e valuation.
-- Overview: KPIs reais, posições e barras reais custo versus valor BRL cotado.
-- TaskRunner Qt fora da thread GUI, callbacks enfileirados e gerações para
-  descartar respostas antigas após trocar carteira/ativo/busca/período.
-- Atualização inicial/de contexto e manual, sem polling. Sem cache do provider;
-  fotografia visual reutilizada no mesmo contexto, com timestamps identificados.
-- Sem tabelas/colunas/repositories de Quote, Asset, Position ou valuation.
+- Routing por capability: brapi mercado; bolsai fundamentos/metadados/EOD;
+  Yahoo histórico longo/proventos/actions; CVM cadastro/DFP/ITR oficiais.
+- Contratos separados, composição em main.py, HTTP/datasets/yfinance somente
+  Infrastructure; sem provider universal ou alteração do modelo financeiro.
+- Snapshot avançado em Ativos: preço/variação/OHLCV/market cap, origem, horários,
+  latência, atraso estimado e idade do dado; JSON normalizado recolhível.
+- Cache compartilhado por fonte/capability com TTLs fechados; coalescing também
+  cobre decisão de fallback. Sem polling ou auto-refresh por navegação.
+- Usage JSON persistente sem segredo, budgets 100/40/50/2, remaining bolsai,
+  capability negativa 403 por 12 h, health por operação e diagnóstico local.
+- Bridge ticker/CNPJ/CVM em cache de sete dias; cadastro completo e ZIP anual
+  com TTL24h. Consolidados preferidos, individual fallback, versão/período
+  selecionados sem soma. Contas oficiais/raw/cross-check técnico conservador.
+- Bazin consome DividendDataProvider. Yahoo mantém CASH_DISTRIBUTION, pagamento
+  None e janela por data-ex, com limitações explícitas; splits não alteram ledger.
+- yfinance adicionado; .env.example contém somente campos vazios. .env preservado.
+- Smoke separado validou B3SA3 completo e 1mo brapi; 1y Yahoo (250 pontos) e
+  ITSA4 proventos (7 eventos). Consumo: brapi2, bolsai0, Yahoo1 operação, CVM0.
+- bolsai sem chave na sessão: fundamentos e bridge/cadastro oficial ITSA4 ainda
+  não validados online. Fixtures não são apresentadas como autenticação real.
+- Captura nativa Windows do snapshot real revisada; navegação por quatro telas
+  e economia validadas em Qt/fakes, com 24 hits brapi e cinco operações simuladas.
 
-## Offline e estados incompletos
+Políticas e limites atuais: [DATA_PROVIDERS.md](../02_architecture/DATA_PROVIDERS.md).
+As seções abaixo registram a baseline histórica e não substituem o routing/TTLs 05.2.
 
-Ledger, média, custo, realizado e transações continuam disponíveis. Mercado
-indisponível usa “—”, nunca zero/demo. Quotes parciais conservam linhas válidas,
-mas agregado dependente de todas fica indisponível. Moeda estrangeira exibe
-preço/valor na moeda própria, sem P/L contra BRL. Sem posições abertas, valor
-aberto é zero legítimo e resultado realizado encerrado é preservado.
+## Baseline 01–05.1 preservada (histórico)
 
-## Ainda demonstrativo ou futuro
+- Portfolio com ID/nome persistido; criação/listagem/seleção, nomes iguais permitidos.
+- Ledger SQLite BUY/SELL, replay validado antes do INSERT, FK/rollback, Decimal TEXT
+  e datetime ISO; posições/média/custo/realizado reconstruídos, registro offline.
+- Mercado brapi v2: busca real, quotes em lote deduplicado, histórico diário 1M/3M/1A.
+- FundamentalDataProvider separado; mesmo adapter/httpx.Client; estatísticas atuais,
+  dados financeiros atuais e proventos por janela, com Decimal/None/origem/consulta.
+- Dez indicadores reais: LPA, VPA, P/L, P/VP, DY da janela, ROE, ROA, margem líquida,
+  margem EBITDA e dívida líquida/EBITDA; fórmula/origem e indisponibilidade visíveis.
+- Graham sqrt(22,5×LPA×VPA) positivo; Bazin com yield requerido explícito em %, sem
+  default; diferença/margem neutras, sem recomendação automática de compra/venda.
+- Proventos por ação da janela de pagamentos: DIVIDENDO por padrão; JCP bruto
+  opcional, sem imposto; futuros/verified=False excluídos. Sem crédito no ledger.
+- Risco do histórico do ativo: volatilidade amostral diária/anualizada (252 pregões)
+  e drawdown máximo. Sem tratá-los como performance histórica da carteira.
+- Ativos e Análises compartilham painel real; Análises possui comparação de 2+ IDs,
+  com custo/valor/realizado/não realizado/total/retorno aberto e posições.
+- Pesos reais por valor aberto, maior/top3/HHI sem score arbitrário, somente quando
+  valuation BRL completo/positivo; concentração também em Carteiras/Visão Geral.
+- Overview mantém KPIs reais, posições e custo/valor; alocação demo por categoria
+  removida e substituída por concentração real por ativo.
+- Cache TTL compartilhado em memória: quotes30s, histórico300s, fundamentos/
+  proventos300s, limite256; coalescência, deduplicação e refresh explícito versionado.
+- TaskRunner Qt fora da GUI, sinais enfileirados e gerações por contexto/premissa.
+  Atualização global recarrega análise visível; transação invalida comparação.
+- Sem schema, tabelas, snapshots ou repositories derivados adicionais; HTTP só
+  Infrastructure, cálculos em calculations, main.py compõe os contratos/concretos.
 
-Evolução patrimonial histórica, alocação por categoria, benchmarks, insights,
-fluxo de caixa, metas, alertas, planejamento, projeções e análises complementares
-seguem demo com badges. Não há caixa/aportes/retiradas, dividendos/JCP, impostos,
-splits, conversão de ticker/câmbio, fundamentos detalhados, IA ou Alembic.
-Mercado das posições abertas não é patrimônio total. Comparação e edição/exclusão
-de Portfolio/Transaction continuam pendentes.
+## Configuração e UX — Incremento 05.1
 
-## Validação em 06/10/2026
+- Auditoria confirmou .env automático na raiz via python-dotenv já existente;
+  main.py injeta MarketSettings.from_environment. Sem dependência adicional.
+- Precedência: ambiente sobre o mesmo nome no arquivo; depois TOKEN não vazio
+  sobre API_KEY não vazio, ambos normalizados. Leitura UTF-8/BOM aceita.
+- Status/capabilities sem segredo, lista pública centralizada e autenticação
+  desconhecida distinta de chave configurada. Configurações agora funcional.
+- Testar conexão consulta PETR4 fresco pelo mesmo adapter/client, fora da GUI.
+  Sucesso público não prova acesso a ITSA3; erros 401/403/429/conexão distintos.
+- ITSA3 sem chave explica permissão para detalhes, sem tratá-lo como inexistente;
+  Configurar integração abre Configurações. Sem editor de .env ou segredo na UI/SQL.
+- .env.example e README orientam arquivo local e alternativa PowerShell;
+  MARKET_API_* são legados e não configuram a brapi. .env do usuário preservado.
 
-- Baseline 245 casos aprovada; nenhuma remoção/alteração de testes antigos no 04.
-- 77 novos casos: adapter MockTransport, fake substituível, batch/parciais,
-  moeda, precisão, SQLite/configuração/reabertura e Qt/concorrência.
-- Suíte completa: 322 coletados/aprovados, zero falhas.
-- Ruff, mypy src (56 arquivos), compileall e git diff --check aprovados.
-- Imports auditados: Domain/Application/Calculations sem HTTP/ORM/Qt;
-  UI sem SQL/HTTP/infra. main.py compõe as dependências concretas.
-- Smoke real online sem token pelo adapter: 2 quotes PETR4/VALE3, 9 resultados
-  PETR e 21 pontos PETR4/1mo. Preços observados não são hardcoded ou persistidos.
-- Timeout/conexão/autenticação/limite/JSON inválido cobertos sem internet.
-- Roteiro UI com tema real/banco temporário: Mercado teste, BUY10 PETR4@30,
-  quote HTTP controlada40, quantidade10, média30, custo300, valor400, não
-  realizado100; reabertura com quote45 =>450, ledger permanece uma operação.
-- Cenário custo528/quantidade15/realizado33 + quote40 =>600/72/105 validado.
-- Capturas Overview/Ativos revisadas; contraste de seleção/botões e largura
-  dos KPIs ajustados. Entry point iniciou/encerrou em processo sem token.
-- Sem commit/push ou mudanças de schema neste incremento; edições 03 preservadas.
+## Offline, incompletos e moedas
 
-## Limites e próximos passos
+Ledger/média/custo/realizado continuam locais. None é mostrado como “—” com motivo;
+não vira zero/demo. Falha de módulo de fundamentos conserva os campos disponíveis.
+Quotes válidas mantêm linhas, mas ausência/FX de qualquer posição invalida agregado
+BRL e todos os pesos; não se renormaliza a parte disponível. Preço/valor estrangeiro
+permanece na moeda própria; nenhum múltiplo, margem ou resultado contra BRL inventado.
+Carteira vazia/encerrada pode ter zero aberto legítimo, preservando realizado; não
+possui percentual de retorno ou concentração sem denominador positivo.
 
-1. Comparação de carteiras com métricas, moedas e disponibilidade documentadas.
-2. Políticas de edição/exclusão e evolução histórica/benchmarks reais.
-3. Revisão prolongada/DPI e teste de plano autenticado real.
-4. Proposta aprovada, calendário e confirmação acadêmica de A-008.
+## Performance e demos remanescentes
 
-Validação e INSERT separados assumem uma instância escritora local; escritores
-concorrentes não são suportados. A API pode atrasar/limitar dados conforme plano.
-Workers pendentes são limpos ao fechar; os ativos terminam sob timeout antes de
-fechar client/engine, sem cancelamento HTTP instantâneo. Papel de core e
-localização do banco para distribuição continuam futuros.
+Retorno não realizado / custo aberto é uma fotografia, não rentabilidade histórica.
+Realizado + não realizado é resultado monetário. TWR deliberadamente indisponível:
+faltam caixa, fluxos externos explícitos e avaliações completas nos limites de fluxo.
+Compras/vendas não são aportes/retiradas para TWR ou XIRR. XIRR/MWR, Sharpe e benchmark
+não calculados sem suas bases. Desenho futuro TWR documentado, não implementado.
 
-Detalhes: [API_ARCHITECTURE.md](../02_architecture/API_ARCHITECTURE.md) e
+Evolução patrimonial histórica, benchmarks, insights, caixa, metas, alertas,
+planejamento e relatórios continuam demonstrativos com identificação por seção.
+Sem crédito de proventos no ledger, impostos, splits, FX, conversão de ticker,
+edição/exclusão, IA ou Alembic. Valor aberto não representa patrimônio incluindo caixa.
+
+## Validação em 06/10/2026 — 05.1
+
+- Baseline 432 preservada; 35 novos casos, 467 coletados.
+- Suíte final: 467 aprovados, zero falhas (179,86s).
+- Ruff check ., mypy src (72 arquivos), compileall e git diff --check aprovados.
+- Capturas com tema real revisadas para ITSA3/Configurações e navegação.
+- Arquivo/cwd/BOM/precedência, sandbox/Bearer, ITSA3, estados HTTP, status seguro,
+  navegação e worker/heartbeat cobertos sem rede nos testes comuns.
+- Teste real público Windows: PETR4 disponível e conexão funcionando;
+  ITSA3 sem token classificado como configuração necessária, não inexistente.
+- Nenhuma chave real disponível na configuração externa da sessão; ITSA3 com
+  token validado apenas com MockTransport. Sucesso autenticado real não afirmado.
+- Sem schema/dependência nova, alteração financeira, commit/push ou edição do .env.
+- Baseline 05 verificada anteriormente: 432 aprovados; smoke PETR4 de fundamentos/
+  valuation e comparação em SQLite temporário continuam documentados em TESTING.
+
+## Limites e próximo incremento
+
+Recomendado (não implementado): caixa e fluxos externos explícitos para preparar
+patrimônio histórico/TWR, com políticas próprias de taxas/proventos/eventos/moedas.
+Plano autenticado real, DPI/uso prolongado, acessibilidade e cancelamento HTTP
+instantâneo continuam pendentes; workers ativos terminam sob timeout antes de
+fechar client/engine. Cache não garante dados em tempo real; timestamps preservados.
+Revisão de core/localização do banco para distribuição ainda futura.
+
+Uma instância escritora local continua pressuposta; validação e INSERT separados
+não garantem concorrência entre escritores. Proposta aprovada, calendário e
+confirmação acadêmica de A-008 permanecem pendentes.
+
+Detalhes: [BRAPI_CONFIGURATION.md](../02_architecture/BRAPI_CONFIGURATION.md),
+[ANALYTICS.md](../02_architecture/ANALYTICS.md),
+[API_ARCHITECTURE.md](../02_architecture/API_ARCHITECTURE.md) e
 [TESTING.md](../04_development/TESTING.md).
+
+## Validação final 05.2 — 07/10/2026
+
+- pytest: **550 aprovados**, zero falhas (235,93 s); baseline467 +83 novos casos.
+- Ruff check .: aprovado.
+- mypy src: aprovado,88 arquivos-fonte.
+- compileall src/tests/bootstrap_project.py: aprovado.
+- git diff --check: aprovado.
+- Zero chamadas externas na suíte; smoke separado brapi2/bolsai0/Yahoo1/CVM0.
+- Produto implementado e verificado com fixtures; aceite online de fundamentos/
+  bridge bolsai e cadastro/DFP/ITR CVM pendente por ausência de chave/bridge.

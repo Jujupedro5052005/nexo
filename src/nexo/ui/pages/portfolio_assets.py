@@ -21,6 +21,7 @@ from nexo.ui.components.common import (
     PageContent,
     SectionCard,
 )
+from nexo.ui.components.concentration_panel import ConcentrationPanel
 from nexo.ui.components.empty_state import EmptyState
 from nexo.ui.financial_formatting import (
     MARKET_HEADERS,
@@ -100,6 +101,8 @@ class PortfoliosPage(PageContent):
         self.market_feedback.setWordWrap(True)
         positions.content.addWidget(self.market_feedback)
         self.page_layout.addWidget(positions)
+        self.concentration_panel = ConcentrationPanel()
+        self.page_layout.addWidget(self.concentration_panel)
         self.page_layout.addStretch()
         self.reload()
 
@@ -256,10 +259,12 @@ class PortfoliosPage(PageContent):
                 )
         if selected_id in values:
             value = values[selected_id]
+            self.concentration_panel.display(value)
             apply_valuation(self.positions_table, value)
             self.market_feedback.setText(market_status(value))
 
     def clear_market_data(self, message: str) -> None:
+        self.concentration_panel.clear(message)
         for labels in self.market_labels.values():
             for label, title in zip(
                 labels, ("Valor atual", "Não realizado", "Resultado total"), strict=True

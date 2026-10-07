@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from decimal import Context, Decimal, localcontext
 
+from nexo.calculations.risk.concentration import Concentration, concentration
 from nexo.domain.interfaces.market_data_provider import QuoteBatch
 from nexo.domain.models.market_data import Quote
 from nexo.domain.models.position import Position
@@ -26,6 +27,10 @@ class PortfolioValuation:
     unrealized_profit_loss: Decimal | None
     total_profit_loss: Decimal | None
     unrealized_return: Decimal | None
+
+    @property
+    def concentration(self) -> Concentration:
+        return concentration(self)
 
     @property
     def complete(self) -> bool:

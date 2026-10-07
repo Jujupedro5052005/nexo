@@ -3,3 +3,4 @@ SQLAlchemy>=2.0,<3
 httpx
 pydantic
 python-dotenv
+yfinance>=0.2.66,<2

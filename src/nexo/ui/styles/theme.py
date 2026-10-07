@@ -16,6 +16,8 @@ INFORMATION = "#4D7CFF"
 APP_STYLE = f"""
 * {{ font-family: "Inter", "Segoe UI", "Ubuntu", sans-serif; color: {TEXT_PRIMARY}; font-size: 13px; }}
 QMainWindow, QWidget#AppRoot, QWidget#PageContent, QStackedWidget#PageStack, QScrollArea {{ background: {BACKGROUND}; }}
+QWidget#ResponsivePair {{ background: {BACKGROUND}; }}
+QWidget#ResponsivePair[surface="true"] {{ background: {SURFACE}; }}
 QWidget#Sidebar {{ background: {SIDEBAR}; border-right: 1px solid #152239; }}
 QWidget#TopBar {{ background: {BACKGROUND}; border-bottom: 1px solid #18243A; }}
 QLabel#BrandName {{ color: #FFFFFF; font-size: 21px; font-weight: 750; letter-spacing: 3px; }}
@@ -31,9 +33,14 @@ QLabel#PageSubtitle {{ color: {TEXT_SECONDARY}; font-size: 12px; }}
 QLabel#SectionTitle {{ color: {TEXT_PRIMARY}; font-size: 15px; font-weight: 680; }}
 QLabel#SectionSubtitle, QLabel#SecondaryText, QLabel#MetricDetail {{ color: {TEXT_SECONDARY}; font-size: 11px; }}
 QFrame#Card {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px; }}
+QFrame#Card[highlight="true"] {{ background: #0D2431; border: 1px solid #167B88; }}
 QFrame#ClickableCard:hover {{ background: {SURFACE_ELEVATED}; border: 1px solid #35506A; border-radius: 12px; }}
 QLabel#MetricLabel {{ color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 650; }}
 QLabel#MetricValue {{ color: {TEXT_PRIMARY}; font-size: 21px; font-weight: 720; }}
+QLabel#MetricValue[metricState="accent"] {{ color: {ACCENT}; }}
+QLabel#MetricValue[metricState="positive"] {{ color: {POSITIVE}; }}
+QLabel#MetricValue[metricState="negative"] {{ color: {NEGATIVE}; }}
+QLabel#SnapshotPrice {{ color: {TEXT_PRIMARY}; font-size: 40px; font-weight: 750; }}
 QLabel#Positive {{ color: {POSITIVE}; font-weight: 650; }}
 QLabel#Negative {{ color: {NEGATIVE}; font-weight: 650; }}
 QLabel#Warning {{ color: {WARNING}; font-weight: 650; }}
@@ -65,6 +72,12 @@ QMenu {{ background: {SURFACE_ELEVATED}; border: 1px solid {BORDER}; padding: 6p
 QMenu::item {{ border-radius: 5px; padding: 7px 22px; }}
 QMenu::item:selected {{ background: #16404A; color: #E8FFFF; }}
 QCheckBox, QRadioButton {{ color: #CDD7E3; spacing: 8px; }}
+QTabWidget::pane {{ background: {BACKGROUND}; border: 1px solid {BORDER}; border-radius: 8px; }}
+QTabBar::tab {{ background: {SURFACE}; border: 1px solid {BORDER}; padding: 10px 16px; color: {TEXT_SECONDARY}; }}
+QTabBar::tab:selected {{ background: #0D3039; color: #7EE8E5; border-bottom: 2px solid {ACCENT}; }}
+QListWidget {{ background: #0A1423; border: 1px solid {BORDER}; border-radius: 7px; padding: 6px; }}
+QListWidget::item {{ padding: 8px; }}
+QListWidget::item:selected {{ background: #123B48; color: {TEXT_PRIMARY}; }}
 QTableWidget {{ background: transparent; alternate-background-color: #0E1A2B; border: none; gridline-color: #1C2A40; selection-background-color: #123B48; }}
 QTableWidget::item:selected {{ color: #F1F5F9; }}
 QTableWidget::item {{ border-bottom: 1px solid #1B293D; padding: 8px; }}

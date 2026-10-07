@@ -67,7 +67,8 @@ def test_json_numeric_literal_is_parsed_without_float_roundtrip():
 
 def test_batch_deduplicates_and_keeps_three_symbols_in_one_request():
     api, requests = adapter(
-        {"results": [quote_row(s) for s in ("PETR4", "VALE3", "ITUB4")]}
+        {"results": [quote_row(s) for s in ("PETR4", "VALE3", "ITUB4")]},
+        settings=MarketSettings(batch_size=3),  # Explicit capability above the free default.
     )
     result = api.get_quotes([Asset(s) for s in ("PETR4", "VALE3", "ITUB4", "PETR4")])
     assert len(result.quotes) == 3 and not result.issues

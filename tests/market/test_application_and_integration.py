@@ -197,10 +197,10 @@ def test_sqlite_to_real_adapter_contract_reopens_without_persisting_quotes(tmp_p
 @pytest.mark.parametrize(
     "env,expected,size",
     [
-        ({}, None, 5),
-        ({"BRAPI_TOKEN": " primary ", "BRAPI_API_KEY": "alias"}, "primary", 5),
-        ({"BRAPI_API_KEY": "alias"}, "alias", 5),
-        ({"BRAPI_BATCH_SIZE": "oops"}, None, 5),
+        ({}, None, 1),
+        ({"BRAPI_TOKEN": " primary ", "BRAPI_API_KEY": "alias"}, "primary", 1),
+        ({"BRAPI_API_KEY": "alias"}, "alias", 1),
+        ({"BRAPI_BATCH_SIZE": "oops"}, None, 1),
         ({"BRAPI_BATCH_SIZE": "0"}, None, 1),
         ({"BRAPI_BATCH_SIZE": "1000"}, None, 100),
     ],

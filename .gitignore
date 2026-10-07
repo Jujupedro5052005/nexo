@@ -41,3 +41,6 @@ Thumbs.db
 *.log
 tmp/
 temp/
+data/cache/
+data/provider_usage.json
+data/provider_usage.tmp

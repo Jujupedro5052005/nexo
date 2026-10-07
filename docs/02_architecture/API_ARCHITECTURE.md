@@ -1,4 +1,4 @@
-# Integração de mercado — Grande Incremento 04
+# Integração de mercado e fundamentos — Grandes Incrementos 04/05
 
 ## Provider e fontes oficiais
 
@@ -11,6 +11,8 @@ Base centralizada: `https://brapi.dev`. Adapter: `infrastructure/market_data/ada
 | Operação | Endpoint GET | Parâmetros utilizados | Documentação |
 |---|---|---|---|
 | Quotes | `/api/v2/stocks/quote` | symbols em lote | [Cotação](https://web-next.brapi.dev/docs/acoes/cotacao) |
+| Fundamentos | `/api/v2/stocks/statistics` e `/api/v2/stocks/financial-data` | symbols, mode=current | [Estatísticas](https://web-next.brapi.dev/docs/acoes/estatisticas), [Financeiros](https://web-next.brapi.dev/docs/acoes/dados-financeiros) |
+| Proventos | `/api/v2/stocks/dividends` | symbols, startDate, endDate, sortOrder=asc | [Dividendos](https://web-next.brapi.dev/docs/acoes/dividendos) |
 | Busca | `/api/v2/tickers` | search, limit=20, sortBy=symbol, sortOrder=asc | [Tickers](https://web-next.brapi.dev/docs/tickers) |
 | Histórico | `/api/v2/stocks/historical` | symbols, range=1mo/3mo/1y, interval=1d, sortOrder=asc | [Histórico](https://web-next.brapi.dev/docs/acoes/historico) |
 
@@ -64,7 +66,9 @@ plano. BRAPI_BATCH_SIZE controla chunks, padrão 5, faixa 1–100; configure con
 seu plano. API pode recusar lote/período. Não há fallback para endpoint legado.
 
 Timeout explícito: 10s por operação de rede, não prazo total de todos os lotes.
-401/403 viram MarketAuthenticationError; 429 MarketRateLimitError; 404
+401 vira MarketInvalidTokenError; 403 MarketPlanAccessError; ambos especializam
+MarketAuthenticationError. Sem chave para ativo protegido, MarketCredentialsRequiredError
+(diferente de AssetNotFoundError). 429 mantém MarketRateLimitError; 404
 AssetNotFoundError; transporte/status/JSON inválido MarketDataUnavailableError.
 Sem retry automático/polling. QuoteBatch retém quotes válidas e QuoteIssue por
 ativo. Falhas não expõem corpo de resposta, stack ou credencial.
@@ -85,7 +89,7 @@ total_profit_loss = realized_profit_loss + unrealized_profit_loss
 Retorno percentual é somente o não realizado sobre custo aberto, exibido ×100;
 não há rentabilidade total percentual ou denominador fictício. Não realizado
 agregado = valor de mercado das posições abertas - custo aberto. Não é patrimônio
-total: caixa, aportes, retiradas e proventos ainda não existem.
+total: caixa/aportes/retiradas e créditos de proventos no ledger ainda não existem.
 
 Quote ausente mantém custo/realizado e usa None nas métricas dependentes. Quotes
 parciais continuam visíveis nas linhas; agregado de mercado/resultado total fica
@@ -104,8 +108,11 @@ somente na thread GUI. IDs de geração descartam respostas antigas ao trocar
 carteira, ativo, busca ou período. Registro de transação invalida valuation.
 
 Carregamento inicial/de contexto e refresh manual; sem timer agressivo. O app
-não tem cache de provider/TTL/persistência. Reutiliza a última fotografia visual
-no mesmo contexto para evitar HTTP ao alternar páginas; refresh força consulta.
+tem cache de provider em memória no incremento 05, sem persistência: TTL quote
+30s, histórico 300s e fundamentos/proventos 300s, até 256 entradas. Chaves incluem
+ativo/período/janela; chamadas em voo são coalescidas. Refresh explícito invalida
+ativo/tudo; epoch impede repovoamento por resposta antiga. Erros não são cacheados.
+A fotografia visual no mesmo contexto ainda é reutilizada, identificada por horário.
 A UI informa source, instante consultado e referência de mercado separadamente,
 inclusive se a API omitir market_time. Esse horário não garante tempo real.
 Fechar suprime callbacks e limpa tarefas pendentes; tarefas em execução terminam
@@ -117,13 +124,39 @@ Ativos: busca real, seleção, preço/moeda/variação, período, histórico e g
 fechamento real. Falha limpa série/cotação anterior; sem dados demo de fallback.
 Carteiras: custo/realizado locais, valor atual/não realizado/total em cards e
 posições. Visão Geral: KPIs reais, tabela e barras de custo versus valor das
-posições BRL cotadas. Demos continuam separadas (evolução patrimonial, alocação por
-categoria, insights, caixa, metas, alertas, planejamento e análises avançadas).
+posições BRL cotadas. No 05 há fundamentos/indicadores/valuation em Ativos e
+Análises, comparação por ID e concentração real em Carteiras/Overview. A alocação
+demo por categoria foi removida; evolução histórica, insights, caixa, metas,
+alertas, planejamento, benchmarks e relatórios continuam demonstrativos.
 
 Sem rede/token válido, CRUD local existente de Portfolio e registro/listagem de
 BUY/SELL continuam disponíveis. Formulário não exige validação online de ticker.
-Não há novas tabelas/colunas de mercado, Asset/PositionRepository, dividendos,
-JCP, splits, impostos, câmbio, fundamentos, IA ou Alembic.
+Não há novas tabelas/colunas de mercado, Asset/PositionRepository, splits,
+impostos, câmbio, IA ou Alembic. Fundamentos e DIVIDENDO/JCP são snapshots externos
+para cálculos de ativo, sem criar créditos ou posições no ledger.
+
+Regras completas do 05: [ANALYTICS.md](ANALYTICS.md), incluindo fórmulas/origens,
+unidades, política de proventos, Graham/Bazin, risco, concentração e limites TWR.
 
 Testes: `tests/market/`, provider fake e httpx.MockTransport, inclusive falhas,
 batch, precisão, persistência/reabertura e concorrência Qt. Suíte comum sem rede.
+
+## Diagnóstico e configuração — Incremento 05.1
+
+.env já era carregado automaticamente; foi verificado e coberto por testes de
+arquivo/cwd/Windows/BOM. Configurações agora recebe status/capabilities sem segredo
+e testa conexão com uma quote PETR4 nova pelo mesmo adapter/client, fora da GUI.
+ITSA3 encontrado sem token explica necessidade de autenticação e oferece navegação
+para Configurações. Lista pública centralizada; sem novas tabelas/dependências.
+
+Chave presente e autenticação comprovada são estados distintos; um teste público
+200 não confirma acesso a ativos protegidos. Precedência detalhada, mensagens,
+segurança e limitação do teste autenticado real em
+[BRAPI_CONFIGURATION.md](BRAPI_CONFIGURATION.md).
+# Política atual — 05.2
+
+O routing, TTLs e responsabilidades dos quatro providers substituem a política
+de fonte única descrita historicamente neste documento. Consulte
+[DATA_PROVIDERS.md](DATA_PROVIDERS.md). O adaptador brapi v2 é preservado, mas
+fundamentos não o usam como primário e histórico longo passa diretamente ao
+Yahoo. DividendDataProvider é consumido independentemente dos fundamentos.

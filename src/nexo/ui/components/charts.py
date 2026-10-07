@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from math import fsum
 
 from PySide6.QtCharts import (
     QBarCategoryAxis,
@@ -11,12 +12,12 @@ from PySide6.QtCharts import (
     QPieSeries,
     QValueAxis,
 )
-from PySide6.QtCore import QDateTime, QPointF, Qt, QTimeZone
+from PySide6.QtCore import QDateTime, QMargins, QPointF, Qt, QTimeZone
 from PySide6.QtGui import QColor, QCursor, QPainter, QPen
 from PySide6.QtWidgets import QToolTip
 
 from nexo.domain.models.market_data import PriceHistory
-from nexo.ui.styles.theme import BORDER, TEXT_SECONDARY
+from nexo.ui.styles.theme import BORDER, TEXT_PRIMARY, TEXT_SECONDARY
 
 
 def _view(chart: QChart, minimum_height: int = 220) -> QChartView:
@@ -24,6 +25,7 @@ def _view(chart: QChart, minimum_height: int = 220) -> QChartView:
     chart.legend().setLabelColor(QColor(TEXT_SECONDARY))
     chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
     view = QChartView(chart)
+    view.setBackgroundBrush(QColor("#0C1727"))
     view.setRenderHint(QPainter.RenderHint.Antialiasing)
     view.setStyleSheet("background: transparent; border: 0;")
     view.setMinimumHeight(minimum_height)
@@ -87,6 +89,46 @@ def donut_chart(items: Sequence[tuple[str, int, str, str]]) -> QChartView:
     chart.addSeries(series)
     chart.legend().setVisible(False)
     return _view(chart, 220)
+
+
+def allocation_donut(items: Sequence[tuple[str, float]]) -> QChartView:
+    """Draw existing weights; grouping is visual only and preserves their sum.
+
+    Float conversion belongs solely to Qt coordinates. The full asset table is
+    retained by the caller; no weights or financial metrics are recalculated.
+    """
+    ordered = sorted(items, key=lambda item: (-item[1], item[0]))
+    display = [(label, weight, label) for label, weight in ordered]
+    if len(ordered) > 8:
+        display = display[:6] + [
+            ("Outros", fsum(weight for _, weight in ordered[6:]),
+             ", ".join(label for label, _ in ordered[6:]))
+        ]
+    colors = ("#10C7C7", "#4D7CFF", "#7193CF", "#8B82BC", "#4D9C9C", "#7793AA", "#53667E", "#A2B3C8")
+    series = QPieSeries()
+    series.setHoleSize(0.60)
+    series.setPieSize(0.82)
+    for index, (name, weight, members) in enumerate(display):
+        percentage = f"{weight * 100:.1f}%".replace(".", ",")
+        pie_slice = series.append(percentage, weight)
+        pie_slice.setBrush(QColor(colors[index]))
+        pie_slice.setPen(QPen(QColor("#0C1727"), 2))
+        pie_slice.setLabelBrush(QColor(TEXT_PRIMARY))
+        pie_slice.setLabelPosition(pie_slice.LabelPosition.LabelInsideHorizontal)
+        pie_slice.setLabelVisible(weight >= 0.08)
+        pie_slice.hovered.connect(
+            lambda state, text=f"{name}: {percentage}\n{members}": (
+                QToolTip.showText(QCursor.pos(), text) if state else QToolTip.hideText()
+            )
+        )
+    chart = QChart()
+    chart.setMargins(QMargins(4, 4, 4, 4))
+    chart.addSeries(series)
+    view = _view(chart, 320)
+    chart.legend().setAlignment(Qt.AlignmentFlag.AlignRight)
+    for marker, (name, weight, _) in zip(chart.legend().markers(series), display, strict=True):
+        marker.setLabel(f"{name} · {weight * 100:.1f}%".replace(".", ","))
+    return view
 
 
 def bar_chart(

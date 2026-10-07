@@ -36,7 +36,8 @@ class MetricCard(QFrame):
         value_widget = QLabel(value)
         value_widget.setObjectName("MetricValue")
         self.value_label = value_widget
-        detail_widget = QLabel(detail)
+        self.detail_label = QLabel(detail)
+        detail_widget = self.detail_label
         detail_widget.setWordWrap(True)
         detail_widget.setObjectName(
             "Positive"
@@ -48,3 +49,9 @@ class MetricCard(QFrame):
         layout.addLayout(top)
         layout.addWidget(value_widget)
         layout.addWidget(detail_widget)
+
+    def set_value(self, text: str, state: str = "neutral") -> None:
+        self.value_label.setText(text)
+        self.value_label.setProperty("metricState", state)
+        self.value_label.style().unpolish(self.value_label)
+        self.value_label.style().polish(self.value_label)

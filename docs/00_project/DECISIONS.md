@@ -86,3 +86,22 @@ acima são históricas; as regras financeiras permanecem.
 - Renomeações/conversões de ticker não modificam automaticamente o ledger.
 
 Detalhes e documentação oficial: [API_ARCHITECTURE.md](../02_architecture/API_ARCHITECTURE.md).
+
+## Grande Incremento 05 — análises e fundamentos
+
+- FundamentalDataProvider separado, dois métodos; mesmo adapter/httpx.Client.
+- Statistics/financial-data atuais e dividends com janela de pagamento explícita.
+- Modelos imutáveis nullable, indicadores com fórmula/unidade/origem; sem schema.
+- Graham positivo; Bazin com yield explícito, sem default; margem neutra BRL.
+- Política DIVIDENDO por padrão; JCP bruto opcional, futuros/verified=False excluídos.
+- Risco do histórico do ativo: volatilidade amostral, anualização 252 e drawdown.
+- Comparação por IDs existentes e batch compartilhado; concentração completa BRL.
+- HHI documentado como soma de pesos², sem score arbitrário.
+- Cache TTL compartilhado limitado em memória; refresh explícito/coalescência;
+  invalidação versionada e gerações Qt evitam respostas antigas em contexto novo.
+- Sem TWR/XIRR/MWR/Sharpe/benchmark; compras/vendas não são fluxos externos.
+- Alocação demo por categoria removida do Overview; demos restantes identificadas.
+
+As decisões 04 de ausência de cache descrevem aquela entrega; agora o cache tem
+caso de uso concreto entre Ativos/Análises. Desenho futuro TWR e demais limites em
+[ANALYTICS.md](../02_architecture/ANALYTICS.md).
