@@ -1,11 +1,13 @@
 import argparse
 import sys
+from multiprocessing import freeze_support
 from pathlib import Path
 from typing import cast
 
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from nexo.application.analysis.market_research import AnalyzeMarketRisk
 from nexo.application.assets.analyze_asset import AnalyzeAsset
 from nexo.application.assets.market_data import (
     GetAssetHistory,
@@ -17,15 +19,23 @@ from nexo.application.assets.market_integration import (
     TestMarketConnection,
 )
 from nexo.application.assets.provider_status import GetProviderHealth
+from nexo.application.financial_planning.manage_finances import ManageFinances
+from nexo.application.portfolio.account import PortfolioAccount
 from nexo.application.portfolio.compare_portfolios import ComparePortfolios
 from nexo.application.portfolio.create_portfolio import CreatePortfolio
+from nexo.application.portfolio.export_report import ExportReport
 from nexo.application.portfolio.list_portfolios import ListPortfolios
 from nexo.application.portfolio.list_transactions import ListTransactions
 from nexo.application.portfolio.load_portfolio_positions import LoadPortfolioPositions
 from nexo.application.portfolio.load_portfolio_valuation import LoadPortfolioValuation
+from nexo.application.portfolio.performance import LoadPortfolioPerformance
 from nexo.application.portfolio.register_transaction import RegisterTransaction
+from nexo.core.paths import application_data_dir
 from nexo.demo_dataset import DEMO_NOTICE, ensure_demo_dataset
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
+from nexo.infrastructure.database.repositories.personal_finance import (
+    SqlPersonalFinanceRepository,
+)
 from nexo.infrastructure.database.repositories.portfolio_repository import (
     SqlAlchemyPortfolioRepository,
 )
@@ -39,6 +49,7 @@ from nexo.infrastructure.database.session import (
 )
 from nexo.infrastructure.market_data.composition import ProviderServices
 from nexo.infrastructure.market_data.config import MarketSettings
+from nexo.infrastructure.persistence.report_writer import CsvReportWriter
 from nexo.ui.styles.theme import APP_STYLE
 from nexo.ui.windows.main_window import MainWindow
 
@@ -61,6 +72,16 @@ def create_application() -> QApplication:
 def main(database_path: Path | None = None, *, demo: bool = False) -> int:
     """Start the Nexo desktop application."""
     application = create_application()
+    settings = MarketSettings.from_environment()
+    try:
+        data_dir = application_data_dir()
+    except ValueError:
+        QMessageBox.critical(
+            None,
+            "Diretório de dados",
+            "NEXO_DATA_DIR deve indicar um diretório absoluto.",
+        )
+        return 1
     if demo:
         if database_path is not None:
             raise ValueError("--demo usa exclusivamente data/nexo_demo.db.")
@@ -72,10 +93,8 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
             None, "Banco local", "Não foi possível abrir o banco local."
         )
         return 1
-    providers = ProviderServices(
-        MarketSettings.from_environment(), Path(__file__).resolve().parents[2] / "data"
-    )
-    provider, cached = providers.brapi, providers.market
+    providers = ProviderServices(settings, data_dir)
+    provider, cached = providers.yahoo, providers.market
     window: MainWindow | None = None
     try:
         initialize_database(engine)
@@ -84,6 +103,7 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
         transactions = SqlAlchemyTransactionRepository(session_factory)
         load_positions = LoadPortfolioPositions(transactions)
         valuation = LoadPortfolioValuation(load_positions, cached)
+        finances = ManageFinances(SqlPersonalFinanceRepository(session_factory), cached)
         window = MainWindow(
             CreatePortfolio(repository),
             ListPortfolios(repository),
@@ -100,6 +120,17 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
                 dividends=providers.dividends,
                 official=providers.official,
                 actions=providers.actions,
+            ),
+            finances=finances,
+            account=PortfolioAccount(transactions, transactions, cached),
+            performance=LoadPortfolioPerformance(transactions, transactions, cached),
+            market_research=AnalyzeMarketRisk(cached),
+            export_report=ExportReport(
+                ListTransactions(transactions),
+                load_positions,
+                finances,
+                CsvReportWriter(),
+                events=transactions,
             ),
             provider_health=GetProviderHealth(providers.health),
             integration_status=GetMarketIntegrationStatus(provider),
@@ -124,8 +155,8 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
     finally:
         if window is not None:
             window.market_runner.stop()
+            window.alerts_page.runner.stop()
             window.assets_page.runner.stop()
-            window.assets_page.analysis_panel.runner.stop()
             window.analysis_page.stop()
             window.settings_page.market_panel.runner.stop()
             window.wait_for_market()
@@ -135,10 +166,13 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
 
 def cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Nexo Invest — aplicação desktop")
-    parser.add_argument("--demo", action="store_true", help="Abrir o banco separado de demonstração")
+    parser.add_argument(
+        "--demo", action="store_true", help="Abrir o banco separado de demonstração"
+    )
     args = parser.parse_args(argv)
     return main(demo=args.demo)
 
 
 if __name__ == "__main__":
+    freeze_support()
     raise SystemExit(cli())

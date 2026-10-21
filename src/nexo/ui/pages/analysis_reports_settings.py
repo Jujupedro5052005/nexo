@@ -1,8 +1,7 @@
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
-    QHBoxLayout,
     QLabel,
     QPushButton,
     QRadioButton,
@@ -17,65 +16,11 @@ from nexo.ui.components.common import (
     Badge,
     PageContent,
     SectionCard,
-    connect_planned_action,
 )
 from nexo.ui.components.market_integration_panel import MarketIntegrationPanel
 from nexo.ui.components.provider_health_panel import ProviderHealthPanel
-from nexo.ui.demo.data import DEMO_NOTICE
 from nexo.ui.pages.analysis_page import AnalysisPage as AnalysisPage  # noqa: PLC0414
-
-
-class ReportsPage(PageContent):
-    dialog_requested = Signal(str)
-
-    def __init__(self) -> None:
-        super().__init__("reports")
-        self.page_layout.addWidget(
-            Badge(DEMO_NOTICE, "DemoBadge"), alignment=Qt.AlignmentFlag.AlignLeft
-        )
-        options = QGridLayout()
-        options.setSpacing(14)
-        report_names = (
-            ("Relatório da carteira", "Posições, alocação e resumo consolidado."),
-            (
-                "Relatório de movimentações",
-                "Histórico filtrado de compras, vendas e aportes.",
-            ),
-            ("Relatório de rentabilidade", "Evolução e comparação por período."),
-            ("Relatório de proventos", "Proventos recebidos e evolução mensal."),
-            ("Planejamento financeiro", "Receitas, despesas e capacidade de aporte."),
-        )
-        for index, (title, description) in enumerate(report_names):
-            card = SectionCard(title)
-            text = QLabel(description)
-            text.setObjectName("SecondaryText")
-            text.setWordWrap(True)
-            select = QPushButton("Selecionar")
-            select.setObjectName("LinkButton")
-            connect_planned_action(select)
-            card.content.addWidget(text)
-            card.content.addWidget(select, alignment=Qt.AlignmentFlag.AlignLeft)
-            options.addWidget(card, index // 3, index % 3)
-        self.page_layout.addLayout(options)
-
-        generator = SectionCard("Gerar relatório")
-        filters = QHBoxLayout()
-        for items in (
-            ["Longo Prazo", "Reserva", "Internacional"],
-            ["Este mês", "3 meses", "6 meses", "1 ano", "Máximo"],
-            ["PDF", "CSV"],
-        ):
-            combo = QComboBox()
-            combo.addItems(items)
-            filters.addWidget(combo)
-        generate = QPushButton("Gerar relatório")
-        generate.setObjectName("PrimaryButton")
-        generate.clicked.connect(lambda: self.dialog_requested.emit("report"))
-        filters.addStretch()
-        filters.addWidget(generate)
-        generator.content.addLayout(filters)
-        self.page_layout.addWidget(generator)
-        self.page_layout.addStretch()
+from nexo.ui.pages.reports_page import ReportsPage as ReportsPage  # noqa: PLC0414
 
 
 class SettingsPage(PageContent):
@@ -129,10 +74,13 @@ class SettingsPage(PageContent):
     def _notifications() -> SectionCard:
         card = SectionCard("Notificações")
         card.content.addWidget(
-            QLabel("Alertas no aplicativo serão conectados futuramente.")
+            QLabel(
+                "Alertas de preço são persistidos e verificados manualmente na página Alertas. Sem envio externo."
+            )
         )
         card.content.addWidget(
-            Badge("Em breve", "MutedBadge"), alignment=Qt.AlignmentFlag.AlignLeft
+            Badge("Verificação manual local", "Badge"),
+            alignment=Qt.AlignmentFlag.AlignLeft,
         )
         return card
 
@@ -140,7 +88,7 @@ class SettingsPage(PageContent):
     def _privacy() -> SectionCard:
         card = SectionCard("Privacidade")
         text = QLabel(
-            "Os dados financeiros serão armazenados localmente quando a persistência for implementada."
+            "Carteiras, movimentações, planejamento, metas e alertas são armazenados localmente em SQLite. Dados de mercado são consultados pelas fontes configuradas."
         )
         text.setObjectName("SecondaryText")
         text.setWordWrap(True)

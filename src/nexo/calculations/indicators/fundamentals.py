@@ -184,7 +184,7 @@ def fundamental_indicators(
         )
         for key, label, value, unit, formula, origin in items
     )
-    if f and f.source in {"bolsai", "CVM"}:
+    if f and f.source in {"bolsai", "CVM", "Yahoo Finance"}:
         from dataclasses import replace
 
         direct = {
@@ -201,7 +201,7 @@ def fundamental_indicators(
                 formula="Valor informado pelo provider",
                 reason="" if direct[i.key] is not None else i.reason,
             )
-            if i.key in direct and direct[i.key] is not None
+            if i.key in direct and direct[i.key] is not None and i.value is None
             else replace(
                 i,
                 origin="Nexo calculations · " + f.source + " + Quote"
@@ -239,5 +239,30 @@ def fundamental_indicators(
                 "Campo indisponível" if getattr(f, key) is None else "",
             )
             for key, label, unit in extra
+        )
+    if f and f.field_sources:
+        from dataclasses import replace
+
+        sources = dict(f.field_sources)
+        dependencies = {
+            "pe": ("eps",),
+            "pb": ("bvps",),
+            "ebitda_margin": ("ebitda", "revenue"),
+            "leverage": ("debt", "cash", "ebitda"),
+        }
+        result = tuple(
+            replace(
+                i,
+                origin="Nexo calculations · "
+                + " + ".join(
+                    sorted(
+                        {
+                            sources.get(key, f.source)
+                            for key in dependencies.get(i.key, (i.key,))
+                        }
+                    )
+                ),
+            )
+            for i in result
         )
     return result

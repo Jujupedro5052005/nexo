@@ -149,6 +149,8 @@ class PriceHistory:
     period: str
     retrieved_at: datetime
     source: str = "brapi"
+    splits: tuple[tuple[datetime, Decimal], ...] = ()
+    split_adjusted: bool | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.asset, Asset):
@@ -158,6 +160,16 @@ class PriceHistory:
         ):
             raise DomainValidationError("points must be a tuple of HistoricalPrice.")
         _aware(self.retrieved_at, "retrieved_at")
+        if self.split_adjusted is not None and type(self.split_adjusted) is not bool:
+            raise DomainValidationError("split_adjusted must be bool or None.")
+        if not isinstance(self.splits, tuple):
+            raise DomainValidationError("splits must be a tuple.")
+        for at, ratio in self.splits:
+            _aware(at, "split date")
+            if not isinstance(ratio, Decimal) or not ratio.is_finite() or ratio <= 0:
+                raise DomainValidationError(
+                    "Split ratios must be positive finite Decimal values."
+                )
 
 
 @dataclass(frozen=True, slots=True)

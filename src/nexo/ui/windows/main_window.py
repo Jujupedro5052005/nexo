@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from nexo.application.analysis.market_research import AnalyzeMarketRisk
 from nexo.application.assets.analyze_asset import AnalyzeAsset
 from nexo.application.assets.market_data import (
     GetAssetHistory,
@@ -26,13 +27,17 @@ from nexo.application.assets.market_integration import (
     TestMarketConnection,
 )
 from nexo.application.assets.provider_status import GetProviderHealth
+from nexo.application.financial_planning.manage_finances import ManageFinances
+from nexo.application.portfolio.account import PortfolioAccount
 from nexo.application.portfolio.compare_portfolios import ComparePortfolios
 from nexo.application.portfolio.create_portfolio import CreatePortfolio
+from nexo.application.portfolio.export_report import ExportReport
 from nexo.application.portfolio.financial_summary import summarize_portfolio
 from nexo.application.portfolio.list_portfolios import ListPortfolios
 from nexo.application.portfolio.list_transactions import ListTransactions
 from nexo.application.portfolio.load_portfolio_positions import LoadPortfolioPositions
 from nexo.application.portfolio.load_portfolio_valuation import LoadPortfolioValuation
+from nexo.application.portfolio.performance import LoadPortfolioPerformance
 from nexo.application.portfolio.register_transaction import RegisterTransaction
 from nexo.calculations.valuation.portfolio import PortfolioValuation
 from nexo.domain.errors import DomainValidationError
@@ -40,7 +45,9 @@ from nexo.domain.interfaces.market_data_provider import MarketDataError
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
 from nexo.domain.interfaces.transaction_repository import TransactionRepositoryError
 from nexo.domain.models.portfolio import Portfolio
+from nexo.domain.models.position import Position
 from nexo.domain.reconstruction import ReconstructionResult
+from nexo.ui.components.account_panel import AccountPanel
 from nexo.ui.components.common import Badge
 from nexo.ui.components.navigation_button import NavigationButton
 from nexo.ui.dialogs.forms import (
@@ -53,15 +60,15 @@ from nexo.ui.dialogs.forms import (
     TransactionDialog,
 )
 from nexo.ui.icons import icon
-from nexo.ui.pages.activity_planning import PlanningPage, TransactionsPage
+from nexo.ui.pages.activity_planning import TransactionsPage
 from nexo.ui.pages.analysis_reports_settings import (
     AnalysisPage,
-    ReportsPage,
     SettingsPage,
 )
-from nexo.ui.pages.goals_alerts import AlertsPage, GoalsPage
 from nexo.ui.pages.overview_page import OverviewPage
+from nexo.ui.pages.personal_finance import AlertsPage, GoalsPage, PlanningPage
 from nexo.ui.pages.portfolio_assets import AssetsPage, PortfoliosPage
+from nexo.ui.pages.reports_page import ReportsPage
 from nexo.ui.workers import TaskRunner
 
 PAGE_INFO = (
@@ -113,6 +120,11 @@ class MainWindow(QMainWindow):
         integration_status: GetMarketIntegrationStatus | None = None,
         test_connection: TestMarketConnection | None = None,
         provider_health: GetProviderHealth | None = None,
+        finances: ManageFinances | None = None,
+        export_report: ExportReport | None = None,
+        account: PortfolioAccount | None = None,
+        performance: LoadPortfolioPerformance | None = None,
+        market_research: AnalyzeMarketRisk | None = None,
     ) -> None:
         super().__init__()
         self._create_portfolio = create_portfolio
@@ -126,7 +138,15 @@ class MainWindow(QMainWindow):
         self._compare_portfolios = compare_portfolios
         self._integration_cases = (integration_status, test_connection)
         self._provider_health = provider_health
+        self._finances = finances
+        self._export_report = export_report
+        self._account, self._performance, self._market_research = (
+            account,
+            performance,
+            market_research,
+        )
         self.market_runner = TaskRunner(self)
+        self._transaction_runners: list[TaskRunner] = []
         self._market_generation = 0
         self._market_key: object = None
         self._explicit_market_refresh = False
@@ -169,25 +189,37 @@ class MainWindow(QMainWindow):
     def _add_pages(self) -> None:
         self.overview_page = OverviewPage()
         self.transactions_page = TransactionsPage()
+        self.account_panel = AccountPanel(self._account)
+        self.account_panel.changed.connect(self._transaction_created)
+        self.transactions_page.page_layout.insertWidget(2, self.account_panel)
         self.analysis_page = AnalysisPage(
-            self._analyze_asset, self._list_portfolios, self._compare_portfolios
+            self._analyze_asset,
+            self._list_portfolios,
+            self._compare_portfolios,
+            self._performance,
+            self._market_research,
         )
-        self.assets_page = AssetsPage(
-            *self._asset_cases, analyze_asset=self._analyze_asset
-        )
+        self.assets_page = AssetsPage(*self._asset_cases)
+        self.assets_page.analysis_requested.connect(lambda: self.show_page(7))
         self.assets_page.asset_selected.connect(self.analysis_page.set_asset)
         self.assets_page.integration_requested.connect(lambda: self.show_page(9))
-        self.settings_page = SettingsPage(*self._integration_cases, provider_health=self._provider_health)
+        self.settings_page = SettingsPage(
+            *self._integration_cases, provider_health=self._provider_health
+        )
+        self.planning_page = PlanningPage(self._finances)
+        self.goals_page = GoalsPage(self._finances)
+        self.alerts_page = AlertsPage(self._finances)
+        self.reports_page = ReportsPage(self._list_portfolios, self._export_report)
         pages = (
             self.overview_page,
             self.portfolios_page,
             self.assets_page,
             self.transactions_page,
-            PlanningPage(),
-            GoalsPage(),
-            AlertsPage(),
+            self.planning_page,
+            self.goals_page,
+            self.alerts_page,
             self.analysis_page,
-            ReportsPage(),
+            self.reports_page,
             self.settings_page,
         )
         for page in pages:
@@ -315,6 +347,10 @@ class MainWindow(QMainWindow):
         return lambda _checked: self.show_page(index)
 
     def show_page(self, index: int) -> None:
+        if index == 8:
+            self.reports_page.reload()
+        if index in (4, 5, 6):
+            (self.planning_page, self.goals_page, self.alerts_page)[index - 4].reload()
         if index == 7:
             self.analysis_page.load()
         if index == 1:
@@ -332,12 +368,32 @@ class MainWindow(QMainWindow):
             button.setChecked(button.page_index == index)
 
     def open_dialog(self, kind: str) -> None:
+        if kind in {"asset", "report", "notifications"}:
+            self.show_page({"asset": 2, "report": 8, "notifications": 6}[kind])
+            if kind == "asset":
+                self.assets_page.search_input.setFocus()
+            return
+        if kind in {"goal", "alert"} and self._finances is not None:
+            page = self.goals_page if kind == "goal" else self.alerts_page
+            page.edit()
+            return
         if kind == "transaction":
+            positions: tuple[Position, ...] = ()
+            if self._load_positions and self.selected_portfolio_id is not None:
+                try:
+                    positions = self._load_positions.execute(
+                        self.selected_portfolio_id
+                    ).positions
+                except (TransactionRepositoryError, DomainValidationError):
+                    pass
             transaction_dialog = TransactionDialog(
                 self,
                 register_transaction=self._register_transaction,
                 portfolio_id=self.selected_portfolio_id,
+                positions=positions,
+                get_quote=self._asset_cases[1],
             )
+            self._transaction_runners.append(transaction_dialog.runner)
             transaction_dialog.transaction_created.connect(self._transaction_created)
             transaction_dialog.finished.connect(self._portfolio_dialog_finished)
             self.active_dialog = transaction_dialog
@@ -398,6 +454,9 @@ class MainWindow(QMainWindow):
 
     def _refresh_financial_data(self) -> None:
         identity = self.selected_portfolio_id
+        self.overview_page.set_account(None)
+        self.account_panel.set_portfolio(identity)
+        self.analysis_page.performance_panel.set_portfolio(identity)
         result = ReconstructionResult((), ())
         history = []
         summary = None
@@ -426,6 +485,7 @@ class MainWindow(QMainWindow):
         self.transactions_page.set_data(identity, history)
         self.portfolios_page.set_financial_data(identity, result)
         self.overview_page.set_financial_data(identity, count, result, summary)
+        self.overview_page.set_history(history)
         if error:
             message = "Não foi possível carregar os dados financeiros. Tente atualizar."
             self.transactions_page.feedback.setText(message)
@@ -465,6 +525,13 @@ class MainWindow(QMainWindow):
         self.portfolios_page.set_market_data(self._market_values, identity)
         if identity in self._market_values:
             self.overview_page.set_market_data(self._market_values[identity])
+            if self._account is not None and identity is not None:
+                try:
+                    self.overview_page.set_account(
+                        self._account.valued(identity, self._market_values[identity])
+                    )
+                except (DomainValidationError, TransactionRepositoryError):
+                    self.overview_page.set_account(None)
         elif identity is None and self._market_values:
             message = (
                 "Consulta de mercado concluída. Selecione uma carteira em Carteiras "
@@ -485,6 +552,7 @@ class MainWindow(QMainWindow):
         if local_available and key == self._market_key:
             self._apply_market()
             return
+        self.market_runner.cancel()
         self._market_generation += 1
         generation = self._market_generation
         self._market_key = key if local_available else None
@@ -497,7 +565,11 @@ class MainWindow(QMainWindow):
         self.portfolios_page.clear_market_data(message)
         self.overview_page.clear_market_data(message)
         if case is None or not local_available or not identities:
+            self.market_refresh.setEnabled(case is not None)
+            self.market_refresh.setText("Atualizar mercado")
             return
+        self.market_refresh.setEnabled(not explicit)
+        self.market_refresh.setText("Atualizando…" if explicit else "Atualizar mercado")
 
         def completed(result: Any, error: Exception | None) -> None:
             if (
@@ -505,6 +577,8 @@ class MainWindow(QMainWindow):
                 or identity != self.selected_portfolio_id
             ):
                 return
+            self.market_refresh.setEnabled(True)
+            self.market_refresh.setText("Atualizar mercado")
             if error is not None:
                 self._market_key = None
                 message = "Mercado indisponível. Dados locais preservados; tente Atualizar mercado."
@@ -516,20 +590,27 @@ class MainWindow(QMainWindow):
             self._market_values = result
             self._apply_market()
 
-        self.market_runner.submit(lambda: case.execute_many(identities, explicit=explicit), completed)
+        self.market_runner.submit(
+            lambda: case.execute_many(identities, explicit=explicit), completed
+        )
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        for runner in self._transaction_runners:
+            runner.stop()
         self.market_runner.stop()
         self.assets_page.runner.stop()
-        self.assets_page.analysis_panel.runner.stop()
+        self.alerts_page.runner.stop()
         self.analysis_page.stop()
         self.settings_page.market_panel.runner.stop()
         super().closeEvent(event)
 
     def wait_for_market(self) -> None:
+        for runner in self._transaction_runners:
+            runner.stop()
+            runner.wait()
         self.market_runner.wait()
         self.assets_page.runner.wait()
-        self.assets_page.analysis_panel.runner.wait()
+        self.alerts_page.runner.wait()
         self.analysis_page.wait()
         self.settings_page.market_panel.runner.wait()
 

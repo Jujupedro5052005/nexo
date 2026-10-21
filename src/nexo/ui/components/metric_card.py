@@ -1,6 +1,14 @@
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QToolButton,
+    QToolTip,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class MetricCard(QFrame):
@@ -19,16 +27,30 @@ class MetricCard(QFrame):
         super().__init__(parent)
         self.setObjectName("Card")
         self.setMinimumHeight(116)
-        self.setToolTip(tooltip)
+        self.setToolTip(tooltip or detail or label)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(7)
         top = QHBoxLayout()
         label_widget = QLabel(label)
+        label_widget.setToolTip(tooltip or detail or label)
         label_widget.setObjectName("MetricLabel")
         label_widget.setWordWrap(True)
-        top.addWidget(label_widget)
-        top.addStretch()
+        top.addWidget(label_widget, 1)
+        help_widget = QToolButton()
+        help_widget.setText("?")
+        help_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        help_widget.setAccessibleName(f"Explicar {label}")
+        help_widget.clicked.connect(
+            lambda: QToolTip.showText(
+                help_widget.mapToGlobal(help_widget.rect().bottomLeft()),
+                help_widget.toolTip(),
+                help_widget,
+            )
+        )
+        help_widget.setObjectName("SecondaryText")
+        help_widget.setToolTip(tooltip or detail or label)
+        top.addWidget(help_widget)
         if icon is not None:
             icon_label = QLabel()
             icon_label.setPixmap(icon.pixmap(QSize(18, 18)))
@@ -36,6 +58,7 @@ class MetricCard(QFrame):
         value_widget = QLabel(value)
         value_widget.setObjectName("MetricValue")
         self.value_label = value_widget
+        value_widget.setAccessibleName(label)
         self.detail_label = QLabel(detail)
         detail_widget = self.detail_label
         detail_widget.setWordWrap(True)

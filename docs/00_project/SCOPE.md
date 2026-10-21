@@ -1,5 +1,15 @@
 # Escopo do Nexo Invest
 
+## Ampliação autorizada — 21/10/2026
+
+A evolução solicitada inclui Yahoo como fonte pública principal, cenários
+educacionais de preço/tendência, ajuda de indicadores, boleta assistida,
+planejamento/metas persistentes, alertas locais manuais e relatórios CSV.
+As funcionalidades complementares descritas em CURRENT_STATUS estão implementadas;
+as categorias de prioridade abaixo preservam a definição acadêmica do núcleo.
+Simulações não enviam ordens a corretoras. Sinais condicionais não constituem
+recomendação personalizada nem previsão de compra/venda em data específica.
+
 ## Objetivo da primeira versão funcional
 
 Entregar uma aplicação desktop Windows demonstrável para consultar mercado e
@@ -87,3 +97,8 @@ Funcionalidades complementares não devem antecipar os modelos do domínio,
 persistência de carteiras/transações, reconstrução de posições, casos de uso e
 fluxos principais de UI. Mudanças de escopo exigem atualização coordenada de
 requisitos, roadmap, backlog e status.
+
+
+## Incremento 07 entregue
+
+Caixa BRL explícito, histórico de patrimônio/TWR diário aproximado, cenários financeiros manuais, risco de mercado, três modelos de insolvência e diligência educacional. Sem execução real de ordens, FX implícito, probabilidade de falência inventada, motor tributário legal ou conformidade regulatória. Ver [políticas e rastreabilidade](../02_architecture/FINANCIAL_TOOLS.md).

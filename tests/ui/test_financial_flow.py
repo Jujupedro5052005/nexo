@@ -260,7 +260,7 @@ def test_storage_failure_hides_technical_details_and_retains_input(
     def fail(_transaction):
         raise TransactionRepositoryError("IntegrityError SECRET SQL traceback")
 
-    monkeypatch.setattr(repository, "add", fail)
+    monkeypatch.setattr(repository, "add_validated", fail)
     dialog = open_trade(window)
     qtbot.mouseClick(dialog.save_button, Qt.MouseButton.LeftButton)
     assert dialog.isVisible() and dialog.save_button.isEnabled()

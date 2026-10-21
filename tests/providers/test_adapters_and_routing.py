@@ -93,7 +93,10 @@ def yahoo(policy):
 
         return SimpleNamespace(history=history)
 
-    return YahooFinanceProvider(policy.usage, ticker_factory=factory), queries
+    def unavailable_search(query):
+        raise MarketDataUnavailableError("Busca indisponível na fixture")
+
+    return YahooFinanceProvider(policy.usage, ticker_factory=factory, search_factory=unavailable_search), queries
 
 
 def test_bolsai_company_exact_identity_and_long_cache(policy):
@@ -274,8 +277,8 @@ def test_failed_fallback_does_not_hide_primary_local_budget(policy):
     router = RoutedMarketDataProvider(primary, fallback, None, policy)
     with pytest.raises(MarketRateLimitError) as failure:
         router.get_quote(Asset("PETR4"))
-    assert "brapi (prioritária): Budget local atingido" in str(failure.value)
-    assert "bolsai (fallback): bolsai: resposta HTTP 503" in str(failure.value)
+    assert "brapi: Budget local atingido" in str(failure.value)
+    assert "bolsai: bolsai: resposta HTTP 503" in str(failure.value)
     assert not primary_calls and len(fallback_calls) == 1
     assert "fixture-only" not in str(failure.value)
 
@@ -318,7 +321,7 @@ def test_bolsai_timeout_is_distinct_from_invalid_json(policy):
 
 
 @pytest.mark.parametrize(
-    "period,brapi_count", [("1mo", 1), ("3mo", 1), ("1y", 0), ("5y", 0)]
+    "period,brapi_count", [("1mo", 0), ("3mo", 0), ("1y", 0), ("5y", 0)]
 )
 def test_history_routing_skips_brapi_for_long_period(policy, period, brapi_count):
     primary, calls = brapi(policy, {}, status=503)
@@ -350,9 +353,9 @@ def test_short_history_success_keeps_priority(policy):
     yf, queries = yahoo(policy)
     router = RoutedMarketDataProvider(primary, fallback, yf, policy)
     assert (
-        router.get_history(A, "1mo").source == "brapi"
-        and len(calls) == 1
-        and not queries
+        router.get_history(A, "1mo").source == "Yahoo Finance"
+        and not calls
+        and queries == ["ITSA4.SA"]
     )
 
 
@@ -516,7 +519,7 @@ def test_empty_primary_history_does_not_mask_cached_yahoo_fallback(policy):
     router = RoutedMarketDataProvider(primary, None, yf, policy)
     for _ in range(3):
         assert router.get_history(A, "1mo").source == "Yahoo Finance"
-    assert len(calls) == len(queries) == 1
+    assert not calls and len(queries) == 1
 
 
 def test_empty_primary_search_does_not_mask_cached_bolsai_results(policy):

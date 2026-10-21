@@ -97,7 +97,7 @@ def test_real_metrics_and_rows_are_shared_by_overview_and_portfolios(
     chart = window.overview_page.valuation_chart
     assert chart is not None
     sets = chart.chart().series()[0].barSets()
-    assert sets[0].at(0) == 300 and sets[1].at(0) == 400
+    assert sets[0].at(0) == 100 and sets[1].at(0) == 0  # Contribution = value − open cost.
 
 
 def test_global_refresh_without_selection_finishes_with_selection_guidance(
@@ -381,3 +381,54 @@ def test_empty_history_never_draws_fake_series(qtbot, provider):
     finally:
         page.runner.stop()
         page.runner.wait()
+
+
+
+def test_manual_refresh_blocks_duplicate_clicks_until_completed(market_window, qtbot, provider):
+    window, first, _, _ = market_window
+    window._select_portfolio(first)
+    qtbot.waitUntil(lambda: bool(window._market_values), timeout=10000)
+    initial = len(provider.calls)
+    provider.block_next = True
+    window.market_refresh.click()
+    qtbot.waitUntil(provider.entered.is_set, timeout=10000)
+    assert not window.market_refresh.isEnabled()
+    assert window.market_refresh.text() == "Atualizando…"
+    window.market_refresh.click()
+    assert len(provider.calls) == initial + 1
+    provider.release.set()
+    qtbot.waitUntil(window.market_refresh.isEnabled, timeout=10000)
+    assert window.market_refresh.text() == "Atualizar mercado"
+    assert window.overview_page.metrics["market"].value_label.text() == "R$ 400,00"
+
+
+def test_replaced_market_job_receives_cancellation_token(market_window, qtbot, monkeypatch):
+    from threading import Event
+    from time import sleep
+
+    from nexo.core.cancellation import OperationCancelled, check_cancelled
+    window, first, _, _ = market_window
+    window._select_portfolio(first)
+    qtbot.waitUntil(lambda: bool(window._market_values), timeout=10000)
+    original = window._load_valuation.execute_many
+    entered, cancelled = Event(), Event()
+    calls = []
+    def operation(identities, *, explicit=False):
+        calls.append(identities)
+        if len(calls) == 1:
+            entered.set()
+            try:
+                while True:
+                    check_cancelled()
+                    sleep(.005)
+            except OperationCancelled:
+                cancelled.set()
+                raise
+        return original(identities, explicit=explicit)
+    monkeypatch.setattr(window._load_valuation, "execute_many", operation)
+    window.refresh_market()
+    qtbot.waitUntil(entered.is_set)
+    window.refresh_market()
+    qtbot.waitUntil(cancelled.is_set)
+    qtbot.waitUntil(window.market_refresh.isEnabled, timeout=10000)
+    assert len(calls) == 2 and window._market_values[first].complete

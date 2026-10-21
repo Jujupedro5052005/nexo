@@ -35,7 +35,15 @@ TRANSACTIONS = [
     ("08/09/2026", "Longo Prazo", "Compra", "PETR4", "100", "R$ 35,10", "R$ 3.510,00"),
     ("05/09/2026", "Reserva", "Aporte", "—", "—", "—", "R$ 2.500,00"),
     ("29/08/2026", "Longo Prazo", "Provento", "ITUB4", "—", "—", "R$ 184,20"),
-    ("21/08/2026", "Internacional", "Compra", "IVVB11", "20", "R$ 312,40", "R$ 6.248,00"),
+    (
+        "21/08/2026",
+        "Internacional",
+        "Compra",
+        "IVVB11",
+        "20",
+        "R$ 312,40",
+        "R$ 6.248,00",
+    ),
     ("12/08/2026", "Longo Prazo", "Venda", "VALE3", "15", "R$ 62,80", "R$ 942,00"),
 ]
 GOALS = [

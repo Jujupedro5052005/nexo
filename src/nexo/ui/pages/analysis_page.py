@@ -14,18 +14,22 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from nexo.application.analysis.market_research import AnalyzeMarketRisk
 from nexo.application.assets.analyze_asset import AnalyzeAsset
 from nexo.application.portfolio.compare_portfolios import (
     ComparedPortfolio,
     ComparePortfolios,
 )
 from nexo.application.portfolio.list_portfolios import ListPortfolios
+from nexo.application.portfolio.performance import LoadPortfolioPerformance
 from nexo.domain.errors import DomainValidationError
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
 from nexo.domain.models.asset import Asset
+from nexo.ui.components.account_panel import PerformancePanel
 from nexo.ui.components.asset_analysis_panel import AssetAnalysisPanel
 from nexo.ui.components.charts import bar_chart
 from nexo.ui.components.common import Badge, DataTable, PageContent, SectionCard
+from nexo.ui.components.research_workbench import ResearchWorkbench
 from nexo.ui.financial_formatting import (
     currency_text,
     decimal_text,
@@ -119,6 +123,7 @@ class PortfolioComparisonPanel(SectionCard):
         self.invalidate()
 
     def invalidate(self) -> None:
+        self.runner.cancel()
         self._generation += 1
         self.comparison = ()
         self.table.setColumnCount(1)
@@ -261,6 +266,8 @@ class AnalysisPage(PageContent):
         analyze_asset: AnalyzeAsset | None = None,
         list_portfolios: ListPortfolios | None = None,
         compare: ComparePortfolios | None = None,
+        performance: LoadPortfolioPerformance | None = None,
+        market_research: AnalyzeMarketRisk | None = None,
     ) -> None:
         super().__init__("analysis")
         self.page_layout.addWidget(
@@ -277,8 +284,27 @@ class AnalysisPage(PageContent):
             layout = QVBoxLayout(page)
             layout.addWidget(panel)
             self.tabs.addTab(page, title)
+        self.performance_panel = PerformancePanel(performance)
+        self._market_research = market_research
+        self._workbench: ResearchWorkbench | None = None
+        self._workbench_page = QWidget()
+        self._workbench_layout = QVBoxLayout(self._workbench_page)
+        self.tabs.addTab(self.performance_panel, "Patrimônio / TWR")
+        self.tabs.addTab(self._workbench_page, "Ferramentas / teoria")
+        self.tabs.currentChanged.connect(self._load_tools)
         self.page_layout.addWidget(self.tabs)
         self.page_layout.addStretch()
+
+    @property
+    def workbench(self) -> ResearchWorkbench:
+        if self._workbench is None:
+            self._workbench = ResearchWorkbench(self._market_research)
+            self._workbench_layout.addWidget(self._workbench)
+        return self._workbench
+
+    def _load_tools(self, index: int) -> None:
+        if index == 3:
+            _ = self.workbench
 
     def set_asset(self, asset: Asset | None) -> None:
         self.asset_panel.set_asset(asset, load=False)
@@ -299,7 +325,13 @@ class AnalysisPage(PageContent):
     def stop(self) -> None:
         self.asset_panel.runner.stop()
         self.comparison_panel.runner.stop()
+        self.performance_panel.runner.stop()
+        if self._workbench is not None:
+            self._workbench.market.runner.stop()
 
     def wait(self) -> None:
         self.asset_panel.runner.wait()
         self.comparison_panel.runner.wait()
+        self.performance_panel.runner.wait()
+        if self._workbench is not None:
+            self._workbench.market.runner.wait()

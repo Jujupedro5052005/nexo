@@ -85,6 +85,9 @@ def test_quick_actions_open_their_dialogs(
 
     qtbot.mouseClick(button, Qt.MouseButton.LeftButton)
 
+    if dialog_key == "asset":
+        assert window.page_stack.currentIndex() == 2
+        return
     assert isinstance(window.active_dialog, dialog_type)
     assert window.active_dialog.isVisible()
     window.active_dialog.close()

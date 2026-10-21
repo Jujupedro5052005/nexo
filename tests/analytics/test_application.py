@@ -136,7 +136,7 @@ def test_compare_identical_names_by_id_with_ledger_realized_and_shared_batch(
     assert first.concentration.largest == 1 and second.concentration.top_three == 1
     assert [p.transactions_count for p in result] == [2, 2]
     assert analytics_provider.calls == [(A, B)]
-    assert set(inspect(engine).get_table_names()) == {"portfolios", "transactions"}
+    assert set(inspect(engine).get_table_names()) == {"portfolios", "transactions", "budget_entries", "financial_goals", "price_alerts", "portfolio_events"}
 
 
 def test_comparison_partial_and_foreign_are_not_zero_or_normalized(

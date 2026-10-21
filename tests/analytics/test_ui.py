@@ -102,7 +102,6 @@ def test_asset_refresh_invalidates_before_parallel_quote_history_analysis(
     page = AssetsPage(
         get_quote=GetAssetQuote(cache),
         get_history=GetAssetHistory(cache),
-        analyze_asset=AnalyzeAsset(cache, cache, today=lambda: date(2026, 10, 6)),
     )
     qtbot.addWidget(page)
     page.selected_asset = AssetSearchResult(A, "Petrobras", "BRL")
@@ -110,17 +109,16 @@ def test_asset_refresh_invalidates_before_parallel_quote_history_analysis(
     try:
         page.refresh_asset(refresh=True)
         qtbot.waitUntil(
-            lambda: page.quote is not None and page.analysis_panel.analysis is not None,
+            lambda: page.quote is not None and page.history is not None,
             timeout=5000,
         )
-        assert page.quote.price == page.analysis_panel.analysis.quote.price == 90
+        assert page.quote.price == 90
+        assert not hasattr(page, "analysis_panel")
         assert len(analytics_provider.calls) == 2
         assert len(analytics_provider.history_calls) == 1
     finally:
         page.runner.stop()
-        page.analysis_panel.runner.stop()
         page.runner.wait()
-        page.analysis_panel.runner.wait()
 
 
 @pytest.fixture
@@ -229,8 +227,8 @@ def analytics_window(qtbot, analytics_database, analytics_provider):
         ListTransactions(transactions),
         positions,
         load_valuation=LoadPortfolioValuation(positions, cache),
-        analyze_asset=AnalyzeAsset(cache, cache, today=lambda: date(2026, 10, 6)),
         compare_portfolios=comparing,
+        analyze_asset=AnalyzeAsset(cache, cache, today=lambda: date(2026, 10, 6)),
     )
     qtbot.addWidget(window)
     try:

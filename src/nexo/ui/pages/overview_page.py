@@ -1,36 +1,21 @@
-from PySide6.QtCharts import QChartView
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (
-    QGridLayout,
-    QHBoxLayout,
-    QLabel,
-    QProgressBar,
-    QPushButton,
-    QVBoxLayout,
-)
+from datetime import datetime, timezone
+from decimal import Decimal
 
+from PySide6.QtCharts import QChartView
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton
+
+from nexo.application.portfolio.account import AccountSnapshot
+from nexo.application.portfolio.dashboard import ledger_timeline
 from nexo.application.portfolio.financial_summary import FinancialSummary
 from nexo.calculations.valuation.portfolio import PortfolioValuation
+from nexo.domain.models.transaction import Transaction
 from nexo.domain.reconstruction import ReconstructionResult
-from nexo.ui.components.charts import bar_chart, line_chart
-from nexo.ui.components.common import (
-    Badge,
-    DataTable,
-    PageContent,
-    SectionCard,
-    connect_planned_action,
-)
+from nexo.ui.components.charts import bar_chart, capital_timeline_chart
+from nexo.ui.components.common import Badge, DataTable, PageContent, SectionCard
 from nexo.ui.components.concentration_panel import ConcentrationPanel
 from nexo.ui.components.metric_card import MetricCard
 from nexo.ui.components.responsive_pair import ResponsivePair
-from nexo.ui.demo.data import (
-    ALERTS,
-    DEMO_NOTICE,
-    GOALS,
-    INVESTED_SERIES,
-    PORTFOLIO_SERIES,
-    REFERENCE_SERIES,
-)
 from nexo.ui.financial_formatting import (
     MARKET_HEADERS,
     apply_valuation,
@@ -41,105 +26,159 @@ from nexo.ui.financial_formatting import (
     position_rows,
     replace_rows,
 )
-from nexo.ui.icons import icon
 
 
 class OverviewPage(PageContent):
-    """Real ledger metrics above explicitly separated presentation demos."""
+    """Decision dashboard built from the selected ledger and available quotes."""
 
     dialog_requested = Signal(str)
 
     def __init__(self) -> None:
         super().__init__("overview")
-        self.page_layout.addWidget(Badge("Dados locais do ledger"))
-        self.context_label = QLabel(
-            "Selecione uma carteira para consultar suas posições."
+        self.page_layout.addWidget(
+            Badge("Seu panorama • dados reais da carteira selecionada")
         )
+        self.context_label = QLabel("Selecione uma carteira para começar.")
         self.page_layout.addWidget(self.context_label)
-        local_metrics = self._metrics()
-        market_metrics = QHBoxLayout()
-        for key, title in (
-            ("market", "VALOR DAS POSIÇÕES"),
-            ("unrealized", "NÃO REALIZADO"),
-            ("total", "RESULTADO TOTAL"),
-            ("return", "RETORNO DAS POSIÇÕES ABERTAS"),
+        self.metrics: dict[str, MetricCard] = {}
+        row = QHBoxLayout()
+        for key, title, detail in (
+            (
+                "market",
+                "VALOR DAS POSIÇÕES",
+                "Quantidade × cotação de cada ativo. BRL, sem caixa. Agregado indisponível se faltar cotação.",
+            ),
+            (
+                "unrealized",
+                "RESULTADO EM ABERTO",
+                "Valor atual − custo das posições abertas. Oscila com o preço; não inclui proventos ou impostos.",
+            ),
+            (
+                "total",
+                "RESULTADO TOTAL",
+                "Resultado realizado nas vendas + resultado em aberto. Não inclui caixa ou proventos não registrados.",
+            ),
+            (
+                "return",
+                "RETORNO SOBRE CUSTO",
+                "Resultado em aberto / custo aberto. Fotografia atual, sem considerar a duração dos investimentos.",
+            ),
         ):
-            detail = {
-                "market": "Posições abertas em BRL • sem caixa",
+            short_detail = {
+                "market": "Posições abertas • BRL • sem caixa",
                 "unrealized": "Valor atual menos custo aberto",
-                "total": "Realizado + não realizado",
-                "return": "Não realizado / custo aberto",
+                "total": "Realizado + resultado em aberto",
+                "return": "Fotografia das posições abertas",
             }[key]
-            metric = MetricCard(title, "—", detail)
+            metric = MetricCard(title, "—", short_detail, tooltip=detail)
             if key == "market":
                 metric.setProperty("highlight", True)
             self.metrics[key] = metric
-            market_metrics.addWidget(metric, 1)
-        self.page_layout.addLayout(market_metrics)
-        self.page_layout.addLayout(local_metrics)
-        positions = SectionCard("Posições abertas — carteira selecionada")
-        self.positions_table = DataTable(MARKET_HEADERS, [])
-        self.positions_table.setObjectName("overview_positions_table")
-        positions.content.addWidget(self.positions_table)
-        self.positions_empty = QLabel("Selecione uma carteira.")
-        positions.content.addWidget(self.positions_empty)
-        self.market_feedback = QLabel("Cotações e valor de mercado indisponíveis.")
-        self.market_feedback.setWordWrap(True)
-        positions.content.addWidget(self.market_feedback)
-        self.page_layout.addWidget(positions)
+            row.addWidget(metric, 1)
+        self.page_layout.addLayout(row)
+        local = QHBoxLayout()
+        for key, title in (
+            ("portfolios", "CARTEIRAS"),
+            ("positions", "ATIVOS EM CARTEIRA"),
+            ("cost", "CAPITAL A CUSTO"),
+            ("realized", "RESULTADO DAS VENDAS"),
+            ("transactions", "OPERAÇÕES"),
+        ):
+            metric = MetricCard(
+                title, "—", "Calculado do histórico local; não depende de APIs."
+            )
+            self.metrics[key] = metric
+            local.addWidget(metric, 1)
+        self.page_layout.addLayout(local)
+        self.evolution_card = SectionCard("Sua trajetória • capital a custo")
+        self.timeline_note = QLabel(
+            "Registre compras e vendas para construir sua trajetória."
+        )
+        self.timeline_note.setWordWrap(True)
+        self.timeline_note.setToolTip(
+            "Custo das posições ainda abertas ao final de cada mês com operações. Vendas reduzem o custo; diferenças não representam rentabilidade. Meses sem operações não geram um novo ponto. Não é patrimônio histórico a mercado."
+        )
+        self.evolution_card.content.addWidget(self.timeline_note)
+        self.timeline_chart: QChartView | None = None
+        self.insights_card = SectionCard("Radar da carteira")
+        self.insights_label = QLabel(
+            "Atualize o mercado para identificar concentração e resultados."
+        )
+        self.insights_label.setWordWrap(True)
+        self.insights_card.content.addWidget(self.insights_label)
+        self.insights_card.content.addStretch()
+        self.insights_card.setMinimumWidth(260)
+        self.panorama = ResponsivePair(self.evolution_card, self.insights_card)
+        self.page_layout.addWidget(self.panorama)
         self.concentration_panel = ConcentrationPanel()
         self.page_layout.addWidget(self.concentration_panel)
         self.valuation_chart_card = SectionCard(
-            "Custo e valor das posições cotadas — BRL"
+            "Contribuição de cada ativo para o resultado em aberto • BRL"
         )
         self.valuation_chart: QChartView | None = None
-        self.chart_feedback = QLabel(
-            "Aguardando cotações. Sem série demonstrativa nesta seção."
-        )
+        self.chart_feedback = QLabel("Aguardando cotações.")
+        self.chart_feedback.setWordWrap(True)
         self.valuation_chart_card.content.addWidget(self.chart_feedback)
         self.page_layout.addWidget(self.valuation_chart_card)
-        demo_row = QHBoxLayout()
-        demo_row.addWidget(Badge("Seções abaixo: dados demonstrativos", "DemoBadge"))
-        demo_row.addStretch()
-        self.page_layout.addLayout(demo_row)
-
-        self.evolution_card = self._evolution()
-        self.insights_card = self._insights()
-        self.demo_charts = ResponsivePair(self.evolution_card, self.insights_card)
-        self.page_layout.addWidget(self.demo_charts)
-
-        lower = QGridLayout()
-        lower.setSpacing(14)
-        lower.addWidget(self._cashflow(), 0, 0)
-        lower.addWidget(self._goals(), 0, 1)
-        lower.setColumnStretch(0, 1)
-        lower.setColumnStretch(1, 1)
-        self.page_layout.addLayout(lower)
-
-        bottom = QGridLayout()
-        bottom.setSpacing(14)
-        bottom.addWidget(self._alerts(), 0, 0, 1, 2)
-        bottom.addWidget(self._quick_actions(), 0, 2)
-        bottom.setColumnStretch(0, 2)
-        bottom.setColumnStretch(1, 2)
-        bottom.setColumnStretch(2, 2)
-        self.page_layout.addLayout(bottom)
-
-    def _metrics(self) -> QHBoxLayout:
-        row = QHBoxLayout()
-        row.setSpacing(14)
-        self.metrics: dict[str, MetricCard] = {}
-        for key, label in (
-            ("portfolios", "CARTEIRAS"),
-            ("positions", "POSIÇÕES ABERTAS"),
-            ("cost", "CUSTO DAS POSIÇÕES"),
-            ("realized", "RESULTADO REALIZADO"),
-            ("transactions", "MOVIMENTAÇÕES"),
+        detail_card = SectionCard("Conferência das posições")
+        toggle = QPushButton("Mostrar / ocultar detalhes das posições")
+        toggle.setObjectName("LinkButton")
+        detail_card.content.addWidget(toggle)
+        self.positions_table = DataTable(MARKET_HEADERS, [])
+        self.positions_table.setVisible(False)
+        toggle.clicked.connect(
+            lambda: self.positions_table.setVisible(
+                not self.positions_table.isVisible()
+            )
+        )
+        detail_card.content.addWidget(self.positions_table)
+        self.positions_empty = QLabel("Selecione uma carteira.")
+        detail_card.content.addWidget(self.positions_empty)
+        self.market_feedback = QLabel("Cotações indisponíveis.")
+        self.market_feedback.setWordWrap(True)
+        detail_card.content.addWidget(self.market_feedback)
+        self.page_layout.addWidget(detail_card)
+        quick = QHBoxLayout()
+        for text, kind in (
+            ("+ Registrar operação", "transaction"),
+            ("+ Pesquisar ativo", "asset"),
+            ("+ Criar meta", "goal"),
+            ("+ Criar alerta", "alert"),
         ):
-            card = MetricCard(label, "—", "Ledger local")
-            self.metrics[key] = card
-            row.addWidget(card, 1)
-        return row
+            button = QPushButton(text)
+            button.setObjectName("QuickAction")
+            button.setProperty("dialogKey", kind)
+            button.clicked.connect(
+                lambda _checked=False, action=kind: self.dialog_requested.emit(action)
+            )
+            quick.addWidget(button)
+        self.page_layout.addLayout(quick)
+
+    def set_history(self, history: list[Transaction]) -> None:
+        if self.timeline_chart is not None:
+            self.evolution_card.content.removeWidget(self.timeline_chart)
+            self.timeline_chart.deleteLater()
+            self.timeline_chart = None
+        points = ledger_timeline(history)
+        self.timeline_note.setText(
+            "Custo aberto no fim dos meses com operações • não é patrimônio histórico de mercado. Passe o mouse nos pontos."
+            if points
+            else "Sem operações. Registre uma compra para começar."
+        )
+        if not points:
+            return
+        self.timeline_chart = capital_timeline_chart(
+            [
+                (
+                    datetime.strptime(point.month, "%Y-%m").replace(
+                        tzinfo=timezone.utc
+                    ),
+                    point.cost,
+                )
+                for point in points
+            ]
+        )
+        self.evolution_card.content.addWidget(self.timeline_chart)
 
     def set_financial_data(
         self,
@@ -148,13 +187,13 @@ class OverviewPage(PageContent):
         result: ReconstructionResult,
         summary: FinancialSummary | None,
     ) -> None:
-        self.metrics["portfolios"].value_label.setText(
-            str(portfolios_count) if portfolios_count is not None else "—"
-        )
         self.context_label.setText(
-            f"Carteira #{portfolio_id} • valores a custo e resultado realizado"
+            f"Carteira #{portfolio_id} • acompanhe risco, resultado e trajetória"
             if portfolio_id
-            else "Selecione uma carteira para consultar suas posições."
+            else "Selecione uma carteira para começar."
+        )
+        self.metrics["portfolios"].set_value(
+            str(portfolios_count) if portfolios_count is not None else "—"
         )
         values = (
             {
@@ -163,27 +202,24 @@ class OverviewPage(PageContent):
                 "realized": money_text(summary.realized_profit_loss),
                 "transactions": str(summary.transactions_count),
             }
-            if summary is not None
+            if summary
             else {}
         )
         for key in ("positions", "cost", "realized", "transactions"):
-            amount = summary.realized_profit_loss if summary is not None and key == "realized" else None
-            state = "positive" if amount is not None and amount > 0 else "negative" if amount is not None and amount < 0 else "neutral"
-            self.metrics[key].set_value(values.get(key, "—"), state)
+            self.metrics[key].set_value(values.get(key, "—"))
         replace_rows(
             self.positions_table, [row + ("—",) * 4 for row in position_rows(result)]
         )
-        self.positions_empty.setVisible(not result.positions)
         self.positions_empty.setText(
-            "Nenhuma posição aberta nesta carteira."
-            if portfolio_id
-            else "Selecione uma carteira."
+            "Nenhuma posição aberta." if portfolio_id else "Selecione uma carteira."
         )
+        self.positions_empty.setVisible(not result.positions)
 
     def clear_market_data(self, message: str) -> None:
         self.concentration_panel.clear(message)
         self._clear_valuation_chart()
         self.chart_feedback.setText(message)
+        self.insights_label.setText(message)
         for key in ("market", "unrealized", "total", "return"):
             self.metrics[key].set_value("—")
         self.market_feedback.setText(message)
@@ -195,46 +231,83 @@ class OverviewPage(PageContent):
             ("unrealized", valuation.unrealized_profit_loss),
             ("total", valuation.total_profit_loss),
         ):
-            state = "accent" if key == "market" and amount is not None else "positive" if amount is not None and amount > 0 else "negative" if amount is not None and amount < 0 else "neutral"
+            state = (
+                "accent"
+                if key == "market" and amount is not None
+                else "positive"
+                if amount is not None and amount > 0
+                else "negative"
+                if amount is not None and amount < 0
+                else "neutral"
+            )
             self.metrics[key].set_value(currency_text(amount), state)
-        return_value = valuation.unrealized_return
-        self.metrics["return"].set_value(percent_text(return_value),
-            "positive" if return_value is not None and return_value > 0 else "negative" if return_value is not None and return_value < 0 else "neutral")
+        value = valuation.unrealized_return
+        self.metrics["return"].set_value(
+            percent_text(value),
+            "positive"
+            if value is not None and value > 0
+            else "negative"
+            if value is not None and value < 0
+            else "neutral",
+        )
         apply_valuation(self.positions_table, valuation)
         self.market_feedback.setText(market_status(valuation))
         self._clear_valuation_chart()
         available = [
-            item
-            for item in valuation.positions
-            if item.quote is not None
-            and item.quote.currency == "BRL"
-            and item.market_value is not None
+            p for p in valuation.positions if p.unrealized_profit_loss is not None
         ]
-        self.chart_feedback.setText(
-            "Somente posições BRL com cotação disponível; valores de mercado das posições abertas, sem caixa."
-            if available
-            else "Nenhuma posição BRL com cotação para exibir."
+        ranked = sorted(available, key=lambda p: p.unrealized_profit_loss or Decimal(0))
+        concentration = valuation.concentration
+        text = []
+        if concentration.weights:
+            top = concentration.weights[0]
+            text.append(
+                f"Maior exposição: {top.asset.symbol} • {percent_text(top.weight)} do valor aberto."
+            )
+        if ranked:
+            best, worst = ranked[-1], ranked[0]
+            text.append(
+                f"Maior contribuição: {best.position.asset.symbol} • {currency_text(best.unrealized_profit_loss)}."
+            )
+            text.append(
+                f"Menor contribuição: {worst.position.asset.symbol} • {currency_text(worst.unrealized_profit_loss)}."
+            )
+        if not valuation.complete:
+            text.append(
+                "Cobertura incompleta: totais e concentração indisponíveis. Confira as fontes nas posições."
+            )
+        self.insights_label.setText(
+            "\n\n".join(text) or "Sem posições cotadas para analisar."
         )
-        if available:
-            # Qt chart coordinates are floats; all financial calculations stay Decimal.
+        self.chart_feedback.setText(
+            "Resultado monetário por posição = valor atual − custo aberto. Somente ativos com base BRL disponível; confira cobertura nos detalhes."
+        )
+        if ranked:
             self.valuation_chart = bar_chart(
-                [item.position.asset.symbol for item in available],
+                [p.position.asset.symbol for p in ranked],
                 (
                     (
-                        "Custo do ledger",
-                        [float(item.position.cost_basis) for item in available],
-                        "#4D7CFF",
+                        "Ganho em aberto",
+                        [
+                            float(
+                                max(p.unrealized_profit_loss or Decimal(0), Decimal(0))
+                            )
+                            for p in ranked
+                        ],
+                        "#3DDC84",
                     ),
                     (
-                        "Valor atual",
+                        "Perda em aberto",
                         [
-                            float(item.market_value)
-                            for item in available
-                            if item.market_value is not None
+                            float(
+                                min(p.unrealized_profit_loss or Decimal(0), Decimal(0))
+                            )
+                            for p in ranked
                         ],
-                        "#10C7C7",
+                        "#FF5C6C",
                     ),
                 ),
+                260,
             )
             self.valuation_chart_card.content.addWidget(self.valuation_chart)
 
@@ -244,140 +317,23 @@ class OverviewPage(PageContent):
             self.valuation_chart.deleteLater()
             self.valuation_chart = None
 
-    @staticmethod
-    def _evolution() -> SectionCard:
-        card = SectionCard("Evolução Patrimonial")
-        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
-        filters = QHBoxLayout()
-        filters.addStretch()
-        for label in ("1M", "3M", "6M", "1A", "Máx"):
-            button = QPushButton(label)
-            button.setObjectName("FilterButton")
-            button.setCheckable(True)
-            button.setAutoExclusive(True)
-            button.setChecked(label == "1A")
-            filters.addWidget(button)
-        card.content.addLayout(filters)
-        card.content.addWidget(
-            line_chart(
-                (
-                    ("Patrimônio", PORTFOLIO_SERIES, "#10C7C7"),
-                    ("Valor investido", INVESTED_SERIES, "#4D7CFF"),
-                    ("Referência", REFERENCE_SERIES, "#6E7D91"),
-                ),
-                250,
+    def set_account(self, snapshot: AccountSnapshot | None) -> None:
+        if not hasattr(self, "cash_card"):
+            self.cash_card = MetricCard(
+                "CAIXA DISPONÍVEL BRL",
+                "—",
+                tooltip="Saldo inicial + aportes − retiradas − compras + vendas + proventos líquidos − custos. Abertura explícita em Movimentações; o custo das posições não é caixa.",
             )
-        )
-        return card
-
-    @staticmethod
-    def _insights() -> SectionCard:
-        card = SectionCard("NEXO Insights")
-        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
-        card.setMinimumWidth(260)
-        badge = Badge("ATENÇÃO", "WarningBadge")
-        title = QLabel("Concentração da carteira")
-        title.setObjectName("SectionTitle")
-        text = QLabel(
-            "A parcela demonstrativa em renda variável está acima da alocação alvo configurada para esta estratégia."
-        )
-        text.setObjectName("SecondaryText")
-        text.setWordWrap(True)
-        action = QPushButton("Ver análise completa  →")
-        action.setObjectName("LinkButton")
-        connect_planned_action(action)
-        dots = QLabel("●  ○  ○")
-        dots.setObjectName("AccentText")
-        card.content.addWidget(badge, alignment=Qt.AlignmentFlag.AlignLeft)
-        card.content.addWidget(title)
-        card.content.addWidget(text)
-        card.content.addStretch()
-        card.content.addWidget(action, alignment=Qt.AlignmentFlag.AlignLeft)
-        card.content.addWidget(dots, alignment=Qt.AlignmentFlag.AlignCenter)
-        return card
-
-    @staticmethod
-    def _cashflow() -> SectionCard:
-        card = SectionCard("Fluxo Financeiro")
-        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
-        stats = QHBoxLayout()
-        for label, value, kind in (
-            ("Entradas", "R$ 9.800", "Positive"),
-            ("Saídas", "R$ 6.420", "Negative"),
-            ("Disponível", "R$ 3.380", "AccentText"),
-        ):
-            column = QVBoxLayout()
-            caption = QLabel(label)
-            caption.setObjectName("SecondaryText")
-            amount = QLabel(value)
-            amount.setObjectName(kind)
-            column.addWidget(caption)
-            column.addWidget(amount)
-            stats.addLayout(column)
-        bar = QProgressBar()
-        bar.setRange(0, 100)
-        bar.setValue(65)
-        bar.setTextVisible(False)
-        capacity = QLabel("Capacidade de aporte   R$ 3.380 / mês")
-        capacity.setObjectName("MetricDetail")
-        card.content.addLayout(stats)
-        card.content.addWidget(bar)
-        card.content.addWidget(capacity)
-        return card
-
-    @staticmethod
-    def _goals() -> SectionCard:
-        card = SectionCard("Metas", "Ver todas")
-        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
-        for name, _category, current, target, progress, _deadline in GOALS[:2]:
-            title = QLabel(f"{name}    {progress}%")
-            title.setObjectName("SectionTitle")
-            value = QLabel(f"{current} de {target}")
-            value.setObjectName("SecondaryText")
-            bar = QProgressBar()
-            bar.setRange(0, 100)
-            bar.setValue(progress)
-            bar.setTextVisible(False)
-            card.content.addWidget(title)
-            card.content.addWidget(value)
-            card.content.addWidget(bar)
-        return card
-
-    @staticmethod
-    def _alerts() -> SectionCard:
-        card = SectionCard("Alertas Recentes", "Ver todos  →")
-        card.content.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
-        for name, _condition, _state, checked in ALERTS:
+            self.equity_card = MetricCard(
+                "PATRIMÔNIO COM CAIXA BRL",
+                "—",
+                tooltip="Caixa reconstruído + valor das posições com cotação BRL completa. Não inclui dívidas pessoais; não é o retorno temporal.",
+            )
             row = QHBoxLayout()
-            marker = QLabel("●")
-            marker.setObjectName("Warning")
-            label = QLabel(name)
-            when = QLabel(checked)
-            when.setObjectName("SecondaryText")
-            row.addWidget(marker)
-            row.addWidget(label)
-            row.addStretch()
-            row.addWidget(when)
-            card.content.addLayout(row)
-        return card
-
-    def _quick_actions(self) -> SectionCard:
-        card = SectionCard("Ações rápidas")
-        actions = (
-            ("Registrar movimentação", "transaction"),
-            ("Adicionar ativo", "asset"),
-            ("Criar alerta", "alert"),
-            ("Criar meta", "goal"),
+            row.addWidget(self.cash_card)
+            row.addWidget(self.equity_card)
+            self.page_layout.insertLayout(1, row)
+        self.cash_card.set_value(
+            currency_text(snapshot.cash.balance if snapshot else None)
         )
-        grid = QGridLayout()
-        for index, (label, key) in enumerate(actions):
-            button = QPushButton(label)
-            button.setObjectName("QuickAction")
-            button.setProperty("dialogKey", key)
-            button.setIcon(icon("plus", "#10C7C7"))
-            button.clicked.connect(
-                lambda _checked=False, value=key: self.dialog_requested.emit(value)
-            )
-            grid.addWidget(button, index // 2, index % 2)
-        card.content.addLayout(grid)
-        return card
+        self.equity_card.set_value(currency_text(snapshot.equity if snapshot else None))

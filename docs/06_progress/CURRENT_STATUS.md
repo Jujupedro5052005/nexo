@@ -1,5 +1,159 @@
 # Status atual do projeto
 
+## Correção — Atualizar mercado em lote — 21/10/2026
+
+Gargalo identificado: `get_quotes` roteava cada ativo sequencialmente para
+`get_info`, iniciando um processo e consultando fundamentos completos por ativo.
+Cada operação podia esperar 25 s; cliques/contextos novos não cancelavam o lote
+anterior. Isto era especialmente caro para três carteiras com ativos compartilhados.
+
+- Atualização da carteira usa metadados do chart Yahoo (preço, moeda e horário),
+  sem `get_info`/fundamentos: um processo por lote, até quatro consultas simultâneas,
+  timeout HTTP de 6 s e limite de 16 s no pai para o lote Yahoo. Estes limites não
+  incluem eventual espera dos complementos. Consultas individuais de análise
+  continuam usando o snapshot completo quando necessário.
+- Sucessos são transmitidos ao pai conforme terminam; no limite de tempo ou
+  interrupção do processo, resultados já recebidos são mantidos. Complementos
+  consultam apenas ativos sem cotação Yahoo, com concorrência limitada a quatro,
+  preservando contexto de consulta manual, budgets e cancelamento.
+- Cache de lote e de cada cotação preserva horários originais; publicação usa o
+  mesmo epoch, impedindo consulta invalidada de repovoar o cache. Complemento
+  válido pode ser reutilizado durante o cooldown da falha Yahoo. Recuperação de
+  um ativo elimina a falha anterior. Não se usa `chartPreviousClose` da janela
+  como fechamento anterior diário ou para inventar variação diária.
+- Uma atualização substituída cancela o worker anterior. Durante a atualização
+  manual, botão mostra “Atualizando…” e impede acumular cliques; sucesso/erro
+  restauram o controle. Posições continuam calculadas fora do transporte.
+- Smoke externo com oito ativos: 8 cotações, zero falhas, **6,235 s**; segunda
+  consulta em cache <1 ms, com os mesmos objetos/horários. Pelo botão real, em
+  banco demo temporário: três carteiras completas em **5,542 s**, um lote Yahoo.
+  Complementos desabilitados no smoke; nenhum token pago, `.env`, contador do
+  usuário ou banco de carteira original foi alterado. Tempos observados não são SLA.
+- Validação: **357 testes direcionados aprovados** (10,08 s), incluindo onze
+  novas regressões de lote/cache/cancelamento e botão. Ruff check ., mypy
+  src/nexo (124 arquivos), compileall src/tests e git diff --check aprovados.
+
+
+## Incremento 07 — caixa, patrimônio, risco e base teórica — 21/10/2026
+
+- Livro persistente e aditivo `portfolio_events`: abertura explícita, aportes,
+  retiradas, proventos recebidos, retenções, taxas, impostos e splits confirmados.
+  Compras antigas não se tornam aportes; caixa legado fica desconhecido.
+- Reconstrução de posição considera splits, sem alterar custo total. Caixa impede
+  saldo negativo inclusive em retroativas. Escritas de trades/eventos validam e
+  gravam sob `BEGIN IMMEDIATE`; testes com duas conexões independentes cobrem
+  disputa de posição e gasto do mesmo saldo. Escritores externos sem esse protocolo
+  continuam fora da garantia. Não há edição/exclusão de eventos.
+- Movimentações recebe caixa/eventos recolhíveis; Visão Geral distingue caixa,
+  posições e patrimônio completo. Relatórios exportam livro de eventos em CSV.
+- Análises recebe histórico de patrimônio e TWR diário **aproximado**, com convenção
+  de fluxos no fim do dia, datas de preços e bloqueio por lacunas/moedas/splits
+  incompatíveis. Não é TWR intradiário nem XIRR. Só BRL, sem FX implícito.
+- Vinte calculadoras funcionais: capitalização, metas, aposentadoria, reserva,
+  balanço pessoal, taxas reais/equivalentes, PRICE, SAC, VPL/TIR/payback, Gordon,
+  FCD, DuPont, título/duration, CAPM, alavancagem, liquidez, sensibilidade,
+  call/put compradas no vencimento e cenário tributário manual.
+- Mercado: VaR/Expected Shortfall históricos e normais, beta/correlação,
+  Sharpe/Treynor com taxa explícita, MM20/60/200, IFR14, Bollinger e MACD.
+  Todos preservam premissas; modelos não são promessas de rentabilidade.
+- Insolvência: Elizabetsky, Kanitz e Matias conforme artigo fornecido, com dados
+  manuais reconciliados e validação de setor/período. Índices não viram chance
+  percentual de falência. Dados ausentes bloqueiam o respectivo modelo.
+- Diligência: roteiros interativos para fraudes/pig butchering, ASG/FOFA,
+  proteção/sucessão e adequação/vieses, sem score ou certificação simulada.
+- Yahoo padrão usa processo isolado cancelável e timeout de 25 s por consulta;
+  workers possuem token e suprimem entrega após cancelamento. Outros adaptadores
+  ainda aguardam timeout de HTTP já em andamento. Nenhuma thread Qt é terminada.
+- Core de localização: `NEXO_DATA_DIR` absoluto; checkout preserva `data/`, versão
+  congelada usa diretório do usuário. Não há migração silenciosa. Ajuda de cards
+  pode ser focada e aberta por teclado; novas entradas têm nomes acessíveis.
+- Referências, fórmulas, limites e orientações de uso em
+  [FINANCIAL_TOOLS.md](../02_architecture/FINANCIAL_TOOLS.md).
+
+Validação: suíte completa sem rede **661 aprovados** (249,08 s). Após os últimos
+ajustes de snapshot de leitura e caminho de dados, **255 regressões de domínio,
+SQLite, caixa e ferramentas aprovadas** (inclui um teste adicional), e os dois
+cenários de composição real/demo aprovados. Ruff check ., mypy src/nexo,
+compileall src/tests e git diff --check aprovados. Revisão visual offscreen em
+100%, 125% e 150%, com fontes Segoe UI e banco temporário. Consulta externa pequena
+via transporte isolado: cotação BRL e 22 fechamentos de ITSA4, sem brapi/bolsai;
+cancelamento de processo confirmado em aproximadamente 0,17 s. A consulta não
+certifica disponibilidade contínua nem autenticação de plano pago. Bancos de
+carteira originais, `.env` e contadores locais do usuário foram preservados.
+
+Pendências preservadas: verificação de plano autenticado real, cancelamento HTTP
+universal para outros provedores, teste prolongado/DPI em Windows interativo e
+leitor de tela, empacotamento/distribuição, correção auditável de eventos e moedas
+adicionais. Proposta aprovada, calendário e confirmação de A-008 dependem de
+registro acadêmico; os PDFs financeiros não comprovam essas aprovações.
+
+Os incrementos abaixo são histórico. As limitações de caixa/TWR/cancelamento do
+incremento 06 foram parcialmente substituídas pelas políticas explícitas acima.
+
+
+## Incremento 06 — Yahoo principal e funcionalidades locais — 21/10/2026
+
+- Yahoo/yfinance passa a ser a fonte pública principal para busca B3, cotação,
+  fundamentos, histórico, proventos e splits. brapi/bolsai são complementares.
+  Cotação e fundamentos compartilham snapshot Yahoo por 60 s; policies mantêm
+  TTL, coalescência, budgets e um cooldown de falhas por operação/ativo de 30 s.
+- Fundamentos priorizam Yahoo. Complementação de LPA/VPA ausentes exige referência
+  contábil coincidente, moeda compatível e `field_sources`; valores prioritários
+  nunca são substituídos. Sem bases compatíveis, os campos ficam indisponíveis.
+  CVM continua oficial; cadastro/demonstrações da análise passam a ser opcionais.
+- Análise completa centralizada em Análises. Ativos conserva busca/cotação/histórico
+  e acesso à análise selecionada, sem segundo painel nem consulta automática de
+  fundamentos. Janela de análise padrão: um ano, para permitir MM20/MM60.
+- Cenário calculado: menor teto Graham/Bazin disponível, entrada com margem
+  explícita (20% inicial editável), revisão no teto, distância percentual ao teto,
+  DY de continuidade 12M e tendência MM20/MM60. Sem previsão de data ou preço futuro.
+  “Compra/espera/revisão” são condições do cenário, não ordens/recomendação pessoal.
+- Ajuda contextual `?`: fórmulas, interpretação, premissas, risco, Graham/Bazin,
+  liquidez/endividamento e limites de Altman/Ohlson. Insolvência não recebe
+  probabilidade sem dados e validação setorial. Volatilidade não mede falência.
+- Visão Geral substitui demos por trajetória mensal do **capital a custo**, radar
+  de concentração/contribuição e gráfico de ganhos/perdas em aberto. Detalhes das
+  posições são recolhíveis. Não apresenta custo como patrimônio histórico de mercado.
+- Boleta assistida: autocompletar/selecionar posições, cotação opcional fora da GUI,
+  frações da posição, saldo, preço médio e resultado da venda estimados antes de
+  gravar. Prévia usa posição atual; replay completo continua a validar retroativas.
+- Planejamento real: cadastrar/editar receitas e despesas por mês, totais e capacidade
+  de aporte. Metas reais: cadastrar/editar objetivo, saldo manual e prazo, progresso
+  e aporte mensal sem juros/inflação. Alertas reais: cadastrar/editar/pausar e verificar
+  preços manualmente; estado, fonte/horário e último disparo persistidos.
+- Três tabelas aditivas: `budget_entries`, `financial_goals`, `price_alerts`. Domain
+  valida modelos; Application coordena; repository SQL fica em Infrastructure.
+  Decimal é armazenado como texto. Ledger/posições não recebem fonte financeira paralela.
+- Relatórios reais CSV (UTF-8 BOM): posições abertas/encerradas, movimentações,
+  planejamento e metas. Exporta dados locais, protege nomes contra fórmulas em
+  planilhas. PDF, TWR, benchmarks e proventos recebidos não são simulados.
+- Mesma composição funcional em execução normal e `--demo`; apenas o banco e o
+  seed de operações fictícias diferem. Nenhum banco existente, `.env` ou contador
+  de consumo do usuário foi editado durante o desenvolvimento.
+- Controles nativos de data/hora, calendário, caixas e botões recebem superfícies
+  escuras explícitas. Revisão offscreen com fontes Windows e dados de teste em
+  `tmp/increment_review/`; sem apresentar fixtures como mercado real.
+- Smoke externo pequeno: ITSA4 via Yahoo retornou cotação BRL, LPA e VPA, referência
+  30/06/2026 e horário de mercado, com **uma operação local de snapshot** e nenhuma
+  chamada brapi/bolsai. yfinance pode fazer múltiplos requests HTTP internamente;
+  contador local não representa quota oficial nem garante disponibilidade contínua.
+- Validação: suíte completa **616 aprovados**, zero falhas (246,64 s), sem internet.
+  Após o último ajuste do teste de conexão Yahoo/budget manual, **13 regressões
+  direcionadas do adaptador aprovadas**. Ruff check ., mypy src (104 arquivos),
+  compileall src/tests e git diff --check aprovados. Cobertura inclui migração
+  aditiva/reabertura, cálculos, formulários persistentes, fontes/fallbacks, invalidação
+  sem bloquear por rede e recuperação após falhas. Gráfico de área mantém ownership
+  Qt da linha e meses do ledger independentemente da conversão UTC/local.
+
+Limites: Yahoo público via yfinance não é uma API oficial com SLA. Informações
+podem estar atrasadas/incompletas e JCP/dividendos não são separados pela fonte.
+`get_info` usa os timeouts internos da biblioteca; cancelamento HTTP instantâneo
+não foi implementado. Histórico de mercado da carteira/TWR, caixa, impostos,
+remoção de registros complementares e histórico completo de cada disparo de alerta
+não estão implementados. Alertas persistem o último disparo e só verificam ao clicar.
+Os registros abaixo são histórico e não substituem o routing e as telas do incremento 06.
+
+
 ## Busca manual de ativos / Enter — 07/10/2026
 
 Corrigido bloqueio por budget local ao enviar pesquisa pelo Enter ou Buscar.

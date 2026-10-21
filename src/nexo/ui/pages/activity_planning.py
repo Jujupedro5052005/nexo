@@ -3,22 +3,16 @@ from datetime import date
 from PySide6.QtCore import QDate, Signal
 from PySide6.QtWidgets import (
     QComboBox,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
-    QVBoxLayout,
 )
 
 from nexo.application.portfolio.financial_summary import transaction_amounts
 from nexo.domain.models.transaction import Transaction
-from nexo.ui.components.charts import bar_chart, donut_chart
 from nexo.ui.components.common import Badge, DataTable, PageContent, SectionCard
-from nexo.ui.components.metric_card import MetricCard
-from nexo.ui.demo.data import DEMO_NOTICE
 from nexo.ui.financial_formatting import decimal_text, money_text, replace_rows
-from nexo.ui.icons import icon
 
 
 class TransactionsPage(PageContent):
@@ -169,121 +163,4 @@ class TransactionsPage(PageContent):
         )
 
 
-class PlanningPage(PageContent):
-    dialog_requested = Signal(str)
-
-    def __init__(self) -> None:
-        super().__init__("planning")
-        row = QHBoxLayout()
-        row.addWidget(Badge(DEMO_NOTICE, "DemoBadge"))
-        row.addStretch()
-        for label in ("+  Receita", "+  Despesa"):
-            button = QPushButton(label)
-            button.setObjectName(
-                "PrimaryButton" if "Receita" in label else "SecondaryButton"
-            )
-            button.clicked.connect(lambda: self.dialog_requested.emit("notice"))
-            row.addWidget(button)
-        self.page_layout.addLayout(row)
-
-        metrics = QHBoxLayout()
-        for label, value, detail, name in (
-            ("RECEITA MENSAL", "R$ 12.300", "Média demonstrativa", "cashflow"),
-            ("DESPESAS FIXAS", "R$ 5.120", "41,6% da receita", "planning"),
-            ("DESPESAS VARIÁVEIS", "R$ 2.380", "19,3% da receita", "wallet"),
-            ("CAPACIDADE DE APORTE", "R$ 4.800", "39,1% disponível", "target"),
-        ):
-            metrics.addWidget(
-                MetricCard(label, value, detail, icon(name, "#10C7C7")), 1
-            )
-        self.page_layout.addLayout(metrics)
-
-        chart_row = QGridLayout()
-        chart_row.setSpacing(14)
-        comparison = SectionCard("Receita x Despesa")
-        comparison.content.addWidget(
-            bar_chart(
-                ["Abr", "Mai", "Jun", "Jul", "Ago", "Set"],
-                (
-                    ("Receita", [11.5, 12, 12, 12.4, 12.1, 12.3], "#3DDC84"),
-                    ("Despesa", [7.2, 7.6, 7.1, 7.9, 7.4, 7.5], "#FF5C6C"),
-                ),
-            )
-        )
-        distribution = SectionCard("Distribuição mensal")
-        categories = [
-            ("Moradia", 31, "R$ 2.325", "#4D7CFF"),
-            ("Alimentação", 19, "R$ 1.425", "#10C7C7"),
-            ("Transporte", 14, "R$ 1.050", "#8B6CFF"),
-            ("Lazer", 12, "R$ 900", "#FFB020"),
-            ("Educação", 9, "R$ 675", "#3DDC84"),
-            ("Saúde", 8, "R$ 600", "#FF5C6C"),
-            ("Outros", 7, "R$ 525", "#6E7D91"),
-        ]
-        distribution.content.addWidget(donut_chart(categories))
-        chart_row.addWidget(comparison, 0, 0, 1, 2)
-        chart_row.addWidget(distribution, 0, 2)
-        chart_row.setColumnStretch(0, 2)
-        chart_row.setColumnStretch(1, 2)
-        chart_row.setColumnStretch(2, 2)
-        self.page_layout.addLayout(chart_row)
-
-        details = QGridLayout()
-        details.setSpacing(14)
-        for column, (title, items) in enumerate(
-            (
-                (
-                    "Receitas",
-                    (("Salário", "R$ 10.500"), ("Outras receitas", "R$ 1.800")),
-                ),
-                (
-                    "Despesas fixas",
-                    (
-                        ("Moradia", "R$ 2.900"),
-                        ("Educação", "R$ 1.100"),
-                        ("Serviços", "R$ 1.120"),
-                    ),
-                ),
-                (
-                    "Despesas variáveis",
-                    (
-                        ("Alimentação", "R$ 980"),
-                        ("Lazer", "R$ 720"),
-                        ("Outros", "R$ 680"),
-                    ),
-                ),
-            )
-        ):
-            card = SectionCard(title)
-            for label, value in items:
-                line = QHBoxLayout()
-                line.addWidget(QLabel(label))
-                line.addStretch()
-                line.addWidget(QLabel(value))
-                card.content.addLayout(line)
-            details.addWidget(card, 0, column)
-        self.page_layout.addLayout(details)
-
-        capacity = SectionCard("Capacidade de investimento")
-        info = QHBoxLayout()
-        for label, value in (
-            ("Renda líquida", "R$ 12.300"),
-            ("Despesas", "R$ 7.500"),
-            ("Reserva", "R$ 1.200"),
-            ("Aporte sugerido", "R$ 3.600"),
-        ):
-            block = QVBoxLayout()
-            caption = QLabel(label)
-            caption.setObjectName("SecondaryText")
-            amount = QLabel(value)
-            amount.setObjectName(
-                "AccentText" if label == "Aporte sugerido" else "SectionTitle"
-            )
-            block.addWidget(caption)
-            block.addWidget(amount)
-            info.addLayout(block)
-        capacity.content.addLayout(info)
-        disclaimer = QLabel("Simulação visual; não representa recomendação financeira.")
-        disclaimer.setObjectName("SecondaryText")
-        capacity.content.addWidget(disclaimer)
-        self.page_layout.addWidget(capacity)
+from nexo.ui.pages.personal_finance import PlanningPage as PlanningPage  # noqa: PLC0414

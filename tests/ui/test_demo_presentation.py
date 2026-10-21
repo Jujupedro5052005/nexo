@@ -143,9 +143,9 @@ def test_asset_history_dividends_and_valuation_charts(presentation_window, qtbot
     page.search()
     qtbot.waitUntil(lambda: page.table.rowCount() == 1, timeout=10000)
     page.table.selectRow(0)
-    qtbot.waitUntil(lambda: page.quote is not None and page.chart is not None
-                   and page.analysis_panel.analysis is not None, timeout=10000)
-    panel = page.analysis_panel
+    qtbot.waitUntil(lambda: page.quote is not None and page.chart is not None, timeout=10000)
+    window.show_page(7)
+    panel = window.analysis_page.asset_panel
     panel.yield_input.setText("6")
     panel.analyze()
     qtbot.waitUntil(lambda: panel.analysis is not None, timeout=10000)
@@ -167,7 +167,7 @@ def test_real_entry_point_uses_separate_db_and_labels_demo(tmp_path, qtbot, monk
     provider = PresentationTestProvider()
     closed = []
     services = SimpleNamespace(
-        brapi=provider, market=provider, fundamentals=provider, dividends=provider,
+        brapi=provider, yahoo=provider, market=provider, fundamentals=provider, dividends=provider,
         official=None, actions=None, health=lambda: (), close=lambda: closed.append(True),
     )
     monkeypatch.setattr(entry, "ProviderServices", lambda *args: services)

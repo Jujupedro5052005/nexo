@@ -162,3 +162,31 @@ recolhível. EOD é explicitamente fechamento diário; ausência é “—”. H
 fica abaixo com origem. Fundamentos/cadastro/demonstrações/splits têm fontes e
 limitações próprias. Configurações recebe diagnóstico dos quatro providers sem
 segredos ou consulta remota automática.
+
+
+## Incremento 06 — uso real e ajuda contextual
+
+Análises concentra fundamentos/cenários. Ativos contém somente busca, snapshot,
+histórico e navegação para análise. Visão Geral contém trajetória **a custo**
+derivada do ledger, radar e contribuição positiva/negativa; detalhes completos
+ficam recolhíveis. Demos de patrimônio/benchmark/caixa foram removidas do overview.
+
+MetricCard possui `?` dedicado com tooltip. Indicadores/modelos exibem `?` e
+explicam interpretação e limitações. Campos monetários não disponíveis mantêm “—”.
+Planejamento, metas, alertas e relatórios usam registros reais, estados vazios e
+ações funcionais. Formulários são editáveis por duplo clique nas linhas.
+Boleta mostra posição atual, atalhos de quantidade, referência opcional de preço
+e prévia de saldo/média/resultado; validação final continua no caso de uso.
+
+QDateTimeEdit, QPlainTextEdit, calendários e botões sem estilo próprio recebem
+superfícies dark explícitas. Modo normal e demo compartilham as mesmas telas.
+
+
+## Incremento 07 — ferramentas e acessibilidade
+
+Livro de caixa recolhível em Movimentações; patrimônio/TWR e ferramentas em abas
+separadas de Análises. Ferramentas são construídas ao abrir a aba, evitando custo
+inicial para quem só acompanha posições. Números novos recebem fórmula/interpretação
+na tabela e tooltip. Ajuda dos cards usa botão focável e acionável por teclado;
+novas entradas recebem nomes acessíveis. Revisão visual offscreen em 100%, 125%
+e 150%; isto não substitui validação com leitor de tela e monitores físicos.

@@ -1,7 +1,10 @@
 from collections.abc import Sequence
+from datetime import datetime
+from decimal import Decimal
 from math import fsum
 
 from PySide6.QtCharts import (
+    QAreaSeries,
     QBarCategoryAxis,
     QBarSeries,
     QBarSet,
@@ -12,8 +15,8 @@ from PySide6.QtCharts import (
     QPieSeries,
     QValueAxis,
 )
-from PySide6.QtCore import QDateTime, QMargins, QPointF, Qt, QTimeZone
-from PySide6.QtGui import QColor, QCursor, QPainter, QPen
+from PySide6.QtCore import QDate, QDateTime, QMargins, QPointF, Qt, QTime, QTimeZone
+from PySide6.QtGui import QColor, QCursor, QLinearGradient, QPainter, QPen
 from PySide6.QtWidgets import QToolTip
 
 from nexo.domain.models.market_data import PriceHistory
@@ -101,10 +104,22 @@ def allocation_donut(items: Sequence[tuple[str, float]]) -> QChartView:
     display = [(label, weight, label) for label, weight in ordered]
     if len(ordered) > 8:
         display = display[:6] + [
-            ("Outros", fsum(weight for _, weight in ordered[6:]),
-             ", ".join(label for label, _ in ordered[6:]))
+            (
+                "Outros",
+                fsum(weight for _, weight in ordered[6:]),
+                ", ".join(label for label, _ in ordered[6:]),
+            )
         ]
-    colors = ("#10C7C7", "#4D7CFF", "#7193CF", "#8B82BC", "#4D9C9C", "#7793AA", "#53667E", "#A2B3C8")
+    colors = (
+        "#10C7C7",
+        "#4D7CFF",
+        "#7193CF",
+        "#8B82BC",
+        "#4D9C9C",
+        "#7793AA",
+        "#53667E",
+        "#A2B3C8",
+    )
     series = QPieSeries()
     series.setHoleSize(0.60)
     series.setPieSize(0.82)
@@ -126,7 +141,9 @@ def allocation_donut(items: Sequence[tuple[str, float]]) -> QChartView:
     chart.addSeries(series)
     view = _view(chart, 320)
     chart.legend().setAlignment(Qt.AlignmentFlag.AlignRight)
-    for marker, (name, weight, _) in zip(chart.legend().markers(series), display, strict=True):
+    for marker, (name, weight, _) in zip(
+        chart.legend().markers(series), display, strict=True
+    ):
         marker.setLabel(f"{name} · {weight * 100:.1f}%".replace(".", ","))
     return view
 
@@ -149,6 +166,21 @@ def bar_chart(
     axis_x.append(list(categories))
     axis_x.setLabelsColor(QColor(TEXT_SECONDARY))
     axis_y = QValueAxis()
+    values = [value for _, group_values, _ in groups for value in group_values]
+    low, high = min([0.0, *values]), max([0.0, *values])
+    padding = max(1.0, (high - low) * 0.1)
+    axis_y.setRange(low - padding if low < 0 else 0, high + padding)
+    axis_y.setLabelFormat("%.0f")
+    series.hovered.connect(
+        lambda state, index, bar_set: (
+            QToolTip.showText(
+                QCursor.pos(),
+                f"{categories[index]} • {bar_set.label()}: {bar_set.at(index):,.2f}",
+            )
+            if state
+            else QToolTip.hideText()
+        )
+    )
     axis_y.setLabelsColor(QColor(TEXT_SECONDARY))
     axis_y.setGridLineColor(QColor(BORDER))
     chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
@@ -190,3 +222,62 @@ def historical_chart(history: PriceHistory) -> QChartView:
         margin = max(0.01, (max(values) - min(values)) * 0.1)
         prices.setRange(min(values) - margin, max(values) + margin)
     return _view(chart, 240)
+
+
+def capital_timeline_chart(points: Sequence[tuple[datetime, Decimal]]) -> QChartView:
+    chart = QChart()
+    line = QLineSeries()
+    # Month labels are ledger periods, not UTC instants. QDateTimeAxis formats
+    # in the system zone; local noon avoids shifting a period into the prior month.
+    coordinates = [
+        (
+            QDateTime(
+                QDate(timestamp.year, timestamp.month, 1), QTime(12, 0)
+            ).toMSecsSinceEpoch(),
+            amount,
+        )
+        for timestamp, amount in points
+    ]
+    for timestamp_ms, amount in coordinates:
+        line.append(timestamp_ms, float(amount))
+    area = QAreaSeries(line)
+    line.setParent(area)  # QAreaSeries does not own its boundary line by default.
+    area.setName("Capital a custo • BRL")
+    area.setPen(QPen(QColor("#10C7C7"), 2.5))
+    gradient = QLinearGradient(0, 0, 0, 1)
+    gradient.setCoordinateMode(gradient.CoordinateMode.ObjectBoundingMode)
+    gradient.setColorAt(0, QColor("#285A68"))
+    gradient.setColorAt(1, QColor("#0C1727"))
+    area.setBrush(gradient)
+    chart.addSeries(area)
+    dates = QDateTimeAxis()
+    dates.setFormat("MM/yyyy")
+    dates.setTickCount(5)
+    dates.setTitleText("Meses com operações")
+    start, end = coordinates[0][0], coordinates[-1][0]
+    dates.setRange(
+        QDateTime.fromMSecsSinceEpoch(start),
+        QDateTime.fromMSecsSinceEpoch(max(start + 86400000, end)),
+    )
+    values = QValueAxis()
+    values.setRange(0, max(1.0, max(float(amount) for _, amount in points) * 1.1))
+    values.setLabelFormat("%.0f")
+    values.setTitleText("BRL")
+    for axis in (dates, values):
+        axis.setLabelsColor(QColor(TEXT_SECONDARY))
+        axis.setTitleBrush(QColor(TEXT_SECONDARY))
+        axis.setGridLineColor(QColor(BORDER))
+        axis.setLinePenColor(QColor(BORDER))
+    dates.setGridLineVisible(False)
+    chart.addAxis(dates, Qt.AlignmentFlag.AlignBottom)
+    chart.addAxis(values, Qt.AlignmentFlag.AlignLeft)
+    area.attachAxis(dates)
+    area.attachAxis(values)
+    line.hovered.connect(
+        lambda point, state: (
+            QToolTip.showText(QCursor.pos(), f"Capital a custo: R$ {point.y():,.2f}")
+            if state
+            else QToolTip.hideText()
+        )
+    )
+    return _view(chart, 280)

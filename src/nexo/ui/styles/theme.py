@@ -35,6 +35,8 @@ QLabel#SectionSubtitle, QLabel#SecondaryText, QLabel#MetricDetail {{ color: {TEX
 QFrame#Card {{ background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px; }}
 QFrame#Card[highlight="true"] {{ background: #0D2431; border: 1px solid #167B88; }}
 QFrame#ClickableCard:hover {{ background: {SURFACE_ELEVATED}; border: 1px solid #35506A; border-radius: 12px; }}
+QToolButton {{ background: #101D30; border: 1px solid #365069; border-radius: 8px; color: #C3E9EF; padding: 2px 5px; }}
+QToolButton:focus {{ border: 2px solid {ACCENT}; }}
 QLabel#MetricLabel {{ color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 650; }}
 QLabel#MetricValue {{ color: {TEXT_PRIMARY}; font-size: 21px; font-weight: 720; }}
 QLabel#MetricValue[metricState="accent"] {{ color: {ACCENT}; }}
@@ -62,7 +64,7 @@ QPushButton#IconButton:hover {{ border-color: {ACCENT}; background: #12303C; }}
 QPushButton#QuickAction {{ background: {SURFACE_ELEVATED}; border: 1px solid {BORDER}; border-radius: 9px; color: #DCE6F1; min-height: 52px; padding: 0 12px; text-align: left; }}
 QPushButton#QuickAction:hover {{ border-color: {ACCENT}; background: #112B38; }}
 QPushButton:disabled {{ background: #101826; border-color: #1B293D; color: #56647A; }}
-QComboBox, QLineEdit, QDateEdit, QDoubleSpinBox, QTextEdit {{ background: #0A1423; border: 1px solid {BORDER}; border-radius: 7px; color: #E8EEF5; min-height: 34px; padding: 0 11px; selection-background-color: #14505A; }}
+QComboBox, QLineEdit, QDateEdit, QDateTimeEdit, QSpinBox, QDoubleSpinBox, QPlainTextEdit, QTextEdit {{ background: #0A1423; border: 1px solid {BORDER}; border-radius: 7px; color: #E8EEF5; min-height: 34px; padding: 0 11px; selection-background-color: #14505A; }}
 QTextEdit {{ padding: 9px; }}
 QComboBox:hover, QLineEdit:hover, QDateEdit:hover, QDoubleSpinBox:hover {{ border-color: #3B526F; }}
 QComboBox:focus, QLineEdit:focus, QDateEdit:focus, QDoubleSpinBox:focus, QTextEdit:focus {{ border-color: {ACCENT}; }}
@@ -89,6 +91,9 @@ QScrollBar::handle:vertical {{ background: #26364D; border-radius: 4px; min-heig
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QDialog {{ background: {BACKGROUND}; }}
 QDialog QLabel#DialogTitle {{ font-size: 20px; font-weight: 720; }}
+QPushButton {{ background: {SURFACE_ELEVATED}; border: 1px solid {BORDER}; border-radius: 7px; padding: 6px 12px; }}
+QCalendarWidget QWidget {{ background: {SURFACE_ELEVATED}; color: {TEXT_PRIMARY}; }}
+QCalendarWidget QAbstractItemView {{ background: {SURFACE}; color: {TEXT_PRIMARY}; selection-background-color: #14505A; }}
 QDialogButtonBox QPushButton {{ min-height: 36px; padding: 0 16px; }}
 QToolTip {{ background: #17243A; border: 1px solid #334660; color: #EEF4FA; padding: 6px; }}
 """

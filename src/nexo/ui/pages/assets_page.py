@@ -5,7 +5,6 @@ from PySide6.QtCharts import QChartView
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton
 
-from nexo.application.assets.analyze_asset import AnalyzeAsset
 from nexo.application.assets.market_data import (
     GetAssetHistory,
     GetAssetQuote,
@@ -16,7 +15,6 @@ from nexo.domain.interfaces.market_data_provider import (
     MarketDataError,
 )
 from nexo.domain.models.market_data import AssetSearchResult, PriceHistory, Quote
-from nexo.ui.components.asset_analysis_panel import AssetAnalysisPanel
 from nexo.ui.components.charts import historical_chart
 from nexo.ui.components.common import Badge, DataTable, PageContent, SectionCard
 from nexo.ui.components.market_snapshot_panel import MarketSnapshotPanel
@@ -36,13 +34,13 @@ class AssetsPage(PageContent):
     dialog_requested = Signal(str)
     asset_selected = Signal(object)
     integration_requested = Signal()
+    analysis_requested = Signal()
 
     def __init__(
         self,
         search_assets: SearchAssets | None = None,
         get_quote: GetAssetQuote | None = None,
         get_history: GetAssetHistory | None = None,
-        analyze_asset: AnalyzeAsset | None = None,
     ) -> None:
         super().__init__("assets")
         self._search_assets, self._get_quote, self._get_history = (
@@ -115,10 +113,10 @@ class AssetsPage(PageContent):
         details.content.addWidget(self.history_label)
         self.chart_layout = details.content
         self.page_layout.addWidget(details)
-        self.analysis_panel = AssetAnalysisPanel(
-            analyze_asset, allow_symbol_entry=False
-        )
-        self.page_layout.addWidget(self.analysis_panel)
+        self.analysis_button = QPushButton("Abrir análise deste ativo →")
+        self.analysis_button.setObjectName("PrimaryButton")
+        self.analysis_button.clicked.connect(self.analysis_requested.emit)
+        self.page_layout.addWidget(self.analysis_button)
         self.page_layout.addStretch()
 
     def search(self) -> None:
@@ -167,7 +165,6 @@ class AssetsPage(PageContent):
         self._selection_generation += 1
         self.selected_asset = None
         self.asset_selected.emit(None)
-        self.analysis_panel.set_asset(None, load=False)
         self.quote = None
         self.snapshot_panel.clear()
         self._clear_history()
@@ -212,8 +209,6 @@ class AssetsPage(PageContent):
 
         self.runner.submit(operation, completed)
         self.refresh_history(explicit=refresh or explicit)
-        self.analysis_panel.set_asset(selected.asset, load=False)
-        self.analysis_panel.analyze(explicit=refresh or explicit)
 
     def refresh_history(self, *, explicit: bool = False) -> None:
         selected, case = self.selected_asset, self._get_history

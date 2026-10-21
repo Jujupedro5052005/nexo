@@ -40,6 +40,8 @@ class CompanyFundamentals:
     total_assets: Decimal | None = None
     ebit: Decimal | None = None
 
+    field_sources: tuple[tuple[str, str], ...] = ()
+
     def __post_init__(self) -> None:
         if not isinstance(self.asset, Asset):
             raise DomainValidationError("asset must be Asset.")

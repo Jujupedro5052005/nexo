@@ -1,4 +1,6 @@
-# Grande Incremento 05.2 — Multi-provider
+# Provedores de dados — Incremento 06
+
+Política atualizada em 21/10/2026: Yahoo público via yfinance é principal. A biblioteca não é afiliada ao Yahoo e não oferece SLA; dados são usados no contexto educacional/pessoal conforme seus termos. [Documentação yfinance](https://ranaroussi.github.io/yfinance/).
 
 ## Contratos e composição
 
@@ -13,17 +15,16 @@ compatibilidade; a composição real injeta um DividendDataProvider independente
 Infrastructure contém HTTP, yfinance, datasets, caches e policies. Application
 coordena análise/cadastro; Calculations mantém valuations e cross-check. UI só
 apresenta snapshots imutáveis. Nenhuma integração altera Portfolio, Transaction,
-Position ou schema do SQLite. Splits consultados não modificam o ledger.
+Position. As novas tabelas de planejamento/metas/alertas são independentes das integrações e do ledger. Splits consultados não modificam o ledger.
 
 ## Routing definitivo
 
 | Capability | Primary | Fallback |
 |---|---|---|
-| Search | brapi | bolsai |
-| Quote | brapi | bolsai |
-| History ≤3mo | brapi | Yahoo |
-| History >3mo | Yahoo | — |
-| Fundamentals | brapi | bolsai → CVM |
+| Search B3 | Yahoo | brapi → bolsai |
+| Quote | Yahoo | brapi → bolsai (EOD) |
+| History (todos os períodos) | Yahoo | brapi, se o período estiver disponível no plano |
+| Fundamentals | Yahoo | brapi → bolsai → CVM se nenhum snapshot financeiro disponível |
 | Dividends | Yahoo | brapi if enabled |
 | Company registry | CVM | bolsai metadata |
 | DFP/ITR | CVM | — |
@@ -33,15 +34,36 @@ com `NEXO_BOLSAI_ACTIONS_ENABLED=true`, confirmando acesso ao endpoint Pro.
 Cadastro nunca usa bolsai como fonte oficial: seus metadados são o bridge de
 identidade para a CVM. Pesquisa fallback usa `/companies`, nunca `/screener`.
 
-Cache válido da fonte vencedora é consultado antes de novas operações remotas,
-inclusive quando a fonte vencedora é fallback. Falha ou série curta vazia permite
-fallback; fundamento parcial válido permanece na fonte prioritária. Não se
-combinam providers por média ou preenchimento silencioso de campos.
-Histórico longo pula a brapi por decisão prévia de capacidade do plano.
+Cada capability consulta Yahoo antes dos complementos, inclusive quando existe cache
+válido de uma fonte complementar. Chamadas bem-sucedidas usam TTL; falhas repetidas
+por ativo/operação usam cooldown de 30 s, invalidado pelo refresh. Consultas explícitas
+podem tentar novamente sem apagar restrições de plano ou quotas remotas.
+
+Cotação/fundamentos Yahoo compartilham `get_info` por 60 s, com proteção contra
+consultas concorrentes. Fundamentals Yahoo usa LPA TTM, VPA do balanço mais recente,
+receita/EBITDA TTM e razões normalizadas; exige moeda de negociação e contábil BRL.
+Dados opcionais inválidos não derrubam uma cotação com preço/moeda válidos.
+
+Complementos de fundamentos são consultados quando faltam LPA/VPA ou quando a
+fonte prioritária está indisponível/vazia. Campos ausentes são preenchidos somente
+com referência contábil idêntica e moeda compatível, preservando origem por campo
+em `field_sources`; não se misturam trimestres desconhecidos/divergentes nem se
+sobrescrevem valores Yahoo. Não há consulta paga automática para cada indicador
+secundário ausente. P/L, P/VP, margens e alavancagem calculáveis localmente têm
+prioridade sobre razões fornecidas por outra fonte.
+
+CVM detalhada é opcional na análise (checkbox explícito). O fallback de fundamentos
+CVM permanece apenas quando nenhuma fonte retorna entradas financeiras. O bridge
+de identidade pode depender de bolsai; ausência da chave não impede análise Yahoo.
+
+TTLs Yahoo adicionados: quote 60 s, search 900 s, fundamentals 12 h; history 1 h,
+dividends/actions 12 h. O snapshot bruto é limitado ao processo e não é persistido.
+Testar conexão em Configurações consulta Yahoo; providers complementares continuam
+visíveis no diagnóstico local. Nenhuma chamada remota acontece ao abrir Configurações.
 
 ## Fontes e confiança
 
-- **brapi:** mercado primário. Política free deste incremento: 15.000 requests
+- **brapi:** mercado complementar. Política free deste incremento: 15.000 requests
   por ciclo, um ticker/request, histórico até três meses, aproximadamente 30
   minutos de atraso, dividendos desabilitados e fundamentos limitados. Batch
   default é 1; configuração maior exige capacidade compatível. Adaptador v2 e
@@ -52,9 +74,9 @@ Histórico longo pula a brapi por decisão prévia de capacidade do plano.
   stocks/{ticker}/quote e corporate-events somente se habilitado. Informações
   de origem são mantidas; percentuais são convertidos em razões Decimal para
   apresentação compatível. Valores monetários publicados não são rescalados por
-  suposição. P/L, P/VP e margens fornecidos vencem o cálculo local; valuations
+  suposição. P/L, P/VP e margens fornecidos servem como complemento quando o cálculo local falta; valuations
   próprios continuam em Calculations. Header X-RateLimit-Remaining é lido.
-- **Yahoo/yfinance:** histórico longo/fallback, distribuições de caixa e splits.
+- **Yahoo/yfinance:** fonte principal de busca, cotações, fundamentos, histórico, distribuições de caixa e splits.
   B3 usa `.SA`. `auto_adjust=False` preserva fechamento informado (não uma série
   de retorno total). A biblioteca pode já ajustar preços por splits e fornece
   números de ponto flutuante; a fronteira converte para Decimal sem inventar
@@ -122,7 +144,7 @@ No fluxo legado/brapi, a janela continua por pagamento, exclui eventos futuros
 e verified=False, e respeita seleção de JCP bruto. Datas ausentes não viram
 datas de pagamento fictícias. Yield requerido permanece explícito.
 
-Yahoo é o fallback operacional gratuito para proventos. CVM IPE não é parseado
+Yahoo é a fonte operacional principal gratuita para proventos. CVM IPE não é parseado
 automaticamente, pois os documentos não oferecem a estrutura necessária neste
 incremento. B3CorporateEventsProvider é arquitetura futura, dependente de uma
 interface pública estável; não há scraping B3. Alpha Vantage fica como opção
@@ -230,3 +252,34 @@ Yahoo 1 operação de ticker. CVM só lê cache válido e tem budget zero nesse 
 Uma consulta Yahoo fornece histórico e eventos; sem query adicional para cada
 campo. Relatório sanitizado e captura ficam em tmp/ e não são versionados.
 Não confundir fixture de sucesso com validação autenticada online.
+
+
+## Incremento 07 — transporte Yahoo e cancelamento
+
+O adaptador público padrão executa `get_info`, histórico e busca em processos
+próprios, sem transmitir chaves pagas. O pai verifica cancelamento a cada 50 ms,
+limita a consulta a 25 s e termina somente seu processo filho. Snapshot de 60 s
+e coalescência continuam no pai; orçamento local é reservado antes da execução.
+Factories de testes permanecem injetáveis, sem processo/rede real. Tokens de
+tarefas canceladas impedem próximas reservas, inclusive de fallbacks. HTTP já
+iniciado em brapi/bolsai/CVM ainda pode esperar timeout. Splits e informação de
+ajuste são preservados nos históricos Yahoo para reconstrução do patrimônio.
+
+
+## Correção de latência — Atualizar mercado — 21/10/2026
+
+A atualização de carteiras usa `YahooFinanceProvider.get_quotes` com transporte
+`quotes`: um processo, quatro workers de chart, metadados com preço/moeda/horário,
+sem fundamentos. Cada SDK history usa timeout 6 s; o processo pai limita o lote
+a 16 s e conserva resultados recebidos por mensagens intermediárias. Esperas de
+complementos são adicionais e continuam sujeitas aos timeouts desses provedores.
+`chartPreviousClose` não é usado como fechamento anterior do dia. Informações não
+presentes ficam indisponíveis; `get_quote` individual conserva snapshot completo.
+
+Routing reaproveita cache de cotações antes do lote e só complementa ativos
+faltantes, com até quatro workers e cópia do contexto de budgets/cancelamento.
+Publicação de cache por ativo ocorre sob o mesmo epoch do lote. Cache de uma fonte
+complementar válida é aproveitado durante a falha recente Yahoo, sem nova consulta
+imediata. A invalidação manual permite nova tentativa e preserva timestamps.
+Contador local registra uma operação `quotes` por lote; isso não representa uma
+única chamada HTTP ou quota oficial Yahoo. O SDK pode executar requisições internas.

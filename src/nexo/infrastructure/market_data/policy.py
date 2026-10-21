@@ -1,3 +1,6 @@
+from nexo.core.cancellation import check_cancelled
+from nexo.domain.interfaces.market_data_provider import QuoteBatch
+
 """Shared TTL/coalescing, capability health and persistent local request accounting."""
 
 import json
@@ -22,6 +25,10 @@ from nexo.domain.models.provider_health import ProviderHealth
 
 T = TypeVar("T")
 TTL = {
+    ("Yahoo Finance", "quote"): 60,
+    ("Yahoo Finance", "quote_batch"): 60,
+    ("Yahoo Finance", "search"): 900,
+    ("Yahoo Finance", "fundamentals"): 43200,
     ("brapi", "quote"): 60,
     ("brapi", "search"): 900,
     ("brapi", "history"): 1800,
@@ -99,6 +106,7 @@ class ProviderUsage:
             return sum(int(n) for n in self._read()["usage"].get(provider, {}).values())
 
     def reserve(self, provider: str, operation: str) -> None:
+        check_cancelled()
         with self._lock:
             data = self._read()
             operations = data["usage"].setdefault(provider, {})
@@ -128,6 +136,9 @@ class ProviderPolicy:
         self.usage, self.clock = usage, clock
         self._condition = Condition()
         self._cache: dict[tuple[Any, ...], tuple[float, Any]] = {}
+        self._failures: dict[
+            tuple[Any, ...], tuple[float, type[MarketDataError], str]
+        ] = {}
         self._pending: set[tuple[Any, ...]] = set()
         self._routes: set[tuple[Any, ...]] = set()
         self._negative: dict[tuple[str, str], float] = {}
@@ -155,6 +166,7 @@ class ProviderPolicy:
     def invalidate(self, asset: Any = None) -> None:
         with self._condition:
             self._epoch += 1
+            self._failures.clear()
             self._cache = {
                 k: v
                 for k, v in self._cache.items()
@@ -169,11 +181,19 @@ class ProviderPolicy:
                 return entry[1]
             return None
 
+    def recent_failure(
+        self, provider: str, capability: str, key: tuple[Any, ...]
+    ) -> bool:
+        with self._condition:
+            failure = self._failures.get((provider, capability, *key))
+            return failure is not None and failure[0] > self.clock()
+
     def invalidate_capabilities(
         self, provider: str, capabilities: tuple[str, ...]
     ) -> None:
         with self._condition:
             self._epoch += 1
+            self._failures.clear()
             self._cache = {
                 key: value
                 for key, value in self._cache.items()
@@ -186,7 +206,8 @@ class ProviderPolicy:
         full = (capability, *key)
         with self._condition:
             while full in self._routes:
-                self._condition.wait()
+                self._condition.wait(timeout=0.1)
+                check_cancelled()
             self._routes.add(full)
         try:
             yield
@@ -205,7 +226,11 @@ class ProviderPolicy:
         full = (provider, capability, *key)
         with self._condition:
             while full in self._pending:
-                self._condition.wait()
+                self._condition.wait(timeout=0.1)
+                check_cancelled()
+            failure = self._failures.get(full)
+            if failure and failure[0] > self.clock() and not _explicit.get():
+                raise failure[1](failure[2])
             entry = self._cache.get(full)
             if entry and entry[0] > self.clock():
                 self._hits[provider] = self._hits.get(provider, 0) + 1
@@ -221,16 +246,40 @@ class ProviderPolicy:
             result = operation()
             with self._condition:
                 if epoch == self._epoch:
+                    self._failures.pop(full, None)
                     self._cache[full] = (
                         self.clock() + TTL[(provider, capability)],
                         result,
                     )
+                    if capability == "quote_batch" and isinstance(result, QuoteBatch):
+                        for issue in result.issues:
+                            if issue.asset in key:
+                                self._failures[(provider, "quote", issue.asset)] = (
+                                    self.clock() + 30,
+                                    type(issue.error),
+                                    str(issue.error),
+                                )
+                        for quote in result.quotes:
+                            if quote.asset in key:
+                                self._failures.pop(
+                                    (provider, "quote", quote.asset), None
+                                )
+                                self._cache[(provider, "quote", quote.asset)] = (
+                                    self.clock() + TTL[(provider, "quote")],
+                                    quote,
+                                )
+                    while len(self._failures) > 512:
+                        self._failures.pop(next(iter(self._failures)))
                     while len(self._cache) > 512:
                         self._cache.pop(next(iter(self._cache)))
                 self._states[provider, capability] = "available"
             return result
         except MarketDataError as error:
             with self._condition:
+                if epoch == self._epoch:
+                    self._failures[full] = (self.clock() + 30, type(error), str(error))
+                    while len(self._failures) > 512:
+                        self._failures.pop(next(iter(self._failures)))
                 state = "temporarily unavailable"
                 if isinstance(error, MarketPlanAccessError):
                     state = "plan restricted"

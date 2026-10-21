@@ -33,7 +33,7 @@ def test_schema_preserves_portfolios_with_id_and_name(database) -> None:
     path, engine = database
     assert path.is_file()
     inspector = inspect(engine)
-    assert inspector.get_table_names() == ["portfolios", "transactions"]
+    assert inspector.get_table_names() == ["budget_entries", "financial_goals", "portfolio_events", "portfolios", "price_alerts", "transactions"]
     assert [column["name"] for column in inspector.get_columns("portfolios")] == ["id", "name"]
     assert inspector.get_pk_constraint("portfolios")["constrained_columns"] == ["id"]
 

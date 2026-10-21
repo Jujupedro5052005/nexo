@@ -229,7 +229,7 @@ def test_repeated_assets_analysis_overview_portfolios_share_cache(
         qtbot.waitUntil(lambda: window.assets_page.table.rowCount() == 1, timeout=5000)
         window.assets_page.table.selectRow(0)
         qtbot.waitUntil(
-            lambda: window.assets_page.analysis_panel.analysis is not None, timeout=5000
+            lambda: window.assets_page.quote is not None and window.assets_page.history is not None, timeout=5000
         )
         for _ in range(3):
             for index in (2, 7, 0, 1):
@@ -238,22 +238,21 @@ def test_repeated_assets_analysis_overview_portfolios_share_cache(
             window.analysis_page.asset_panel.analyze()
             qtbot.waitUntil(
                 lambda: (
-                    window.assets_page.analysis_panel.analysis is not None
-                    and window.analysis_page.asset_panel.analysis is not None
+                    window.analysis_page.asset_panel.analysis is not None
                 ),
                 timeout=5000,
             )
-        assert len(remote_calls) == 3  # One quote, one search, one short history.
-        assert "brapi" in window.assets_page.history_source_badge.text()
-        assert len(bolsai_calls) == len(yahoo_calls) == 1
-        assert policy.usage.count("brapi") == 3 and policy.usage.count("bolsai") == 1
+        assert len(remote_calls) == 2  # Quote and search; Yahoo handles all histories.
+        assert "Yahoo Finance" in window.assets_page.history_source_badge.text()
+        assert len(bolsai_calls) == 1 and len(yahoo_calls) <= 5
+        assert policy.usage.count("brapi") == 2 and policy.usage.count("bolsai") == 1
         assert policy.health("brapi", True, "market").cache_hits >= 6
         record_property(
             "UI actions",
             "3 ciclos Ativos/Análises/Overview/Carteiras + consultas repetidas",
         )
         record_property(
-            "mocked remote operations", "brapi=3; bolsai=1; Yahoo=1; CVM=0; internet=0"
+            "mocked remote operations", "brapi=2; bolsai=1; Yahoo=5; CVM=0; internet=0"
         )
         record_property(
             "cache hits brapi", policy.health("brapi", True, "market").cache_hits
@@ -357,9 +356,12 @@ def test_update_asset_refreshes_all_workers_with_bolsai_down_and_budget_exhauste
         search_assets=SearchAssets(market),
         get_quote=GetAssetQuote(market),
         get_history=GetAssetHistory(market),
-        analyze_asset=analysis,
     )
     qtbot.addWidget(page)
+    from nexo.ui.components.asset_analysis_panel import AssetAnalysisPanel
+    panel = AssetAnalysisPanel(analysis)
+    panel.set_asset(asset, load=False)
+    qtbot.addWidget(panel)
     if not search_with_enter:
         page.selected_asset = AssetSearchResult(asset, "Petrobras", "BRL")
     try:
@@ -376,16 +378,19 @@ def test_update_asset_refreshes_all_workers_with_bolsai_down_and_budget_exhauste
             qtbot.waitUntil(
                 lambda: page.quote is not None
                 and page.history is not None
-                and page.analysis_panel.analysis is not None,
+                ,
                 timeout=5000,
             )
-            result = page.analysis_panel.analysis
-            assert page.quote.source == page.history.source == "brapi"
+            panel.analyze(explicit=True)
+            qtbot.waitUntil(lambda: panel.analysis is not None, timeout=5000)
+            result = panel.analysis
+            assert page.quote.source == "brapi"
+            assert page.history.source == "Yahoo Finance"
             assert result.fundamentals.source == "brapi"
             assert result.fundamentals.eps == 4
             assert result.dividends is not None
             assert not any("Budget" in issue or "bolsai" in issue for issue in result.issues)
-            assert len(calls) == 4 * (cycle + 1) + int(search_with_enter)
+            assert len(calls) == 3 * (cycle + 1) + int(search_with_enter)
             assert not fallback_calls
         market.invalidate(asset)
         # The manual context must not leak into subsequent automatic requests.
@@ -393,9 +398,9 @@ def test_update_asset_refreshes_all_workers_with_bolsai_down_and_budget_exhauste
 
         with pytest.raises(MarketRateLimitError):
             GetAssetHistory(market).execute(asset)
-        assert len(calls) == 8 + int(search_with_enter)
+        assert len(calls) == 6 + int(search_with_enter)
     finally:
         page.runner.wait()
-        page.analysis_panel.runner.wait()
+        panel.runner.wait()
         primary.close()
         fallback.close()

@@ -248,3 +248,39 @@ Máximo por execução: brapi 2 requests, bolsai 2 requests, Yahoo 1 operação 
 ticker; CVM só lê cache válido. Não roda no pytest. Snapshot/captura sanitizados
 ficam em `tmp/`. A captura nativa Windows exige fonts/plataforma Qt disponíveis.
 Políticas completas: [DATA_PROVIDERS.md](docs/02_architecture/DATA_PROVIDERS.md).
+
+
+### Incremento 06 (21/10/2026)
+
+Yahoo Finance via yfinance é a fonte pública principal; brapi/bolsai são
+complementos opcionais. Não é preciso configurar essas chaves para começar.
+Consulte [política de fontes](docs/02_architecture/DATA_PROVIDERS.md) para cobertura,
+cache e limitações. Dados públicos podem ter atraso ou indisponibilidade.
+
+Planejamento, metas e alertas têm cadastro/edição persistidos no SQLite (duplo clique
+nas linhas para editar). Alertas verificam preços ao clicar **Verificar cotações
+agora**. Relatórios exporta CSV real. Os dois modos (`--demo` e normal) compartilham
+funcionalidades; somente o banco demo contém operações fictícias de apresentação.
+Análises explica indicadores com `?` e mostra cenários condicionais, sem negociar
+com corretoras ou prever datas de compra/venda. Veja [status e limites](docs/06_progress/CURRENT_STATUS.md).
+
+
+### Caixa, patrimônio e ferramentas financeiras
+
+Em **Movimentações**, expanda “Registrar / consultar caixa e eventos” para informar
+saldo inicial e data reais. O saldo inicial contém somente dinheiro disponível;
+compras antigas não são tratadas como aportes. Aportes, retiradas, proventos líquidos,
+impostos, taxas avulsas e splits confirmados entram em um livro persistente.
+
+**Análises → Patrimônio / TWR** reconstrói caixa + ativos até ontem, com tabela de
+datas e TWR diário aproximado. Dados ausentes, moedas sem conversão e splits não
+reconciliados impedem retorno agregado. **Ferramentas / teoria** oferece vinte
+calculadoras, VaR/Expected Shortfall, indicadores técnicos, três modelos de
+insolvência e roteiros de diligência. Cenários manuais não alteram a carteira.
+Fórmulas, fontes dos oito PDFs e limites: [guia financeiro](docs/02_architecture/FINANCIAL_TOOLS.md).
+
+`NEXO_DATA_DIR` pode definir um diretório **absoluto** para banco, cache e contadores.
+Sem configuração, o checkout mantém `data/`; executável congelado usa
+`%LOCALAPPDATA%/NexoInvest`. Não há migração automática de bancos existentes.
+Consultas Yahoo padrão podem ser canceladas por processo próprio; outros provedores
+ainda podem aguardar o timeout de uma chamada HTTP já iniciada.

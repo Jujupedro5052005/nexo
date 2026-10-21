@@ -41,6 +41,7 @@ class TestMarketConnection:
 
     def execute(self) -> MarketIntegrationStatus:
         status = GetMarketIntegrationStatus(self._provider).execute()
+        self._provider.invalidate(Asset("PETR4"))
         try:
             with self._provider.refresh_context(True):
                 self._provider.get_quote(Asset("PETR4"))
@@ -86,13 +87,15 @@ class TestMarketConnection:
                 status,
                 authenticated=None,
                 state="unavailable",
-                message="Não foi possível acessar a brapi. Verifique sua conexão e tente novamente.",
+                message=f"Não foi possível acessar {status.provider}. Verifique sua conexão e tente novamente.",
             )
         return replace(
             status,
             authenticated=None,
             state="connected",
-            message="Conexão com brapi funcionando. Requisição em modo autenticado. PETR4 é público; este teste não confirma acesso aos ativos protegidos do plano."
+            message="Conexão com Yahoo Finance funcionando. Fonte pública principal; consulte horário e moeda do dado."
+            if status.provider == "Yahoo Finance"
+            else "Conexão com brapi funcionando. Requisição em modo autenticado. PETR4 é público; este teste não confirma acesso aos ativos protegidos do plano."
             if status.configured
             else "Conexão funcionando em modo sandbox. "
             + status.public_access_description,

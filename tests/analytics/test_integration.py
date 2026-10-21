@@ -121,4 +121,4 @@ def test_sqlite_http_adapter_analytics_comparison_and_refresh_without_derived_ta
         )
         assert partial.valuation.concentration.unavailable_assets == ("VALE3",)
     assert len(transaction_repository.list_by_portfolio(ids[1])) == 2
-    assert set(inspect(engine).get_table_names()) == {"portfolios", "transactions"}
+    assert set(inspect(engine).get_table_names()) == {"portfolios", "transactions", "budget_entries", "financial_goals", "price_alerts", "portfolio_events"}

@@ -6,6 +6,7 @@ from decimal import ROUND_HALF_EVEN, Context, Decimal, localcontext
 from nexo.domain.enums.transaction_type import TransactionType
 from nexo.domain.errors import DomainValidationError, InsufficientPositionError
 from nexo.domain.models.asset import Asset
+from nexo.domain.models.portfolio_event import PortfolioEvent, PortfolioEventType
 from nexo.domain.models.position import Position
 from nexo.domain.models.transaction import Transaction
 
@@ -36,7 +37,9 @@ def order_transactions(transactions: Iterable[Transaction]) -> list[Transaction]
     return sorted(history, key=order)
 
 
-def rebuild_positions(transactions: Iterable[Transaction]) -> ReconstructionResult:
+def rebuild_positions(
+    transactions: Iterable[Transaction], events: tuple[PortfolioEvent, ...] = ()
+) -> ReconstructionResult:
     """Replay chronologically, then by known ID, then stable input order.
 
     At equal timestamps known IDs precede missing IDs. Missing IDs and complete
@@ -46,9 +49,29 @@ def rebuild_positions(transactions: Iterable[Transaction]) -> ReconstructionResu
     """
     history = order_transactions(transactions)
 
-    groups: dict[tuple[int, Asset], list[Transaction]] = {}
+    groups: dict[tuple[int, Asset], list[Transaction | PortfolioEvent]] = {}
     for item in history:
         groups.setdefault((item.portfolio_id, item.asset), []).append(item)
+    split_events = [e for e in events if e.kind == PortfolioEventType.SPLIT]
+    if (
+        len(
+            {t.occurred_at.utcoffset() is not None for t in history}
+            | {e.occurred_at.utcoffset() is not None for e in split_events}
+        )
+        > 1
+    ):
+        raise DomainValidationError("Cannot mix naive and aware occurred_at values.")
+    for event in split_events:
+        if event.asset is not None and (event.portfolio_id, event.asset) in groups:
+            groups[event.portfolio_id, event.asset].append(event)
+    for group in groups.values():
+        group.sort(
+            key=lambda t: (
+                t.occurred_at,
+                0 if isinstance(t, PortfolioEvent) else 1,
+                t.id or 2**63,
+            )
+        )
     snapshots = [_rebuild_position(group) for group in groups.values()]
     snapshots.sort(key=lambda p: (p.portfolio_id, p.asset.symbol))
     return ReconstructionResult(
@@ -57,13 +80,17 @@ def rebuild_positions(transactions: Iterable[Transaction]) -> ReconstructionResu
     )
 
 
-def _rebuild_position(history: list[Transaction]) -> Position:
+def _rebuild_position(history: list[Transaction | PortfolioEvent]) -> Position:
     # Precision is scoped to one portfolio/asset, so unrelated transactions
     # cannot change even the representation of a recurring average cost.
     values = [
         value
         for item in history
-        for value in (item.quantity, item.unit_price, item.fees)
+        for value in (
+            (item.quantity, item.unit_price, item.fees)
+            if isinstance(item, Transaction)
+            else (item.ratio or Decimal(1),)
+        )
     ]
     span = (
         max(value.adjusted() for value in values)
@@ -73,11 +100,28 @@ def _rebuild_position(history: list[Transaction]) -> Position:
     precision = max(50, 2 * span + len(str(len(history))) + 10)
     zero = Decimal(0)
     previous = Position(
-        history[0].portfolio_id, history[0].asset, zero, zero, zero, zero
+        history[0].portfolio_id,
+        next(item.asset for item in history if isinstance(item, Transaction)),
+        zero,
+        zero,
+        zero,
+        zero,
     )
     with localcontext(Context(prec=precision, rounding=ROUND_HALF_EVEN)):
         for item in history:
             realized = previous.realized_profit_loss
+            if isinstance(item, PortfolioEvent):
+                if previous.quantity > 0 and item.ratio is not None:
+                    quantity = previous.quantity * item.ratio
+                    previous = Position(
+                        previous.portfolio_id,
+                        previous.asset,
+                        quantity,
+                        previous.cost_basis / quantity,
+                        previous.cost_basis,
+                        realized,
+                    )
+                continue
             if item.transaction_type is TransactionType.BUY:
                 quantity = previous.quantity + item.quantity
                 basis = previous.cost_basis + item.amounts()[1]

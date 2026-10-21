@@ -1,8 +1,10 @@
 """Capability-specific routing; source values are never averaged or merged."""
 
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import AbstractContextManager, nullcontext
-from dataclasses import fields
+from contextvars import copy_context
+from dataclasses import fields, replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from functools import partial
@@ -40,10 +42,16 @@ class RoutedMarketDataProvider(MarketDataProvider):
         self.brapi, self.bolsai, self.yahoo, self.policy = brapi, bolsai, yahoo, policy
 
     def get_integration_status(self) -> MarketIntegrationStatus | None:
-        return self.brapi.get_integration_status()
+        return (
+            self.yahoo.get_integration_status()
+            if hasattr(self.yahoo, "get_integration_status")
+            else self.brapi.get_integration_status()
+        )
 
     def invalidate(self, asset: Asset | None = None) -> None:
         self.policy.invalidate(asset)
+        if hasattr(self.yahoo, "invalidate"):
+            self.yahoo.invalidate(asset)
 
     def refresh_context(self, explicit: bool) -> AbstractContextManager[None]:
         return explicit_refresh() if explicit else nullcontext()
@@ -52,37 +60,100 @@ class RoutedMarketDataProvider(MarketDataProvider):
         with self.policy.coalesce_route("quote", (asset,)):
             return self._quote(asset)
 
-    def _quote(self, asset: Asset) -> Quote:
-        for name in ("brapi", "bolsai"):
-            cached = self.policy.cached(name, "quote", (asset,))
-            if cached:
-                return cached
-        primary_error: MarketDataError | None = None
-        for name, provider in (("brapi", self.brapi), ("bolsai", self.bolsai)):
+    def _quote(self, asset: Asset, *, fallback_only: bool = False) -> Quote:
+        errors = []
+        providers = (
+            ("Yahoo Finance", self.yahoo),
+            ("brapi", self.brapi),
+            ("bolsai", self.bolsai),
+        )
+        for name, provider in providers[1:] if fallback_only else providers:
+            if not hasattr(provider, "get_quote"):
+                continue
             try:
                 return self.policy.call(
                     name, "quote", (asset,), partial(provider.get_quote, asset)
                 )
             except MarketDataError as error:
-                if name == "brapi":
-                    primary_error = error
-                else:
-                    assert primary_error is not None
-                    # Keep the primary failure category, so missing fallback
-                    # credentials cannot disguise a local budget/plan failure.
-                    raise type(primary_error)(
-                        f"brapi (prioritária): {primary_error} | bolsai (fallback): {error}"
-                    ) from None
+                errors.append((name, error))
+        if errors:
+            raise type(errors[0][1])(
+                " | ".join(f"{name}: {error}" for name, error in errors)
+            )
         raise MarketDataUnavailableError("Nenhuma fonte de cotação disponível.")
 
     def get_quotes(self, assets: Iterable[Asset]) -> QuoteBatch:
-        quotes, issues = [], []
-        for asset in dict.fromkeys(assets):
-            try:
-                quotes.append(self.get_quote(asset))
-            except MarketDataError as error:
-                issues.append(QuoteIssue(asset, error))
-        return QuoteBatch(tuple(quotes), tuple(issues))
+        requested = tuple(dict.fromkeys(assets))
+        if not requested:
+            return QuoteBatch(())
+        # Serialize equivalent batches, while preserving explicit/budget and
+        # cancellation context in bounded fallback workers.
+        with self.policy.coalesce_route("quote_batch", requested):
+            quotes = {
+                a: q
+                for a in requested
+                if (q := self.policy.cached("Yahoo Finance", "quote", (a,))) is not None
+            }
+            for asset in requested:
+                if asset not in quotes and self.policy.recent_failure(
+                    "Yahoo Finance", "quote", (asset,)
+                ):
+                    for provider in ("brapi", "bolsai"):
+                        cached = self.policy.cached(provider, "quote", (asset,))
+                        if cached is not None:
+                            quotes[asset] = cached
+                            break
+            missing = tuple(a for a in requested if a not in quotes)
+            primary_errors: dict[Asset, MarketDataError] = {}
+            if missing and hasattr(self.yahoo, "get_quotes"):
+                try:
+                    batch = self.policy.call(
+                        "Yahoo Finance",
+                        "quote_batch",
+                        missing,
+                        lambda: self.yahoo.get_quotes(missing),
+                    )
+                    for quote in batch.quotes:
+                        if quote.asset in missing:
+                            quotes[quote.asset] = quote
+                    primary_errors = {
+                        issue.asset: issue.error for issue in batch.issues
+                    }
+                except MarketDataError as error:
+                    primary_errors = dict.fromkeys(missing, error)
+            remaining = tuple(a for a in missing if a not in quotes)
+
+            def complement(asset: Asset) -> Quote | QuoteIssue:
+                try:
+                    # For adapters without a batch capability retain ordinary routing.
+                    return self._quote(
+                        asset, fallback_only=hasattr(self.yahoo, "get_quotes")
+                    )
+                except MarketDataError as error:
+                    original = primary_errors.get(asset)
+                    return QuoteIssue(
+                        asset,
+                        MarketDataUnavailableError(
+                            f"Yahoo Finance: {original} | Complementos: {error}"
+                        )
+                        if original
+                        else error,
+                    )
+
+            if remaining:
+                with ThreadPoolExecutor(max_workers=min(4, len(remaining))) as pool:
+                    futures = [
+                        pool.submit(copy_context().run, complement, a)
+                        for a in remaining
+                    ]
+                    results = [f.result() for f in futures]
+                issues = tuple(r for r in results if isinstance(r, QuoteIssue))
+                quotes.update((r.asset, r) for r in results if isinstance(r, Quote))
+            else:
+                issues = ()
+            return QuoteBatch(
+                tuple(quotes[a] for a in requested if a in quotes), issues
+            )
 
     def search_assets(self, query: str) -> tuple[AssetSearchResult, ...]:
         with self.policy.coalesce_route("search", (query.strip().upper(),)):
@@ -90,11 +161,13 @@ class RoutedMarketDataProvider(MarketDataProvider):
 
     def _search(self, query: str) -> tuple[AssetSearchResult, ...]:
         query = query.strip().upper()
-        for name in ("brapi", "bolsai"):
-            cached = self.policy.cached(name, "search", (query,))
-            if cached:
-                return cached
-        for name, provider in (("brapi", self.brapi), ("bolsai", self.bolsai)):
+        for name, provider in (
+            ("Yahoo Finance", self.yahoo),
+            ("brapi", self.brapi),
+            ("bolsai", self.bolsai),
+        ):
+            if not hasattr(provider, "search_assets"):
+                continue
             try:
                 result = self.policy.call(
                     name, "search", (query,), partial(provider.search_assets, query)
@@ -113,31 +186,22 @@ class RoutedMarketDataProvider(MarketDataProvider):
     def _history(self, asset: Asset, period: str) -> PriceHistory:
         if period not in {"1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"}:
             raise MarketDataUnavailableError("Período não suportado.")
-        for name in (
-            ("brapi", "Yahoo Finance")
-            if period in {"1mo", "3mo"}
-            else ("Yahoo Finance",)
-        ):
-            cached = self.policy.cached(name, "history", (asset, period))
-            if cached is not None and cached.points:
-                return cached
-        if period in {"1mo", "3mo"}:
-            try:
-                result = self.policy.call(
-                    "brapi",
-                    "history",
-                    (asset, period),
-                    lambda: self.brapi.get_history(asset, period),
-                )
-                if result.points:
-                    return result
-            except MarketDataError:
-                pass
+        try:
+            result = self.policy.call(
+                "Yahoo Finance",
+                "history",
+                (asset, period),
+                lambda: self.yahoo.get_history(asset, period),
+            )
+            if result.points:
+                return result
+        except MarketDataError:
+            pass
         return self.policy.call(
-            "Yahoo Finance",
+            "brapi",
             "history",
             (asset, period),
-            lambda: self.yahoo.get_history(asset, period),
+            lambda: self.brapi.get_history(asset, period),
         )
 
 
@@ -199,9 +263,11 @@ class RoutedFundamentalDataProvider(FundamentalDataProvider):
         policy: ProviderPolicy,
         *,
         brapi: FundamentalDataProvider | None = None,
+        yahoo: FundamentalDataProvider | None = None,
     ) -> None:
         self.bolsai, self.cvm, self.policy = bolsai, cvm, policy
         self.brapi = brapi
+        self.yahoo = yahoo
 
     def get_fundamentals(self, asset: Asset) -> CompanyFundamentals:
         with self.policy.coalesce_route("fundamentals", (asset,)):
@@ -209,13 +275,12 @@ class RoutedFundamentalDataProvider(FundamentalDataProvider):
 
     def _fundamentals(self, asset: Asset) -> CompanyFundamentals:
         providers: list[tuple[str, FundamentalDataProvider]] = []
+        if self.yahoo is not None:
+            providers.append(("Yahoo Finance", self.yahoo))
         if self.brapi is not None:
             providers.append(("brapi", self.brapi))
         providers.append(("bolsai", self.bolsai))
-        for name in [*(name for name, _ in providers), "CVM"]:
-            cached = self.policy.cached(name, "fundamentals", (asset,))
-            if cached is not None and (name == "CVM" or self._has_inputs(cached)):
-                return cached
+        preferred: CompanyFundamentals | None = None
         for name, provider in providers:
             try:
                 result = self.policy.call(
@@ -224,10 +289,35 @@ class RoutedFundamentalDataProvider(FundamentalDataProvider):
                     (asset,),
                     partial(provider.get_fundamentals, asset),
                 )
-                if self._has_inputs(result):
-                    return result
             except MarketDataError:
-                pass
+                continue
+            if not self._has_inputs(result):
+                continue
+            if preferred is None:
+                preferred = result
+            elif (
+                preferred.reference_date is not None
+                and preferred.reference_date == result.reference_date
+                and preferred.currency == result.currency
+            ):
+                # Supplement only missing fields with an aligned accounting reference.
+                # Never replace Yahoo values or silently combine different quarters.
+                missing = {
+                    field.name: getattr(result, field.name)
+                    for field in fields(result)
+                    if getattr(preferred, field.name) is None
+                    and isinstance(getattr(result, field.name), Decimal)
+                }
+                preferred = replace(
+                    preferred,
+                    **missing,
+                    field_sources=preferred.field_sources
+                    + tuple((key, result.source) for key in missing),
+                )
+            if preferred.eps is not None and preferred.bvps is not None:
+                return preferred
+        if preferred is not None:
+            return preferred
 
         def official() -> CompanyFundamentals:
             rows = self.cvm.get_statements(asset)

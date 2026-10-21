@@ -294,3 +294,76 @@ Busca manual: regressões Qt adicionais cobrem PETR4 + Enter e seleção de
 resultado com budget local zero, com/sem chave bolsai. Busca, cotação, análise
 e histórico retornam pela brapi; atualização subsequente funciona e o contexto
 manual não se propaga para consultas automáticas posteriores. Sem rede.
+
+
+## Incremento 06 — 21/10/2026
+
+- Suíte completa: 616 testes aprovados, zero falhas, 246,64 s, sem internet.
+- Após ajuste final do contexto manual do teste de conexão Yahoo: 13 testes
+  direcionados do adaptador aprovados (incluindo a nova regressão de budget zero).
+- Ruff check ., mypy src (104 arquivos), compileall e git diff --check aprovados.
+- `tests/providers/test_yahoo_primary.py`: Yahoo principal, snapshot compartilhado,
+  sem chamadas complementares desnecessárias, campos opcionais inválidos, moeda,
+  complementação por período compatível, cooldown, invalidação em voo, recuperação
+  manual e teste de conexão sem apagar budgets.
+- `tests/test_personal_finance_increment.py`: persistência/edição de planejamento,
+  metas/projeção, alertas (ausência/moeda/snapshot), modelo de cenário, efeito de
+  taxas/venda parcial, trajetória derivada e CSV seguro, formulário Qt real.
+- Regressões existentes atualizadas para schema aditivo, prioridade Yahoo,
+  centralização de Análises e gráfico de contribuição. Nenhum teste foi removido.
+- Capturas offscreen em `tmp/increment_review/`, com fontes Segoe UI Windows
+  carregadas explicitamente e dados de teste identificados. Não são smoke online.
+- Smoke online separado: ITSA4 Yahoo quote + fundamentos; BRL, LPA e VPA presentes,
+  referência contábil 30/06/2026. Uma operação local de snapshot compartilhado,
+  sem consulta brapi/bolsai. Não comprova SLA/cobertura universal; yfinance pode
+  executar vários HTTP requests internamente. Usage temporário isolado, sem editar
+  os contadores, bancos ou credenciais do usuário.
+
+```powershell
+.venv/Scripts/python.exe -m pytest -q
+.venv/Scripts/python.exe -m pytest -q tests/providers/test_yahoo_primary.py
+.venv/Scripts/python.exe -m ruff check .
+.venv/Scripts/python.exe -m mypy src
+```
+
+
+## Incremento 07 — caixa, performance e ferramentas
+
+`tests/test_cash_risk_increment.py` cobre abertura explícita/legado, retenção e
+fluxos internos/externos, retroativas inválidas com rollback, splits sem alteração
+de custo, disputa por duas conexões independentes (venda e gasto), snapshot de
+leitura, TWR neutro a aportes/retiradas, lacunas de preço, reconciliação de splits,
+VaR/ES com quantil de referência, beta/correlação, indicadores técnicos, todos os
+vinte cenários registrados, contas de insolvência, formulários, CSV, caminhos e
+cancelamento. Precisão Decimal é testada sob contexto externo reduzido.
+
+Transporte Yahoo tem teste determinístico de encerramento do processo próprio,
+sem rede; `TaskRunner` tem teste de cancelamento e supressão de callbacks.
+Fixtures de SDK continuam injetáveis. A suíte normal proíbe rede real.
+
+Validação em 21/10/2026: suíte completa 661 aprovados (249,08 s); após ajustes
+finais, 255 regressões aprovadas e dois cenários de entrypoint normal/demo
+aprovados. Ruff check ., mypy src/nexo, compileall e git diff --check aprovados.
+Capturas offscreen com dados temporários e Segoe UI em 100/125/150%, revisadas
+visualmente; não certificam leitor de tela, monitores físicos ou uso prolongado.
+Smoke externo isolado e pequeno retornou cotação BRL e 22 pontos ITSA4 pelo Yahoo;
+processo cancelado em ~0,17 s. Sem consulta autenticada ou consumo brapi/bolsai;
+contador de smoke temporário, sem modificar banco de carteira original.
+
+
+## Regressão da atualização de mercado — 21/10/2026
+
+`tests/providers/test_market_refresh_batch.py` cobre transporte leve sem snapshot
+empresarial, metadados sem variação diária fictícia, quatro workers e streaming,
+cache/epoch, recuperação de falhas, complementação somente dos ativos ausentes,
+propagação do budget manual e cancelamento sem ativar fallback. Teste de deadline
+preserva preços já recebidos e encerra exclusivamente o processo próprio.
+`tests/market/test_market_ui.py` acrescenta regressões de cliques duplicados e
+cancelamento da atualização substituída, com retorno do botão ao estado normal.
+
+Smoke externo separado da suíte: oito preços reais Yahoo em 6,235 s e cache <1 ms;
+clique do botão com três carteiras de demo temporário completo em 5,542 s. Banco,
+contadores e configurações originais preservados; sem provedores pagos no smoke.
+
+Validação final: 357 testes direcionados aprovados (10,08 s); Ruff check ., mypy
+src/nexo, compileall e git diff --check aprovados.

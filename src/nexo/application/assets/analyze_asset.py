@@ -90,6 +90,7 @@ class AnalyzeAsset:
         include_jcp: bool = False,
         refresh: bool = False,
         include_actions: bool = False,
+        include_official: bool = False,
         explicit: bool = False,
     ) -> AssetAnalysis:
         # A coordinated UI refresh has already invalidated the shared cache.
@@ -101,6 +102,7 @@ class AnalyzeAsset:
                 include_jcp=include_jcp,
                 refresh=refresh,
                 include_actions=include_actions,
+                include_official=include_official,
             )
 
     def _execute(
@@ -112,6 +114,7 @@ class AnalyzeAsset:
         include_jcp: bool = False,
         refresh: bool = False,
         include_actions: bool = False,
+        include_official: bool = False,
     ) -> AssetAnalysis:
         if required_yield is not None:
             bazin_price(None, required_yield)  # Validate the premise before any I/O.
@@ -143,7 +146,11 @@ class AnalyzeAsset:
             history = self._market.get_history(asset, period)
         except MarketDataError as error:
             issues.append(f"Histórico: {error}")
-        official = self._official.execute(asset) if self._official else None
+        official = (
+            self._official.execute(asset)
+            if self._official and include_official
+            else None
+        )
         actions: tuple[CorporateAction, ...] = ()
         if include_actions and self._actions:
             try:

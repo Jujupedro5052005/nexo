@@ -204,7 +204,7 @@ def test_old_portfolio_only_database_is_upgraded_without_data_loss(tmp_path) -> 
         portfolios = SqlAlchemyPortfolioRepository(create_session_factory(engine))
         saved = portfolios.add(Portfolio("Anterior"))
         initialize_database(engine)
-        assert inspect(engine).get_table_names() == ["portfolios", "transactions"]
+        assert inspect(engine).get_table_names() == ["budget_entries", "financial_goals", "portfolio_events", "portfolios", "price_alerts", "transactions"]
         assert portfolios.list_all()[0].id == saved.id
         assert portfolios.list_all()[0].name == "Anterior"
         columns = {c["name"] for c in inspect(engine).get_columns("transactions")}

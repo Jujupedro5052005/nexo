@@ -1,6 +1,6 @@
 import json
 from dataclasses import asdict
-from decimal import Context
+from decimal import Context, Decimal
 from typing import Any
 
 from PySide6.QtCharts import QChartView
@@ -15,10 +15,12 @@ from PySide6.QtWidgets import (
 )
 
 from nexo.application.assets.analyze_asset import AnalyzeAsset, AssetAnalysis
+from nexo.calculations.valuation.decision import decision_scenario
 from nexo.domain.errors import DomainValidationError
 from nexo.domain.models.asset import Asset
 from nexo.ui.components.charts import bar_chart
 from nexo.ui.components.common import DataTable, SectionCard
+from nexo.ui.components.indicator_help import HELP
 from nexo.ui.decimal_parser import DecimalInputError, parse_decimal
 from nexo.ui.financial_formatting import (
     currency_text,
@@ -48,6 +50,7 @@ class AssetAnalysisPanel(SectionCard):
         self.period = QComboBox()
         for label, data in (("1 mês", "1mo"), ("3 meses", "3mo"), ("1 ano", "1y")):
             self.period.addItem(label, data)
+        self.period.setCurrentIndex(2)
         self.yield_input = QLineEdit()
         self.yield_input.setPlaceholderText("Yield requerido (%), ex.: 6")
         self.yield_input.setMaximumWidth(150)
@@ -78,6 +81,31 @@ class AssetAnalysisPanel(SectionCard):
         )
         self.content.addWidget(self.include_actions)
         self.include_actions.toggled.connect(self.invalidate)
+        self.include_official = QCheckBox(
+            "Consultar CVM / demonstrações oficiais (consulta adicional)"
+        )
+        self.content.addWidget(self.include_official)
+        self.include_official.toggled.connect(self.invalidate)
+        self.margin_input = QLineEdit("20")
+        self.margin_input.setMaximumWidth(100)
+        self.margin_input.setToolTip(
+            "Desconto exigido sobre o menor teto disponível. Entrada = teto × (1 − margem). De 0 a menos de 100%."
+        )
+        margin_row = QHBoxLayout()
+        margin_label = QLabel("Margem de entrada (%)  ?")
+        margin_label.setToolTip(self.margin_input.toolTip())
+        margin_row.addWidget(margin_label)
+        margin_row.addWidget(self.margin_input)
+        margin_row.addStretch()
+        self.content.addLayout(margin_row)
+        self.margin_input.textChanged.connect(self.invalidate)
+        self.scenario_label = QLabel("Cenário de decisão: —")
+        self.scenario_label.setWordWrap(True)
+        self.scenario_label.setObjectName("AccentText")
+        self.scenario_label.setToolTip(
+            "O teto conservador é o menor modelo disponível, sem média entre métodos. Entrada aplica sua margem. Revisão usa o teto, não uma previsão de preço. DY de continuidade pressupõe repetir os proventos dos últimos 12 meses."
+        )
+        self.content.addWidget(self.scenario_label)
         self.feedback = QLabel(
             "Selecione/informe um ativo. Bazin exige yield explícito."
         )
@@ -109,6 +137,7 @@ class AssetAnalysisPanel(SectionCard):
         self.content.addWidget(self.valuation_table)
         self.risk_label = QLabel("Risco histórico do ativo: —")
         self.risk_label.setWordWrap(True)
+        self.risk_label.setToolTip(HELP["risk"])
         self.content.addWidget(self.risk_label)
         disclaimer = QLabel(
             "Modelos são estimativas, dependem dos dados e premissas e não constituem recomendação financeira. Retorno sobre custo não é performance histórica da carteira."
@@ -116,14 +145,22 @@ class AssetAnalysisPanel(SectionCard):
         disclaimer.setWordWrap(True)
         disclaimer.setObjectName("SecondaryText")
         self.content.addWidget(disclaimer)
+        bankruptcy = QLabel(
+            "Risco de insolvência / falência  ? — dados insuficientes para Altman Z ou Ohlson O-score"
+        )
+        bankruptcy.setWordWrap(True)
+        bankruptcy.setToolTip(HELP["bankruptcy"])
+        self.content.addWidget(bankruptcy)
         self.symbol_input.textChanged.connect(self.invalidate)
         self.yield_input.textChanged.connect(self.invalidate)
         self.period.currentIndexChanged.connect(self.invalidate)
         self.include_jcp.toggled.connect(self.invalidate)
 
     def invalidate(self) -> None:
+        self.runner.cancel()
         self._generation += 1
         self.analysis = None
+        self.scenario_label.setText("Cenário de decisão: —")
         replace_rows(self.indicator_table, [])
         replace_rows(self.valuation_table, [])
         self.dividend_label.setText("Proventos por ação: —")
@@ -151,6 +188,9 @@ class AssetAnalysisPanel(SectionCard):
             return
         try:
             asset = Asset(self.symbol_input.text())
+            entry_margin = parse_decimal(self.margin_input.text(), allow_zero=True)
+            if entry_margin >= 100:
+                raise DecimalInputError("Margem deve ser inferior a 100%.")
             premise = (
                 parse_decimal(self.yield_input.text()).scaleb(
                     -2, context=Context(prec=max(50, len(self.yield_input.text()) + 5))
@@ -161,7 +201,7 @@ class AssetAnalysisPanel(SectionCard):
         except (DomainValidationError, DecimalInputError):
             self.invalidate()
             self.feedback.setText(
-                "Informe ticker válido e yield positivo em percentual; pode deixar yield vazio para consultar fundamentos/Graham."
+                "Informe ticker válido, margem de 0 a menos de 100% e yield positivo em percentual; pode deixar yield vazio para consultar fundamentos/Graham."
             )
             return
         period, include_jcp = (
@@ -169,6 +209,7 @@ class AssetAnalysisPanel(SectionCard):
             self.include_jcp.isChecked(),
         )
         include_actions = self.include_actions.isChecked()
+        include_official = self.include_official.isChecked()
         self.invalidate()
         generation = self._generation
         self.feedback.setText(f"{asset.symbol} • Carregando análise…")
@@ -194,6 +235,7 @@ class AssetAnalysisPanel(SectionCard):
                 include_jcp=include_jcp,
                 refresh=refresh,
                 include_actions=include_actions,
+                include_official=include_official,
                 explicit=explicit,
             ),
             completed,
@@ -201,6 +243,27 @@ class AssetAnalysisPanel(SectionCard):
 
     def display(self, analysis: AssetAnalysis) -> None:
         quote, fundamentals = analysis.quote, analysis.fundamentals
+        try:
+            entry_margin = parse_decimal(
+                self.margin_input.text(), allow_zero=True
+            ) / Decimal(100)
+            scenario = decision_scenario(
+                quote.price if quote and quote.currency == "BRL" else None,
+                (analysis.graham.price, analysis.bazin.price),
+                analysis.annual_dividend,
+                analysis.history,
+                entry_margin,
+            )
+            self.scenario_label.setText(
+                f"Cenário de decisão  ?  •  {scenario.reading}\n"
+                f"Teto conservador: {currency_text(scenario.ceiling)}  |  Estudar compra até: {currency_text(scenario.entry)}  |  Revisar posição a partir de: {currency_text(scenario.review)}\n"
+                f"Variação até o teto (sem prazo): {percent_text(scenario.upside)}  |  DY de continuidade 12M: {percent_text(scenario.dividend_yield)}\n"
+                f"Tendência  ?: {scenario.trend}. Não prevê o próximo movimento."
+            )
+        except (DecimalInputError, ValueError, DomainValidationError):
+            self.scenario_label.setText(
+                "Margem inválida: informe de 0 a menos de 100%."
+            )
         quote_info = (
             f"{currency_text(quote.price, quote.currency)} • {quote.source} • {quote.freshness} • consultado {quote.retrieved_at.isoformat(timespec='seconds')}"
             if quote
@@ -228,7 +291,7 @@ class AssetAnalysisPanel(SectionCard):
             )
             rows.append(
                 (
-                    indicator.label,
+                    indicator.label + "  ?",
                     text,
                     indicator.origin,
                     indicator.reason or indicator.formula,
@@ -240,7 +303,7 @@ class AssetAnalysisPanel(SectionCard):
                 item = self.indicator_table.item(row, column)
                 if item is not None:
                     item.setToolTip(
-                        f"{indicator.formula}\nOrigem: {indicator.origin}"
+                        f"{HELP.get(indicator.key, indicator.formula)}\nFórmula/base: {indicator.formula}\nOrigem: {indicator.origin}"
                         + (f"\n{indicator.reason}" if indicator.reason else "")
                     )
         dividend = analysis.dividends
@@ -258,7 +321,13 @@ class AssetAnalysisPanel(SectionCard):
         official = analysis.official
         self.official_label.setText(
             "Dados oficiais: CVM "
-            + ("disponíveis" if official and official.company else "indisponíveis")
+            + (
+                "não consultada (opcional)"
+                if official is None
+                else "disponíveis"
+                if official.company
+                else "indisponíveis"
+            )
             + (
                 " · Demonstrações: "
                 + "/".join(sorted({r.report_type for r in official.statements}))
@@ -300,7 +369,7 @@ class AssetAnalysisPanel(SectionCard):
             )
             valuation_rows.append(
                 (
-                    valuation.name,
+                    valuation.name + "  ?",
                     currency_text(valuation.price),
                     currency_text(margin.difference if margin else None),
                     percent_text(margin.ratio if margin else None),
@@ -308,6 +377,14 @@ class AssetAnalysisPanel(SectionCard):
                 )
             )
         replace_rows(self.valuation_table, valuation_rows)
+        for row, valuation in enumerate((analysis.graham, analysis.bazin)):
+            for column in range(self.valuation_table.columnCount()):
+                item = self.valuation_table.item(row, column)
+                if item is not None:
+                    item.setToolTip(
+                        HELP[valuation.name]
+                        + " Margem = (teto − cotação) / teto; diferença = teto − cotação."
+                    )
         self.valuation_table.setToolTip(
             f"Graham: sqrt(22,5 × LPA × VPA). Bazin: proventos da janela / yield requerido. Yield aplicado: {percent_text(analysis.required_yield)}."
         )

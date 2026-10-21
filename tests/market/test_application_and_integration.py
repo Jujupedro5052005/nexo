@@ -175,7 +175,7 @@ def test_sqlite_to_real_adapter_contract_reopens_without_persisting_quotes(tmp_p
             value.unrealized_profit_loss,
             value.total_profit_loss,
         ) == (Decimal(528), Decimal(600), Decimal(33), Decimal(72), Decimal(105))
-        assert set(inspect(engine).get_table_names()) == {"portfolios", "transactions"}
+        assert set(inspect(engine).get_table_names()) == {"portfolios", "transactions", "budget_entries", "financial_goals", "price_alerts", "portfolio_events"}
         assert all(
             "price" not in c["name"] or c["name"] == "unit_price"
             for c in inspect(engine).get_columns("transactions")

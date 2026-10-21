@@ -3,6 +3,20 @@
 As fases são sequenciais o suficiente para proteger o núcleo, mas podem ter
 atividades de design e teste em paralelo quando não criarem dependências falsas.
 
+## Incremento 06 — 21/10/2026
+
+- [x] Yahoo principal com complementos por falta de dados e origem explícita.
+- [x] Análise centralizada, consultas CVM opcionais, cenários e ajuda contextual.
+- [x] Visão Geral com trajetória real a custo e radar de contribuição/concentração.
+- [x] Boleta de simulação com preenchimento assistido e prévia de posição/resultado.
+- [x] Planejamento mensal e metas persistentes com cadastro/edição e cálculos.
+- [x] Alertas de preço persistentes e avaliação manual dentro do aplicativo.
+- [x] Exportação CSV de dados locais reais.
+- [ ] Patrimônio histórico de mercado, caixa e fluxos externos para TWR.
+- [ ] PDF, remoção de registros complementares e histórico completo de disparos.
+
+As fases abaixo preservam o registro dos incrementos anteriores.
+
 ## 0 — Arquitetura e validação acadêmica
 
 - [x] analisar requisitos e criar rastreabilidade inicial;
@@ -96,3 +110,8 @@ atividades de design e teste em paralelo quando não criarem dependências falsa
 - [x] Cadastro/DFP/ITR oficial, bridge exato e testes com datasets pequenos.
 - [x] Smoke brapi/Yahoo limitado e revisão visual do snapshot no Windows.
 - [ ] Validar ITSA4 fundamentos bolsai e cadastro CVM online com chave/bridge real.
+
+
+## Incremento 07 — 21/10/2026
+
+Implementados caixa/eventos, proteção de escrita concorrente, patrimônio/TWR diário aproximado e ferramentas quantitativas/educacionais dos PDFs. Próximos pontos: correção auditável do ledger, FX e eventos corporativos adicionais, HTTP cancelável nos outros adaptadores, acessibilidade assistiva e empacotamento. Plano autenticado e confirmações acadêmicas permanecem dependentes de evidência externa.

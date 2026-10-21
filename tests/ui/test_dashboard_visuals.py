@@ -17,11 +17,22 @@ from nexo.ui.pages.overview_page import OverviewPage
 
 
 def valuation(count=3, *, missing=False, price_scale=Decimal(1)):
-    positions = tuple(Position(1, Asset(f"TEST{i}"), Decimal(10), Decimal(3),
-                               Decimal(30), Decimal(0)) for i in range(count))
-    quotes = tuple(Quote(p.asset, Decimal(i+1) * price_scale, "BRL", p.asset.symbol,
-                         datetime(2026, 10, 7, tzinfo=timezone.utc), source="test fixture")
-                   for i, p in enumerate(positions) if not missing or i)
+    positions = tuple(
+        Position(1, Asset(f"TEST{i}"), Decimal(10), Decimal(3), Decimal(30), Decimal(0))
+        for i in range(count)
+    )
+    quotes = tuple(
+        Quote(
+            p.asset,
+            Decimal(i + 1) * price_scale,
+            "BRL",
+            p.asset.symbol,
+            datetime(2026, 10, 7, tzinfo=timezone.utc),
+            source="test fixture",
+        )
+        for i, p in enumerate(positions)
+        if not missing or i
+    )
     return value_portfolio(ReconstructionResult(positions, ()), QuoteBatch(quotes))
 
 
@@ -47,11 +58,14 @@ def test_donut_uses_existing_weights_and_keeps_full_table(qtbot, count):
         assert markers[-1].label().startswith("Outros")
     assert all("%" in marker.label() for marker in markers)
     assert panel.metrics["top_three"].detail_label.text() == " + ".join(
-        p.asset.symbol for p in before.weights[:3])
+        p.asset.symbol for p in before.weights[:3]
+    )
 
 
 @pytest.mark.parametrize("count, missing", [(0, False), (3, True)])
-def test_incomplete_or_empty_portfolio_never_draws_misleading_donut(qtbot, count, missing):
+def test_incomplete_or_empty_portfolio_never_draws_misleading_donut(
+    qtbot, count, missing
+):
     panel = ConcentrationPanel()
     qtbot.addWidget(panel)
     panel.display(valuation())
@@ -68,18 +82,24 @@ def test_overview_cards_align_and_stack_at_narrow_width(qtbot):
     qtbot.addWidget(page)
     page.resize(1450, 900)
     page.show()
-    qtbot.waitUntil(lambda: page.demo_charts.row.direction() == QBoxLayout.Direction.LeftToRight)
+    qtbot.waitUntil(
+        lambda: page.panorama.row.direction() == QBoxLayout.Direction.LeftToRight
+    )
     left, right = page.evolution_card, page.insights_card
     assert left.y() == right.y()
     assert left.width() > right.width()
     assert left.height() == right.height()
     assert right.x() >= left.x() + left.width() + 14
     page.resize(930, 900)
-    qtbot.waitUntil(lambda: page.demo_charts.row.direction() == QBoxLayout.Direction.TopToBottom)
+    qtbot.waitUntil(
+        lambda: page.panorama.row.direction() == QBoxLayout.Direction.TopToBottom
+    )
     assert left.x() == right.x()
     assert right.y() >= left.y() + left.height() + 14
     page.resize(1450, 900)
-    qtbot.waitUntil(lambda: page.demo_charts.row.direction() == QBoxLayout.Direction.LeftToRight)
+    qtbot.waitUntil(
+        lambda: page.panorama.row.direction() == QBoxLayout.Direction.LeftToRight
+    )
     assert left.y() == right.y()
 
 
@@ -97,3 +117,29 @@ def test_metric_states_reset_after_market_failure_and_context_change(qtbot):
     assert page.metrics["unrealized"].value_label.property("metricState") == "neutral"
     assert page.concentration_panel.chart is None
     assert "HHI calculado:" not in page.concentration_panel.metrics["hhi"].toolTip()
+
+
+def test_cost_timeline_keeps_ledger_months_and_boundary_series_owned(qtbot):
+    import gc
+
+    from PySide6.QtCharts import QAreaSeries, QDateTimeAxis
+
+    from nexo.ui.components.charts import capital_timeline_chart
+
+    view = capital_timeline_chart(
+        [
+            (datetime(2026, 4, 1, tzinfo=timezone.utc), Decimal(100)),
+            (datetime(2026, 9, 1, tzinfo=timezone.utc), Decimal(200)),
+        ]
+    )
+    qtbot.addWidget(view)
+    view.show()
+    gc.collect()
+    dates = next(
+        axis for axis in view.chart().axes() if isinstance(axis, QDateTimeAxis)
+    )
+    assert dates.min().toString("MM/yyyy") == "04/2026"
+    assert dates.max().toString("MM/yyyy") == "09/2026"
+    area = view.chart().series()[0]
+    assert isinstance(area, QAreaSeries) and area.upperSeries().parent() == area
+    assert area.upperSeries().count() == 2

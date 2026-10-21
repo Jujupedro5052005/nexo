@@ -1,6 +1,18 @@
 # Arquitetura de software do Nexo Invest
 
-## Composição atual — 05.2
+## Composição atual — 06
+
+Em 21/10/2026, Yahoo passa a ser principal e as telas complementares passam a
+usar dados locais reais. `ManageFinances` coordena registros `BudgetEntry`,
+`FinancialGoal` e `PriceAlert` validados no Domain por contrato de repository;
+`SqlPersonalFinanceRepository` persiste três tabelas independentes, sem alterar
+o ledger ou persistir Position. Projeções e cenários ficam em Calculations.
+`ExportReport` monta CSV por casos de uso e injeta um writer de Infrastructure.
+`ledger_timeline` deriva custos mensais por replay, sem snapshots persistidos.
+UI não acessa SQL/HTTP/arquivos financeiros diretamente. Mais detalhes em
+[CURRENT_STATUS.md](../06_progress/CURRENT_STATUS.md).
+
+### Composição 05.2 preservada
 
 `main.py` injeta contratos separados de mercado, fundamentos, dividendos e dados
 oficiais. ProviderServices gerencia composição/lifecycle; não é um provider
@@ -230,3 +242,8 @@ analítico genérico, tabela/repository de Position ou subclasses por categoria.
 
 Fórmulas, unidades, proventos, cache e desenho futuro TWR:
 [ANALYTICS.md](ANALYTICS.md).
+
+
+## Incremento 07: ledger complementar e escritas atômicas
+
+`PortfolioEvent` complementa `Transaction` para caixa e splits. Posições/patrimônio permanecem derivados; protocolos separados para eventos. `RegisterTransaction` delega ao comando validado do repositório, que obtém reserva de escrita SQLite antes de ler/validar/inserir. Application coordena conta/performance/ferramentas; Calculations implementa fórmulas; UI só recolhe premissas e apresenta resultados. Processos Yahoo pertencem à infraestrutura; cancelamento cooperativo fica em core. Detalhes e limites: [FINANCIAL_TOOLS.md](FINANCIAL_TOOLS.md).

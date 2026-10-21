@@ -23,7 +23,9 @@ class Badge(QLabel):
         super().__init__(text)
         self.setObjectName(kind)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setSizePolicy(self.sizePolicy().Policy.Maximum, self.sizePolicy().Policy.Fixed)
+        self.setSizePolicy(
+            self.sizePolicy().Policy.Maximum, self.sizePolicy().Policy.Fixed
+        )
 
 
 class SectionCard(QFrame):

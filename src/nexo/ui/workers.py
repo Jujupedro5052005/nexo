@@ -1,3 +1,7 @@
+from threading import Event
+
+from nexo.core.cancellation import check_cancelled, current_cancellation
+
 """Run application operations outside Qt's GUI thread; deliver via queued signals."""
 
 from collections.abc import Callable
@@ -15,16 +19,22 @@ class _Worker(QRunnable):
         super().__init__()
         self.identity = identity
         self.operation = operation
+        self.cancelled = Event()
         self.signals = _Signals()
 
     @Slot()
     def run(self) -> None:
+        context = current_cancellation.set(self.cancelled)
         try:
+            check_cancelled()
             result = self.operation()
+            check_cancelled()
         except Exception as error:  # noqa: BLE001 - Worker boundary must contain failures.
             self.signals.finished.emit(self.identity, None, error)
         else:
             self.signals.finished.emit(self.identity, result, None)
+        finally:
+            current_cancellation.reset(context)
 
 
 class TaskRunner(QObject):
@@ -56,12 +66,16 @@ class TaskRunner(QObject):
     @Slot(int, object, object)
     def _deliver(self, identity: int, result: Any, error: Exception | None) -> None:
         job = self._jobs.pop(identity, None)
-        if job is not None and not self._stopped:
+        if job is not None and not self._stopped and not job[0].cancelled.is_set():
             job[1](result, error)
+
+    def cancel(self) -> None:
+        for worker, _callback in self._jobs.values():
+            worker.cancelled.set()
 
     def stop(self) -> None:
         self._stopped = True
-        self.pool.clear()
+        self.cancel()
 
     def wait(self) -> None:
         self.pool.waitForDone()

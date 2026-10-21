@@ -1,7 +1,6 @@
 from nexo.domain.errors import DomainValidationError
 from nexo.domain.interfaces.transaction_repository import TransactionRepository
 from nexo.domain.models.transaction import Transaction
-from nexo.domain.reconstruction import rebuild_positions
 
 
 class RegisterTransaction:
@@ -13,6 +12,4 @@ class RegisterTransaction:
     def execute(self, transaction: Transaction) -> Transaction:
         if transaction.id is not None:
             raise DomainValidationError("Informe uma movimentação nova, sem ID.")
-        history = self._repository.list_by_portfolio(transaction.portfolio_id)
-        rebuild_positions([*history, transaction])
-        return self._repository.add(transaction)
+        return self._repository.add_validated(transaction)

@@ -87,6 +87,12 @@ class MarketIntegrationPanel(SectionCard):
             if status.configured
             else "Autenticação: não se aplica ao sandbox"
         )
+        if status.provider == "Yahoo Finance":
+            self.configuration_label.setText(
+                "Status: fonte pública principal • sem chave"
+            )
+            self.mode_label.setText("Modo: consulta educacional de dados públicos")
+            self.authentication_label.setText("Autenticação: não exige chave")
         self.feedback.setText(status.message)
         self.guidance.setText(
             status.configuration_guidance
@@ -100,7 +106,7 @@ class MarketIntegrationPanel(SectionCard):
         self._generation += 1
         generation = self._generation
         self.test_button.setEnabled(False)
-        self.feedback.setText("Testando conexão com brapi…")
+        self.feedback.setText(f"Testando conexão com {self.status.provider}…")
 
         def completed(result: Any, error: Exception | None) -> None:
             if generation != self._generation:
