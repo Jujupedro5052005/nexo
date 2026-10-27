@@ -2,8 +2,9 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from PySide6.QtCore import QDateTime, Qt, Signal
+from PySide6.QtCore import QDateTime, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QCompleter,
     QDateTimeEdit,
@@ -21,7 +22,11 @@ from PySide6.QtWidgets import (
 from nexo.application.assets.market_data import GetAssetQuote
 from nexo.application.portfolio.financial_summary import transaction_amounts
 from nexo.application.portfolio.register_transaction import RegisterTransaction
-from nexo.calculations.valuation.trade import preview_trade
+from nexo.calculations.valuation.trade import (
+    preview_trade,
+    quantity_for_total,
+    trade_total,
+)
 from nexo.domain.enums.transaction_type import TransactionType
 from nexo.domain.errors import DomainValidationError, InsufficientPositionError
 from nexo.domain.interfaces.transaction_repository import TransactionRepositoryError
@@ -56,6 +61,13 @@ class TransactionDialog(QDialog):
         self._get_quote = get_quote
         self.runner = TaskRunner(parent if parent is not None else self)
         self._quote_generation = 0
+        self._sizing_by_total = False
+        self._syncing = False
+        self.quote_timer = QTimer(self)
+        self.quote_timer.setSingleShot(True)
+        self.quote_timer.setInterval(500)
+        self.quote_timer.timeout.connect(self.load_reference)
+        self.finished.connect(self.quote_timer.stop)
         self.finished.connect(lambda: self.runner.stop())
         self.setObjectName("transaction_dialog")
         self.setWindowTitle("Boleta de simulação • compra e venda")
@@ -107,28 +119,44 @@ class TransactionDialog(QDialog):
             lambda: self.asset_symbol.setText(self.position_picker.currentData())
         )
         shortcuts.addWidget(self.position_picker)
-        self.quote_button = QPushButton("Usar cotação de referência")
+        self.quote_button = QPushButton("Atualizar cotação")
         self.quote_button.setObjectName("SecondaryButton")
         self.quote_button.setEnabled(get_quote is not None)
-        self.quote_button.clicked.connect(self.load_reference)
+        self.quote_button.clicked.connect(lambda: self.load_reference(refresh=True))
         shortcuts.addWidget(self.quote_button)
         form.addRow("Preenchimento assistido", shortcuts)
         self.quantity = QLineEdit()
         self.unit_price = QLineEdit()
+        self.total_amount = QLineEdit()
+        self.manual_price = QCheckBox("Informar preço manualmente")
+        self.manual_price.setChecked(get_quote is None)
+        self.manual_price.toggled.connect(self.price_mode_changed)
+        self.unit_price.setReadOnly(get_quote is not None)
+        form.addRow("Modo de preço", self.manual_price)
         self.reference_label = QLabel(
-            "Preço manual • nenhuma ordem • enviada a corretoras."
+            "Informe um ativo para consultar a cotação. Nenhuma ordem é enviada a corretoras."
         )
         self.reference_label.setWordWrap(True)
-        self.fees = QLineEdit("0")
+        self.fees = QLineEdit("0", self)
+        self.fees.setObjectName("transaction_fees")
+        self.fees.textChanged.connect(self.update_summary)
         for label, field, name in (
             ("Quantidade", self.quantity, "transaction_quantity"),
             ("Preço unitário", self.unit_price, "transaction_price"),
-            ("Taxas", self.fees, "transaction_fees"),
+            ("Valor total (R$)", self.total_amount, "transaction_total"),
         ):
             field.setObjectName(name)
             field.setPlaceholderText("Ex.: 10,50")
             field.textChanged.connect(self.update_summary)
             form.addRow(label, field)
+        self.fees.hide()
+        form.addRow("Taxas padrão", QLabel("R$ 0,00"))
+        self.total_amount.setToolTip(
+            "Valor bruto desejado. Quantidade simulada com até 8 casas decimais, arredondada para baixo; confira o valor efetivo na prévia."
+        )
+        self.quantity.textChanged.connect(self.quantity_changed)
+        self.total_amount.textChanged.connect(self.total_changed)
+        self.unit_price.textChanged.connect(self.price_changed)
         quantity_shortcuts = QHBoxLayout()
         for label, fraction in (
             ("25% da posição", Decimal("0.25")),
@@ -179,11 +207,70 @@ class TransactionDialog(QDialog):
             self.save_button.setEnabled(False)
 
     def asset_changed(self) -> None:
+        self.quote_timer.stop()
+        self.runner.cancel()
         self._quote_generation += 1
         self.reference_label.setText(
-            "Preço manual • consulte a referência para o novo ativo."
+            "Preço manual • informe o preço para o novo ativo."
+            if self.manual_price.isChecked()
+            else "Aguardando cotação automática do ativo…"
         )
         self.unit_price.clear()
+        self.quote_button.setEnabled(self._get_quote is not None)
+        if (
+            self._get_quote is not None
+            and not self.manual_price.isChecked()
+            and self.asset_symbol.text().strip()
+        ):
+            self.quote_timer.start()
+        self.update_summary()
+
+    def price_mode_changed(self, manual: bool) -> None:
+        self.quote_timer.stop()
+        self.runner.cancel()
+        self._quote_generation += 1
+        self.unit_price.setReadOnly(not manual)
+        self.quote_button.setEnabled(self._get_quote is not None)
+        if manual:
+            self.reference_label.setText(
+                "Preço manual. Confira o valor antes de registrar."
+            )
+        else:
+            self.unit_price.clear()
+            self.load_reference()
+
+    def quantity_changed(self) -> None:
+        if not self._syncing:
+            self._sizing_by_total = False
+            self.sync_amounts()
+
+    def total_changed(self) -> None:
+        if not self._syncing:
+            self._sizing_by_total = True
+            self.sync_amounts()
+
+    def price_changed(self) -> None:
+        self.sync_amounts()
+
+    def sync_amounts(self) -> None:
+        if self._syncing:
+            return
+        self._syncing = True
+        target = self.quantity if self._sizing_by_total else self.total_amount
+        try:
+            price = parse_decimal(self.unit_price.text())
+            source = self.total_amount if self._sizing_by_total else self.quantity
+            value = parse_decimal(source.text())
+            result = (
+                quantity_for_total(value, price)
+                if self._sizing_by_total
+                else trade_total(value, price)
+            )
+            target.setText(decimal_text(result))
+        except (DecimalInputError, ValueError):
+            target.clear()
+        finally:
+            self._syncing = False
         self.update_summary()
 
     def use_position(self, fraction: Decimal) -> None:
@@ -191,9 +278,17 @@ class TransactionDialog(QDialog):
         if position:
             self.quantity.setText(decimal_text(position.quantity * fraction))
 
-    def load_reference(self) -> None:
+    def load_reference(self, *, refresh: bool = False) -> None:
         if self._get_quote is None:
             return
+        if self.manual_price.isChecked():
+            self.manual_price.blockSignals(True)
+            self.manual_price.setChecked(False)
+            self.manual_price.blockSignals(False)
+            self.unit_price.setReadOnly(True)
+            self.unit_price.clear()
+        self.quote_timer.stop()
+        self.runner.cancel()
         try:
             asset = Asset(self.asset_symbol.text())
         except DomainValidationError:
@@ -207,21 +302,31 @@ class TransactionDialog(QDialog):
         case = self._get_quote
 
         def completed(result: Any, error: Exception | None) -> None:
-            self.quote_button.setEnabled(True)
             if generation != self._quote_generation:
                 return
-            if error or not isinstance(result, Quote) or result.currency != "BRL":
+            self.quote_button.setEnabled(True)
+            if (
+                error
+                or not isinstance(result, Quote)
+                or result.currency != "BRL"
+                or result.asset != asset
+            ):
                 self.reference_label.setText(
-                    "Cotação BRL indisponível. Informe o preço manualmente."
+                    "Cotação BRL indisponível. Marque Informar preço manualmente para continuar."
                 )
                 return
-            if self.unit_price.text() == original_price:
+            if (
+                self.unit_price.text() == original_price
+                and not self.manual_price.isChecked()
+            ):
                 self.unit_price.setText(decimal_text(result.price))
             self.reference_label.setText(
-                f"{result.source} • {result.market_time or 'horário de mercado não informado'} • {result.freshness}. Preço editável; não é execução de mercado."
+                f"{result.source} • {result.market_time or 'horário de mercado não informado'} • {result.freshness}. Para editar, use o modo manual."
             )
 
-        self.runner.submit(lambda: case.execute(asset, explicit=True), completed)
+        self.runner.submit(
+            lambda: case.execute(asset, explicit=True, refresh=refresh), completed
+        )
 
     def _transaction(self) -> Transaction:
         if self._portfolio_id is None:

@@ -12,6 +12,12 @@ from nexo.ui.workers import TaskRunner
 
 
 class MarketIntegrationPanel(SectionCard):
+    def cancel(self) -> None:
+        self.runner.cancel()
+        self._generation += 1
+        self.test_button.setEnabled(self._test_connection is not None)
+        self.feedback.setText("Consulta cancelada. Você pode testar a conexão novamente.")
+
     def __init__(
         self,
         status_case: GetMarketIntegrationStatus | None = None,

@@ -20,6 +20,7 @@ from nexo.application.assets.market_integration import (
 )
 from nexo.application.assets.provider_status import GetProviderHealth
 from nexo.application.financial_planning.manage_finances import ManageFinances
+from nexo.application.local_data import ManageLocalData
 from nexo.application.portfolio.account import PortfolioAccount
 from nexo.application.portfolio.compare_portfolios import ComparePortfolios
 from nexo.application.portfolio.create_portfolio import CreatePortfolio
@@ -33,6 +34,7 @@ from nexo.application.portfolio.register_transaction import RegisterTransaction
 from nexo.core.paths import application_data_dir
 from nexo.demo_dataset import DEMO_NOTICE, ensure_demo_dataset
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
+from nexo.infrastructure.database.local_data import SqliteLocalDataStorage
 from nexo.infrastructure.database.repositories.personal_finance import (
     SqlPersonalFinanceRepository,
 )
@@ -50,7 +52,7 @@ from nexo.infrastructure.database.session import (
 from nexo.infrastructure.market_data.composition import ProviderServices
 from nexo.infrastructure.market_data.config import MarketSettings
 from nexo.infrastructure.persistence.report_writer import CsvReportWriter
-from nexo.ui.styles.theme import APP_STYLE
+from nexo.ui.preferences import apply_theme
 from nexo.ui.windows.main_window import MainWindow
 
 
@@ -65,7 +67,10 @@ def create_application() -> QApplication:
     QCoreApplication.setApplicationVersion("0.1.0")
     QCoreApplication.setOrganizationName("Nexo")
     application.setStyle("Fusion")
-    application.setStyleSheet(APP_STYLE)
+    apply_theme()
+    if not application.property("theme_listener_connected"):
+        application.styleHints().colorSchemeChanged.connect(lambda _scheme: apply_theme())
+        application.setProperty("theme_listener_connected", True)
     return application
 
 
@@ -125,6 +130,7 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
             account=PortfolioAccount(transactions, transactions, cached),
             performance=LoadPortfolioPerformance(transactions, transactions, cached),
             market_research=AnalyzeMarketRisk(cached),
+            local_data=ManageLocalData(SqliteLocalDataStorage(engine)),
             export_report=ExportReport(
                 ListTransactions(transactions),
                 load_positions,

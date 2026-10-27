@@ -329,6 +329,13 @@ class AnalysisPage(PageContent):
         if self._workbench is not None:
             self._workbench.market.runner.stop()
 
+    def cancel(self) -> None:
+        self.asset_panel.invalidate()
+        self.comparison_panel.invalidate()
+        self.performance_panel.set_portfolio(self.performance_panel.identity)
+        if self._workbench is not None:
+            self._workbench.market.invalidate()
+
     def wait(self) -> None:
         self.asset_panel.runner.wait()
         self.comparison_panel.runner.wait()

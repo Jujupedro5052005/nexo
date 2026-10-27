@@ -1,5 +1,38 @@
 # Status atual do projeto
 
+## Fechamento de fluxos — 27/10/2026
+
+- Boleta consulta automaticamente a cotação após 500 ms sem digitação do ticker,
+  usando Application/worker e os providers existentes. Preço BRL, fonte e horário
+  são apresentados; indisponibilidade permite selecionar preço manual. Mudança
+  de ativo/modo cancela a consulta e impede respostas atrasadas de alterar a entrada.
+- Quantidade e valor bruto se completam conforme o último campo informado. Entrada
+  por valor usa até oito casas decimais de quantidade, arredondadas para baixo,
+  sem ultrapassar o valor desejado; o ledger conserva o valor efetivo e Decimal.
+  Frações são permitidas na simulação e não representam lotes aceitos por corretoras.
+  Taxas padrão de novas operações: zero; taxas históricas permanecem no ledger.
+- Exportar dados salva cópia SQLite completa usando backup nativo, inclusive em
+  modo WAL. Limpar dados exige confirmação na interface, aguarda/cancela workers,
+  cria backup ao lado do banco e remove registros sob transação de escrita; falha
+  de backup impede remoção e falha SQL reverte todas as tabelas. Não remove arquivo,
+  schema, `.env`, contadores de providers ou cópias anteriores. A UI volta ao estado
+  vazio e pode cadastrar novas carteiras sem reiniciar.
+- Aparência escura/clara/sistema e nome de perfil local usam QSettings; não há
+  autenticação multiusuário. Sair fecha o aplicativo. Período da barra superior
+  abre/aplica o filtro de Movimentações. Sino abre os alertas locais existentes.
+- Integração com agente externo permanece fora deste incremento. Não foram
+  adicionadas ordens reais, edição/exclusão individual do ledger ou conversão FX.
+
+Casos de aceite novos: `tests/ui/test_closing_flows.py`, com bancos temporários,
+preferências isoladas e providers controlados. Validação consolidada e limites
+em [TESTING.md](../04_development/TESTING.md).
+
+Validação: **688 testes aprovados**, zero falhas (283,44 s); Ruff, mypy (128
+arquivos), compileall e diff-check aprovados. Smoke real separado pela boleta
+consultou ITSA4 via Yahoo e gravou a simulação em SQLite temporário em 6,793 s.
+Após o último ajuste da boleta, 31 regressões direcionadas também passaram.
+Sem alteração dos bancos de carteira originais, `.env` ou contadores do usuário.
+
 ## Correção — Atualizar mercado em lote — 21/10/2026
 
 Gargalo identificado: `get_quotes` roteava cada ativo sequencialmente para

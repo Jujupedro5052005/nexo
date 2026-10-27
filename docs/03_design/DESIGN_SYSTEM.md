@@ -1,5 +1,19 @@
 # Design system do Nexo Invest
 
+## Fechamento — 27/10/2026
+
+O tema escuro continua padrão; Configurações oferece claro e sistema com seleção
+persistente e aplicação imediata. A variante clara deriva da paleta central;
+gráficos conservam superfícies escuras e suas cores de dados para legibilidade.
+Não há folhas de estilo duplicadas em páginas.
+
+Boleta possui modo automático de preço e checkbox explícito para entrada manual,
+campos sincronizados de quantidade/preço/valor e taxas padrão de R$ 0,00.
+Fonte/horário/indisponibilidade permanecem visíveis. Dados locais mostram caminho
+copiável, exportação completa e limpeza com confirmação e backup obrigatório.
+As referências históricas abaixo a controles demonstrativos foram substituídas
+pelos fluxos descritos em CURRENT_STATUS.
+
 ## Dashboard — revisão visual de 07/10/2026
 
 - KPIs de mercado precedem os cards locais; valor aberto recebe destaque ciano,

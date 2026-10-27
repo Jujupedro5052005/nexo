@@ -1,5 +1,14 @@
 # Roadmap acadêmico do Nexo Invest
 
+## Fechamento — 27/10/2026
+
+- [x] Cotação automática na boleta, alternativa manual e entrada por quantidade/valor.
+- [x] Taxas padrão zero e proteção contra respostas de cotação de contexto anterior.
+- [x] Exportação completa SQLite e limpeza confirmada com backup e rollback.
+- [x] Aparência escura/clara/sistema, perfil local, saída e filtro superior funcionais.
+- [x] Testes dos botões de planejamento/metas/alertas e dos cinco relatórios CSV.
+- [ ] Integração com agente externo (excluída deste fechamento pelo usuário).
+
 As fases são sequenciais o suficiente para proteger o núcleo, mas podem ter
 atividades de design e teste em paralelo quando não criarem dependências falsas.
 

@@ -6,6 +6,7 @@ from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMainWindow,
     QMenu,
@@ -28,6 +29,7 @@ from nexo.application.assets.market_integration import (
 )
 from nexo.application.assets.provider_status import GetProviderHealth
 from nexo.application.financial_planning.manage_finances import ManageFinances
+from nexo.application.local_data import ManageLocalData
 from nexo.application.portfolio.account import PortfolioAccount
 from nexo.application.portfolio.compare_portfolios import ComparePortfolios
 from nexo.application.portfolio.create_portfolio import CreatePortfolio
@@ -52,7 +54,6 @@ from nexo.ui.components.common import Badge
 from nexo.ui.components.navigation_button import NavigationButton
 from nexo.ui.dialogs.forms import (
     AlertDialog,
-    AssetDialog,
     DemoFormDialog,
     GoalDialog,
     NoticeDialog,
@@ -69,6 +70,7 @@ from nexo.ui.pages.overview_page import OverviewPage
 from nexo.ui.pages.personal_finance import AlertsPage, GoalsPage, PlanningPage
 from nexo.ui.pages.portfolio_assets import AssetsPage, PortfoliosPage
 from nexo.ui.pages.reports_page import ReportsPage
+from nexo.ui.preferences import preferences, profile_name
 from nexo.ui.workers import TaskRunner
 
 PAGE_INFO = (
@@ -125,6 +127,7 @@ class MainWindow(QMainWindow):
         account: PortfolioAccount | None = None,
         performance: LoadPortfolioPerformance | None = None,
         market_research: AnalyzeMarketRisk | None = None,
+        local_data: ManageLocalData | None = None,
     ) -> None:
         super().__init__()
         self._create_portfolio = create_portfolio
@@ -138,6 +141,7 @@ class MainWindow(QMainWindow):
         self._compare_portfolios = compare_portfolios
         self._integration_cases = (integration_status, test_connection)
         self._provider_health = provider_health
+        self._local_data = local_data
         self._finances = finances
         self._export_report = export_report
         self._account, self._performance, self._market_research = (
@@ -204,8 +208,14 @@ class MainWindow(QMainWindow):
         self.assets_page.asset_selected.connect(self.analysis_page.set_asset)
         self.assets_page.integration_requested.connect(lambda: self.show_page(9))
         self.settings_page = SettingsPage(
-            *self._integration_cases, provider_health=self._provider_health
+            *self._integration_cases,
+            provider_health=self._provider_health,
+            local_data=self._local_data,
         )
+        local_panel = self.settings_page.local_data_panel
+        local_panel.prepare_reset = self._prepare_data_reset
+        local_panel.wait_reset = self.wait_for_market
+        local_panel.reset_finished.connect(self._data_reset_finished)
         self.planning_page = PlanningPage(self._finances)
         self.goals_page = GoalsPage(self._finances)
         self.alerts_page = AlertsPage(self._finances)
@@ -251,7 +261,7 @@ class MainWindow(QMainWindow):
             ("Hoje", "7 dias", "Este mês", "3 meses", "6 meses", "1 ano", "Máximo")
         )
         period.setCurrentText("Este mês")
-        period.setEnabled(False)
+        period.currentTextChanged.connect(self._set_history_period)
         period.setToolTip(
             "Use os filtros da página Movimentações para o histórico local."
         )
@@ -273,7 +283,8 @@ class MainWindow(QMainWindow):
         notifications.setToolTip("Notificações")
         notifications.clicked.connect(lambda: self.open_dialog("notifications"))
         layout.addWidget(notifications)
-        profile = QPushButton("US")
+        profile = QPushButton(profile_name()[:2].upper())
+        self.profile_button = profile
         profile.setObjectName("IconButton")
         profile.setToolTip("Abrir perfil")
         profile.clicked.connect(lambda: self._show_profile_menu(profile))
@@ -320,12 +331,14 @@ class MainWindow(QMainWindow):
         new_button.clicked.connect(lambda: self.open_dialog("transaction"))
         layout.addWidget(new_button)
         profile_row = QHBoxLayout()
-        avatar = QLabel("US")
+        avatar = QLabel(profile_name()[:2].upper())
+        self.profile_avatar = avatar
         avatar.setObjectName("BrandMark")
         avatar.setFixedSize(32, 32)
         avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         profile_text = QVBoxLayout()
-        user = QLabel("Usuário")
+        user = QLabel(profile_name())
+        self.profile_label = user
         user.setObjectName("SectionTitle")
         role = QLabel("Perfil")
         role.setObjectName("SidebarLabel")
@@ -338,13 +351,41 @@ class MainWindow(QMainWindow):
         logout = QPushButton("Sair")
         logout.setObjectName("LinkButton")
         logout.setIcon(icon("logout"))
-        logout.setToolTip("Autenticação ainda não implementada")
-        logout.clicked.connect(lambda: self.open_dialog("logout"))
+        logout.setToolTip("Fechar o Nexo Invest")
+        logout.clicked.connect(self.close)
         layout.addWidget(logout, alignment=Qt.AlignmentFlag.AlignLeft)
         return sidebar
 
     def _page_switcher(self, index: int) -> Callable[[bool], None]:
         return lambda _checked: self.show_page(index)
+
+    def _set_history_period(self, period: str) -> None:
+        self.transactions_page.period_filter.setCurrentText(period)
+        self.show_page(3)
+
+    def _prepare_data_reset(self) -> None:
+        root = self.centralWidget()
+        if root is not None:
+            root.setEnabled(False)
+        self.market_runner.cancel()
+        self.assets_page.runner.cancel()
+        self.alerts_page.cancel()
+        self.analysis_page.cancel()
+        self.settings_page.market_panel.cancel()
+        for runner in self._transaction_runners:
+            runner.cancel()
+
+    def _data_reset_finished(self) -> None:
+        root = self.centralWidget()
+        if root is not None:
+            root.setEnabled(True)
+        self.selected_portfolio_id = None
+        self.portfolios_page.reload()
+        self._portfolio_list_refreshed()
+        self.planning_page.reload()
+        self.goals_page.reload()
+        self.alerts_page.reload()
+        self.reports_page.reload()
 
     def show_page(self, index: int) -> None:
         if index == 8:
@@ -406,28 +447,15 @@ class MainWindow(QMainWindow):
             self.active_dialog = dialog
             dialog.open()
             return
+        if kind == "logout":
+            self.close()
+            return
         factories: dict[str, Callable[[], DemoFormDialog | NoticeDialog]] = {
-            "asset": lambda: AssetDialog(self),
             "alert": lambda: AlertDialog(self),
             "goal": lambda: GoalDialog(self),
-            "report": lambda: NoticeDialog(
-                "Relatórios",
-                "A geração de relatórios será conectada em uma próxima etapa.",
-                self,
-            ),
-            "notifications": lambda: NoticeDialog(
-                "Notificações",
-                "As notificações serão conectadas quando alertas reais estiverem disponíveis.",
-                self,
-            ),
-            "logout": lambda: NoticeDialog(
-                "Perfil",
-                "Autenticação e encerramento de sessão não fazem parte deste protótipo.",
-                self,
-            ),
             "notice": lambda: NoticeDialog(
-                "Recurso demonstrativo",
-                "Esta funcionalidade será conectada ao domínio em uma próxima etapa.",
+                "Recurso indisponível",
+                "Este recurso não está conectado nesta configuração da aplicação.",
                 self,
             ),
         }
@@ -595,6 +623,10 @@ class MainWindow(QMainWindow):
         )
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        if self.settings_page.local_data_panel.busy:
+            event.ignore()
+            self.statusBar().showMessage("Aguarde a operação de dados locais terminar.")
+            return
         for runner in self._transaction_runners:
             runner.stop()
         self.market_runner.stop()
@@ -619,6 +651,17 @@ class MainWindow(QMainWindow):
 
     def _show_profile_menu(self, anchor: QPushButton) -> None:
         menu = QMenu(self)
-        menu.addAction("Perfil")
+        menu.addAction("Perfil", self._edit_profile)
         menu.addAction("Preferências", lambda: self.show_page(9))
         menu.popup(anchor.mapToGlobal(anchor.rect().bottomLeft()))
+
+    def _edit_profile(self) -> None:
+        name, accepted = QInputDialog.getText(
+            self, "Perfil local", "Nome de exibição", text=profile_name()
+        )
+        if accepted and name.strip():
+            name = name.strip()[:80]
+            preferences().setValue("profile/name", name)
+            self.profile_label.setText(name)
+            self.profile_button.setText(name[:2].upper())
+            self.profile_avatar.setText(name[:2].upper())

@@ -430,3 +430,10 @@ class AlertsPage(FinancePage):
             self.reload()
 
         self.runner.submit(self.case.check_alerts, completed)
+
+    def cancel(self) -> None:
+        self.runner.cancel()
+        self.check_button.setEnabled(self.case is not None)
+        self.feedback.setText(
+            "Consulta cancelada. Verifique as cotações novamente quando desejar."
+        )

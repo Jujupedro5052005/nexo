@@ -1,5 +1,35 @@
 # Estratégia de testes
 
+## Fechamento — 27/10/2026
+
+Suíte completa: **688 aprovados**, zero falhas, em **283,44 s**. Ruff check .,
+mypy src/nexo (128 arquivos), compileall src/tests e git diff --check aprovados.
+São 673 casos anteriores e 15 novos, sem remoção de testes. A primeira execução
+identificou vazamento de estilo global no teste de preferências; o teste agora
+restaura o estilo anterior e remove a fonte temporária usada nas capturas.
+Após o ajuste final de atualização forçada da cotação e do campo interno de taxas,
+**31 regressões de fechamento/fluxo financeiro aprovadas** (188,71 s).
+
+`tests/ui/test_closing_flows.py` cobre consulta automática, preço manual, entrada
+por valor/quantidade, arredondamento sem exceder orçamento, compra/venda, rejeição
+de excesso, reabertura SQLite, indisponibilidade/moeda/ticker incorreto e consulta
+atrasada. Também cobre exportação completa, cancelamento/confirmação de limpeza,
+backup obrigatório, rollback SQL, atualização das telas e novo cadastro após limpar;
+perfil/temas/filtros/sino/saída, cadastros complementares e cinco botões de CSV.
+SQLite e preferências dos testes são isolados; rede real é proibida na suíte.
+
+Execução no Windows: `$env:QT_QPA_PLATFORM = 'offscreen'` seguido de
+`.venv/Scripts/python -m pytest -q`. Capturas de revisão usam Segoe UI carregada
+explicitamente em offscreen e bancos temporários, sem cotações fictícias no produto.
+Temas, exportação e limpeza não validam acesso autenticado a providers pagos.
+
+Smoke separado em 27/10: boleta real → Yahoo ITSA4 → preenchimento por R$ 1.000 →
+gravação/releitura em SQLite temporário. Cotação R$ 13,39, referência de mercado
+26/10/2026 20:05:30 UTC, quantidade 74,68259895 e bruto R$ 999,9999999405; taxas
+zero. Fluxo observado em 6,793 s, sem promessa de SLA ou atualização em tempo real.
+Sem tokens pagos, `.env` ou bancos/contadores originais; saída/captura ignoradas
+em `tmp/closing_review/`. Sucesso pontual não certifica disponibilidade contínua.
+
 ## Dashboard visual — 07/10/2026
 
 Suíte completa: **574 aprovados**, zero falhas, em 297,73 s; 566 casos anteriores

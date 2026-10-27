@@ -1,5 +1,21 @@
 # Arquitetura de software do Nexo Invest
 
+## Fechamento de fluxos — 27/10/2026
+
+`ManageLocalData` coordena o protocolo `LocalDataStorage`; a implementação
+`SqliteLocalDataStorage` executa backup SQLite e remoção transacional de registros
+das tabelas implementadas. `main.py` injeta esse caso de uso em `MainWindow`.
+`LocalDataPanel` recolhe destino/confirmação e executa manutenção fora da GUI;
+antes de limpar, a janela cancela consultas, desabilita novas ações e espera os
+workers. `BEGIN IMMEDIATE` protege o intervalo backup/limpeza de outros escritores;
+falhas preservam o banco por rollback. A cópia usa outra conexão de leitura antes
+de qualquer DELETE; não há cópia bruta de arquivo SQLite ativo.
+
+Boleta conserva `GetAssetQuote`/`RegisterTransaction`. `trade_total` e
+`quantity_for_total`, em Calculations, sincronizam quantidade/valor sem regras
+financeiras nos widgets. QSettings armazena somente preferências da apresentação
+(tema e nome local), separadas do ledger e da configuração de providers.
+
 ## Composição atual — 06
 
 Em 21/10/2026, Yahoo passa a ser principal e as telas complementares passam a
