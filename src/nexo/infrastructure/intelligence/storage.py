@@ -31,6 +31,8 @@ class SqliteIntelligenceStorage:
                     reserved INTEGER NOT NULL, actual INTEGER, state TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS analysis_cache (
                     identity TEXT PRIMARY KEY, created REAL NOT NULL, body TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS conversation_context (
+                    identity TEXT PRIMARY KEY, body TEXT NOT NULL);
             """)
         cutoff = datetime.now(timezone.utc) - timedelta(days=29)
         for document in self.documents():
@@ -68,6 +70,20 @@ class SqliteIntelligenceStorage:
                 )
             )
 
+    def get_state(self, key: str) -> dict[str, Any]:
+        with self.connection() as db:
+            row = db.execute(
+                "SELECT body FROM conversation_context WHERE identity=?", (key,)
+            ).fetchone()
+        return json.loads(row[0]) if row else {}
+
+    def set_state(self, key: str, value: dict[str, Any]) -> None:
+        with self.connection() as db:
+            db.execute(
+                "INSERT OR REPLACE INTO conversation_context VALUES(?,?)",
+                (key, json.dumps(value, ensure_ascii=False)),
+            )
+
     def save_turn(self, conversation_id: str, question: str, answer: str) -> None:
         now = datetime.now(timezone.utc).isoformat()
         with self.connection() as db:
@@ -83,6 +99,7 @@ class SqliteIntelligenceStorage:
         with self.connection() as db:
             db.execute("DELETE FROM messages")
             db.execute("DELETE FROM analysis_cache")
+            db.execute("DELETE FROM conversation_context")
 
     def methodologies(self) -> tuple[Methodology, ...]:
         with self.connection() as db:

@@ -204,3 +204,12 @@ inicial para quem só acompanha posições. Números novos recebem fórmula/inte
 na tabela e tooltip. Ajuda dos cards usa botão focável e acionável por teclado;
 novas entradas recebem nomes acessíveis. Revisão visual offscreen em 100%, 125%
 e 150%; isto não substitui validação com leitor de tela e monitores físicos.
+
+## NEXO Intelligence — Missão 2
+
+Preservar superfícies azul escuro, ciano, tipografia e componentes existentes.
+Referências externas orientam hierarquia sem importar suas paletas. Copiloto
+é a aba inicial; contexto recolhível. Enter envia; Shift+Enter cria linha.
+Relatório separa indicadores/cenários/histórico/fontes. Biblioteca mostra textos
+e fichas humanas; JSON fica no inspetor técnico. Rolagem acomoda 1180×720 e
+1440×900, com capturas/teste Qt. Não houve avaliação exaustiva de DPI/monitores.

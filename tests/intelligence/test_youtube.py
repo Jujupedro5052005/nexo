@@ -73,7 +73,7 @@ def test_wrong_similar_channel_is_rejected(storage):
     assert storage.documents() == []
     with pytest.raises(IntelligenceError, match="ID UC"):
         c.catalog("@geracaodividendoss", "unknown")
-    with pytest.raises(IntelligenceError, match="1 a 10"):
+    with pytest.raises(IntelligenceError, match="1 a 30"):
         c.catalog("@geracaodividendoss", CHANNEL, limit=100)
 
 

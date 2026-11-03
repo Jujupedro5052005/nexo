@@ -1,3 +1,5 @@
+> Registro histórico da Missão 1. Entrega atual: [Missão 2](MISSION_2_REPORT.md).
+
 # Relatório de implementação — 03/11/2026
 
 Incremento real em `feature/nexo-intelligence`, com referência no commit

@@ -78,9 +78,27 @@ Apenas a chave é necessária para conversar, consultar ferramentas e usar a
 biblioteca textual local. A chave YouTube é separada e só necessária ao catálogo.
 
 Diagnóstico: 401/403 indicam chave/permissão/modelo; 429 aplica uma retentativa
-com backoff curto e depois interrompe. Falha de síntese não salva turno parcial.
-Ausência de premissas gera resultado financeiro indisponível, preservando os
-dados consultados. Verifique o modelo no AI Studio se seu projeto não tiver
+com backoff curto e depois interrompe. Na investigação, falha de síntese preserva o relatório determinístico em
+`local-fallback`, com aviso. Sem estimativas permitidas, o valuation fica
+indisponível e os dados consultados são preservados. Verifique o modelo no AI Studio se seu projeto não tiver
 acesso ao default. Não há fallback silencioso para um modelo mais caro.
 Configuração inválida de limites/store desativa somente a IA com mensagem
 segura; o restante do Nexo continua disponível.
+
+## Uso da Missão 2
+
+No Copiloto, abra Contexto e selecione a carteira. Pergunte "Analise toda a minha
+carteira e identifique as melhores oportunidades nas condições atuais".
+A intenção aciona investigação; também há opção explícita no contexto.
+Permitir estimativas produz cenários ilustrativos; desligue para análise só de
+dados observados. A autorização de envio é necessária ao Gemini, inclusive à
+proposta de hipóteses. Para trabalhar sem envio ao Gemini, configure
+`NEXO_AI_PROVIDER=mock` e reinicie; esse modo produz o relatório local.
+
+Consulte Relatório financeiro para cenários, fontes, datas, histórico e exposição.
+Enter envia; Shift+Enter quebra linha. Exportar análise salva Markdown humano;
+detalhes técnicos e diagnóstico JSON ficam sob ação explícita. Follow-ups como
+"Refaça com margem de segurança de 25%" mantêm o contexto selecionado.
+File Search é administrado pela CLI: [KNOWLEDGE_PIPELINE](KNOWLEDGE_PIPELINE.md).
+Os 15 documentos locais dispensam File Search. O wheel inclui a biblioteca;
+no checkout sua fonte é `docs/ai/knowledge`.

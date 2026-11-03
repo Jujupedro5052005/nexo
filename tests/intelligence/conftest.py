@@ -47,4 +47,4 @@ def workspace(storage, portfolio_repository):
         SimpleNamespace(get_dividends=lambda asset, start, end: summary),
         storage,
     )
-    return create_workspace(AISettings(provider="mock"), storage, tools)
+    return create_workspace(AISettings(provider="mock"), storage, tools, include_library=False)

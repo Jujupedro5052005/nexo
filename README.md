@@ -4,12 +4,15 @@
 disciplina de Programação Orientada a Objetos.
 
 Aplicação desktop educacional e de simulação. Não executa ordens reais,
-não mantém custódia e não oferece recomendação personalizada.
+não mantém custódia. Pareceres condicionais são educacionais e não substituem
+avaliação de adequação individual ou execução pelo usuário.
 
 ## Status
 
-**NEXO Intelligence — 03/11/2026:** nova página com chat offline, cliente Gemini,
-ferramentas de carteira/mercado, valuation Decimal e biblioteca com curadoria.
+**NEXO Intelligence — Missão 2, 03/11/2026:** chat prioritário, relatórios
+visuais, investigação de carteira, cenários identificados e pareceres condicionais.
+Biblioteca com 15 documentos originais e matemática Decimal local auditável.
+Identidade escura/ciano preservada.
 Para habilitar, inclua somente `GEMINI_API_KEY=SUA_CHAVE_LOCAL` no `.env` existente
 e reinicie. Preserve suas configurações de mercado. Sem chave, usa modo offline.
 Abra NEXO Intelligence → Configuração para testar a conexão e autorize o envio
@@ -23,7 +26,7 @@ do contexto antes de analisar. Nenhuma chave está no repositório.
 [Configuração Windows/Linux](docs/ai/GEMINI_SETUP.md) ·
 [Premissas e exemplos](docs/ai/METHODOLOGIES.md) ·
 [Biblioteca e YouTube](docs/ai/KNOWLEDGE_PIPELINE.md) ·
-[Relatório e limites](docs/ai/IMPLEMENTATION_REPORT.md).
+[Relatório da Missão 2 e limites](docs/ai/MISSION_2_REPORT.md).
 
 Gemini/File Search/YouTube foram verificados por mocks e contratos do SDK;
 aceite autenticado real permanece pendente de configuração local e autorização

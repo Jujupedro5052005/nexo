@@ -1,11 +1,11 @@
 import json
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices, QResizeEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
+    QSplitter,
     QTabWidget,
     QTextBrowser,
     QVBoxLayout,
@@ -32,7 +34,14 @@ from nexo.domain.models.intelligence import (
     IntelligenceError,
 )
 from nexo.ui.components.charts import line_chart
+from nexo.ui.components.chat_composer import ChatComposer
 from nexo.ui.components.common import PageContent, SectionCard
+from nexo.ui.components.intelligence_cards import (
+    EvidenceInspector,
+    FinancialReportView,
+    MethodologyCard,
+    structured_text,
+)
 from nexo.ui.components.metric_card import MetricCard
 from nexo.ui.components.research_workbench import signed_number
 from nexo.ui.components.safe_markdown import SafeMarkdownBrowser
@@ -41,6 +50,8 @@ from nexo.ui.workers import TaskRunner
 
 
 class IntelligencePage(PageContent):
+    progress_changed = Signal(str)
+
     def __init__(self, workspace: IntelligenceWorkspace | None = None) -> None:
         super().__init__("intelligence")
         self.workspace = workspace
@@ -58,6 +69,10 @@ class IntelligencePage(PageContent):
         self._build_settings()
         self.page_layout.addStretch()
         self.reload()
+        self._modernize()
+        self.progress_changed.connect(self._show_progress)
+        if self.workspace:
+            self.workspace.orchestrator.progress = self.progress_changed.emit
 
     def _build_chat(self) -> None:
         tab = QWidget()
@@ -166,7 +181,8 @@ class IntelligencePage(PageContent):
         self.chat.setOpenLinks(False)
         self.chat.anchorClicked.connect(self._open_source)
         layout.addWidget(self.chat)
-        self.question = QPlainTextEdit()
+        self.question = ChatComposer()
+        self.question.submitted.connect(self.ask)
         self.question.setPlaceholderText(
             "Ex.: quais dados faltam para avaliar ITUB4 pelo yield alvo?"
         )
@@ -198,6 +214,233 @@ class IntelligencePage(PageContent):
         self.results.content.addWidget(self.evidence)
         layout.addWidget(self.results)
         self.tabs.addTab(tab, "Conversa e cenários")
+
+    def _modernize(self) -> None:
+        context_tab = self.tabs.widget(0)
+        assert context_tab is not None
+        self.tabs.removeTab(0)
+        chat_tab = QWidget()
+        root = QVBoxLayout(chat_tab)
+        root.setContentsMargins(0, 6, 0, 0)
+        toolbar = QHBoxLayout()
+        toolbar.addWidget(self.conversations, 1)
+        new = QPushButton("Nova conversa")
+        new.clicked.connect(self._new_conversation)
+        toolbar.addWidget(new)
+        toggle = QPushButton("Contexto e preferências")
+        self.context_toggle = toggle
+        toggle.setCheckable(True)
+        toolbar.addWidget(toggle)
+        details = QPushButton("Ver detalhes técnicos")
+        details.clicked.connect(self._inspect)
+        toolbar.addWidget(details)
+        root.addLayout(toolbar)
+        self.chat_splitter = QSplitter(Qt.Orientation.Horizontal)
+        body = QWidget()
+        layout = QVBoxLayout(body)
+        layout.setContentsMargins(0, 0, 0, 0)
+        suggestions = QHBoxLayout()
+        for label, question, deep in (
+            (
+                "Analisar carteira",
+                "Analise toda a minha carteira e identifique as melhores oportunidades nas condições atuais.",
+                True,
+            ),
+            (
+                "Investigar ativo",
+                "Analise este ativo, com valuation, qualidade, riscos e cenários.",
+                True,
+            ),
+            ("Explicar metodologia", "Explique uma metodologia de valuation.", False),
+        ):
+            button = QPushButton(label)
+            button.clicked.connect(
+                lambda _checked=False, q=question, d=deep: self._suggest(q, d)
+            )
+            suggestions.addWidget(button)
+        layout.addLayout(suggestions)
+        self.chat.setMinimumHeight(360)
+        layout.addWidget(self.chat, 1)
+        self.question.setPlaceholderText(
+            "Pergunte ao Nexo… Enter envia · Shift+Enter cria uma linha"
+        )
+        self.question.setMaximumHeight(110)
+        layout.addWidget(self.question)
+        actions = QHBoxLayout()
+        for button in (self.send, self.cancel_button, self.export_button):
+            actions.addWidget(button)
+        layout.addLayout(actions)
+        layout.addWidget(self.feedback)
+        self.chat_splitter.addWidget(body)
+        self.context_drawer = QScrollArea()
+        self.context_drawer.setWidgetResizable(True)
+        self.context_drawer.setWidget(context_tab)
+        self.context_drawer.setMinimumWidth(280)
+        self.context_drawer.setMaximumWidth(420)
+        self.context_drawer.hide()
+        toggle.toggled.connect(self.context_drawer.setVisible)
+        self.chat_splitter.addWidget(self.context_drawer)
+        self.chat_splitter.setStretchFactor(0, 1)
+        root.addWidget(self.chat_splitter, 1)
+        self.tabs.insertTab(0, chat_tab, "Copiloto")
+        self.tabs.setCurrentIndex(0)
+        self.deep_mode = QCheckBox("Análise aprofundada de todos os ativos")
+        self.estimate_consent = QCheckBox(
+            "Usar cenários estimados, identificados e revisáveis"
+        )
+        self.estimate_consent.setChecked(True)
+        context_layout = cast(QVBoxLayout, context_tab.layout())
+        context_layout.insertWidget(0, self.estimate_consent)
+        context_layout.insertWidget(0, self.deep_mode)
+        report_tab = QWidget()
+        report_layout = QVBoxLayout(report_tab)
+        self.report_view = FinancialReportView()
+        self.report_view.show_report({})
+        report_layout.addWidget(self.report_view)
+        report_layout.addWidget(self.results)
+        self.evidence.hide()
+        self.tabs.insertTab(1, report_tab, "Relatório financeiro")
+        self.method_preview.hide()
+        self.method_card_host = QWidget()
+        self.method_card_layout = QVBoxLayout(self.method_card_host)
+        library_tab = self.tabs.widget(2)
+        assert library_tab is not None
+        cast(QVBoxLayout, library_tab.layout()).insertWidget(3, self.method_card_host)
+        self.source_preview = SafeMarkdownBrowser()
+        self.source_preview.setMinimumHeight(300)
+        self.source_preview.setOpenLinks(False)
+        self.source_preview.anchorClicked.connect(self._open_source)
+        cast(QVBoxLayout, library_tab.layout()).addWidget(self.source_preview)
+        self.sources.currentIndexChanged.connect(self._preview_source)
+        self.source_search = QLineEdit()
+        self.source_search.setPlaceholderText(
+            "Pesquisar documentos e fontes por título…"
+        )
+        self.source_search.textChanged.connect(self._filter_sources)
+        cast(QVBoxLayout, library_tab.layout()).insertWidget(1, self.source_search)
+        self.settings_text.hide()
+        self.status_summary = QLabel()
+        self.status_summary.setWordWrap(True)
+        self.status_summary.setObjectName("SectionTitle")
+        settings_tab = self.tabs.widget(3)
+        assert settings_tab is not None
+        cast(QVBoxLayout, settings_tab.layout()).insertWidget(1, self.status_summary)
+        self._refresh_visuals()
+        self.portfolio.currentIndexChanged.connect(self._context_changed)
+        self.symbol.textChanged.connect(self._context_changed)
+        for index in (1, 2, 3):
+            content = self.tabs.widget(index)
+            assert content is not None
+            content.setObjectName("PageContent")
+            title = self.tabs.tabText(index)
+            self.tabs.removeTab(index)
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.viewport().setObjectName("PageContent")
+            scroll.setWidget(content)
+            self.tabs.insertTab(index, scroll, title)
+        self.tabs.setCurrentIndex(0)
+
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        super().resizeEvent(event)
+        if hasattr(self, "chat_splitter"):
+            self.tabs.setFixedHeight(max(460, self.viewport().height() - 58))
+
+    def _filter_sources(self, text: str) -> None:
+        if not self.workspace:
+            return
+        self.sources.clear()
+        for doc in self.workspace.documents():
+            if text.casefold() in doc.get("title", "").casefold():
+                self.sources.addItem(doc.get("title", doc["id"]), doc["id"])
+        self._preview_source()
+
+    def _preview_source(self) -> None:
+        if not self.workspace or not hasattr(self, "source_preview"):
+            return
+        doc = next(
+            (
+                d
+                for d in self.workspace.documents()
+                if d["id"] == self.sources.currentData()
+            ),
+            None,
+        )
+        if doc:
+            text = (
+                doc.get("text")
+                or f"### {doc.get('title', '')}\n\nReferência audiovisual · {doc.get('uri', '')}\n\nAutorização: {'registrada' if doc.get('authorized') else 'não concedida'} · estado {doc.get('status')}\n\nData: {doc.get('published_at') or 'não confirmada'} · duração: {doc.get('duration') or 'não confirmada'}.\n\nMetodologias: somente hipóteses de tema, sem extração confirmada."
+            )
+            self.source_preview.setMarkdown(text)
+        else:
+            self.source_preview.clear()
+
+    def _suggest(self, question: str, deep: bool) -> None:
+        self.question.setPlainText(question)
+        self.deep_mode.setChecked(deep)
+        if deep and not self.portfolio.currentData() and not self.symbol.text().strip():
+            self.context_drawer.show()
+            self.feedback.setText(
+                "Selecione a carteira ou o ativo no painel de contexto e envie a pergunta."
+            )
+        self.question.setFocus()
+
+    def _show_progress(self, text: str) -> None:
+        if self._busy:
+            self.feedback.setText(text)
+
+    def _context_changed(self) -> None:
+        if self._busy:
+            self.cancel()
+        self._clear_results()
+        if hasattr(self, "context_toggle"):
+            name = self.portfolio.currentText()
+            self.context_toggle.setText(
+                "Contexto · "
+                + (
+                    name.split(" · ")[0]
+                    if self.portfolio.currentData()
+                    else (self.symbol.text() or "sem carteira")
+                )
+            )
+
+    def _inspect(self) -> None:
+        payload = (
+            self._response.model_dump(mode="json")
+            if self._response
+            else (self.workspace.status() if self.workspace else {})
+        )
+        dialog = EvidenceInspector(structured_text(payload), self)
+        if self.workspace and self._response:
+            export = QPushButton("Exportar diagnóstico estruturado")
+
+            def save_diagnostics() -> None:
+                name, _ = QFileDialog.getSaveFileName(
+                    dialog,
+                    "Exportar diagnóstico",
+                    "nexo-diagnostic.json",
+                    "JSON (*.json)",
+                )
+                if name and self.workspace and self._response:
+                    try:
+                        self.workspace.export_diagnostics(Path(name), self._response)
+                    except OSError:
+                        self.feedback.setText("Não foi possível salvar o diagnóstico.")
+
+            export.clicked.connect(save_diagnostics)
+            cast(QVBoxLayout, dialog.layout()).insertWidget(1, export)
+        dialog.exec()
+
+    def _refresh_visuals(self) -> None:
+        if not self.workspace or not hasattr(self, "status_summary"):
+            return
+        status = self.workspace.status()
+        usage = status["usage"]
+        self.status_summary.setText(
+            f"{status['mode']} · {status['model']}\nChave: {'configurada' if status['key_configured'] else 'não configurada'}\nRequisições: {usage['requests']} / {status['daily_request_limit']} · tokens contabilizados: {usage['tokens_accounted']} / {status['daily_token_limit']}\nBiblioteca: {len(self.workspace.documents())} documentos · {status['file_search']}\nPrivacidade: contexto enviado somente com a permissão marcada no painel."
+        )
+        self._preview_method()
+        self._preview_source()
 
     def _update_premises(self) -> None:
         selected = self.method.currentData()
@@ -352,11 +595,7 @@ class IntelligencePage(PageContent):
         self.conversations.blockSignals(True)
         self.conversations.clear()
         self.conversations.addItems(
-            list(
-                dict.fromkeys(
-                    (self._conversation, *self.workspace.conversations())
-                )
-            )
+            list(dict.fromkeys((self._conversation, *self.workspace.conversations())))
         )
         self.conversations.setCurrentText(self._conversation)
         self.conversations.blockSignals(False)
@@ -377,6 +616,7 @@ class IntelligencePage(PageContent):
         self.settings_text.setPlainText(
             json.dumps(self.workspace.status(), ensure_ascii=False, indent=2)
         )
+        self._refresh_visuals()
         mode = self.workspace.status()["mode"]
         enabled = self.workspace.status()["enabled"]
         self.send.setEnabled(enabled and not self._busy)
@@ -415,9 +655,7 @@ class IntelligencePage(PageContent):
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
         self.send.setEnabled(
-            not busy
-            and self.workspace is not None
-            and self.workspace.enabled
+            not busy and self.workspace is not None and self.workspace.enabled
         )
         self.cancel_button.setEnabled(busy)
         self.send.setText("Processando…" if busy else "Analisar")
@@ -436,6 +674,12 @@ class IntelligencePage(PageContent):
                 asset_type=self.asset_type.currentData(),
                 assumptions=assumptions,
                 allow_cloud=self.cloud_consent.isChecked(),
+                analysis_mode="deep"
+                if hasattr(self, "deep_mode") and self.deep_mode.isChecked()
+                else "chat",
+                allow_estimates=self.estimate_consent.isChecked()
+                if hasattr(self, "estimate_consent")
+                else True,
             )
         except (ValueError, TypeError):
             self.feedback.setText(
@@ -458,10 +702,18 @@ class IntelligencePage(PageContent):
                     if isinstance(error, IntelligenceError)
                     else "Não foi possível concluir a análise. Revise a configuração e tente novamente."
                 )
+                if (
+                    hasattr(self, "context_drawer")
+                    and isinstance(error, IntelligenceError)
+                    and "Autorize" in str(error)
+                ):
+                    self.context_drawer.show()
                 return
             self._response = result
             self._load_history()
             self._show_result(result)
+            if hasattr(self, "report_view"):
+                self.report_view.show_report(result.report)
             self.feedback.setText(
                 f"Concluído · {result.mode} · {result.created_at.isoformat()}"
             )
@@ -474,6 +726,8 @@ class IntelligencePage(PageContent):
         self._response = None
         self.export_button.setEnabled(False)
         self.evidence.clear()
+        if hasattr(self, "report_view"):
+            self.report_view.show_report({})
         while self.metrics.count():
             item = self.metrics.takeAt(0)
             widget = item.widget() if item else None
@@ -614,6 +868,14 @@ class IntelligencePage(PageContent):
             if method
             else ""
         )
+        if hasattr(self, "method_card_layout"):
+            while self.method_card_layout.count():
+                item = self.method_card_layout.takeAt(0)
+                widget = item.widget() if item else None
+                if widget:
+                    widget.deleteLater()
+            if method:
+                self.method_card_layout.addWidget(MethodologyCard(method))
 
     def _review(self, approve: bool) -> None:
         if not self.workspace or self._busy or not self.methods.currentData():
@@ -654,9 +916,7 @@ class IntelligencePage(PageContent):
 
     def _test_connection(self) -> None:
         if self.workspace and not self._busy:
-            self._run_operation(
-                self.workspace.test_connection, "Teste concluído"
-            )
+            self._run_operation(self.workspace.test_connection, "Teste concluído")
 
     def _run_operation(self, operation: Any, success: str) -> None:
         self._generation += 1

@@ -1,5 +1,8 @@
 # Validação de NEXO Intelligence
 
+Entrega atual: [MISSION_2_REPORT](MISSION_2_REPORT.md). Os registros da Missão 1
+abaixo permanecem como histórico.
+
 Na raiz do projeto, Windows:
 
 ```powershell
@@ -53,3 +56,22 @@ Resultados finais e diferenças entre mocks e integrações externas:
 Registro de 03/11/2026: suíte completa 764 aprovados/2 ignorados (376,84 s);
 regressão final após ajustes de UI/precisão: 77 testes de IA aprovados/2 ignorados
 (5,75 s). Verificações Ruff, mypy (146 arquivos), compileall e diff-check verdes.
+
+## Missão 2 — 03/11/2026
+
+Baseline: 765 aprovados/2 ignorados (397,47 s). Suítes completas após mudanças:
+794/2 (427,58 s) e 799/2 (405,99 s). Após os últimos ajustes de apresentação e
+troca de ativo, regressão final de IA: 111 aprovados/2 ignorados (16,13 s).
+Ruff, mypy (153 arquivos), compileall, diff-check e build/inspeção do wheel
+aprovados. Nenhuma inferência/indexação real executada.
+
+Novos casos cobrem perguntas naturais por ticker, follow-ups, cenários tipados,
+matemática bancária, retornos alinhados, limites, dados ausentes, fallback local,
+preservação de transações, DEMO, biblioteca no checkout/wheel e contratos de
+stores. A UI é capturada na janela principal em 1440×900 e 1180×720, com dados
+sintéticos. `NEXO_REVIEW_DIR` define o diretório das capturas nos testes visuais.
+
+Uma execução intermediária teve violação de acesso nativa do Qt. Foram reforçadas
+as referências/propriedade dos gráficos e a sobrecarga de QAreaSeries. Um teste
+de 45 substituições força coleta de lixo/descarte. Duas suítes completas passaram
+depois do ajuste; não é garantia para todos os ambientes/drivers.

@@ -134,3 +134,9 @@ As fases abaixo preservam o registro dos incrementos anteriores.
 ## Incremento 07 — 21/10/2026
 
 Implementados caixa/eventos, proteção de escrita concorrente, patrimônio/TWR diário aproximado e ferramentas quantitativas/educacionais dos PDFs. Próximos pontos: correção auditável do ledger, FX e eventos corporativos adicionais, HTTP cancelável nos outros adaptadores, acessibilidade assistiva e empacotamento. Plano autenticado e confirmações acadêmicas permanecem dependentes de evidência externa.
+
+## NEXO Intelligence — Missão 2 — 03/11/2026
+
+Copiloto, relatórios, cenários assistidos, 15 capítulos, retorno excedente bancário
+e sincronização entregues. Aceite real Gemini/File Search e catálogo ampliado
+dependem de credenciais/orçamento. [Relatório](../ai/MISSION_2_REPORT.md).

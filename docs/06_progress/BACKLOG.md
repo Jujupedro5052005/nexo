@@ -1,5 +1,17 @@
 # Backlog priorizado
 
+## NEXO Intelligence — Missão 2
+
+- [x] Chat, contexto recolhível, relatório visual e diagnóstico separado.
+- [x] Investigação, cenários, revisão conversacional e pareceres condicionais.
+- [x] Quinze capítulos originais, hash/versões e inclusão no wheel.
+- [x] Stores/sincronização por CLI; dois vídeos com oEmbed, sem processamento.
+- [ ] Catálogo 20–30: chave Data API e ID UC confirmado pendentes.
+- [ ] Aceite autenticado Gemini/File Search e custo autorizado.
+- [ ] Revisão especializada independente e cobertura setorial ampliada.
+
+Evidências: [MISSION_2_REPORT](../ai/MISSION_2_REPORT.md).
+
 ## NEXO Intelligence — aceite externo
 
 - [x] Implementação integrada, cálculos, ferramentas, histórico, biblioteca e mocks.

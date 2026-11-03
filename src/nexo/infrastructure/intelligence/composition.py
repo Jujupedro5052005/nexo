@@ -12,6 +12,7 @@ from nexo.infrastructure.intelligence.config import AISettings
 from nexo.infrastructure.intelligence.knowledge import (
     GeminiFileSearchRetriever,
     LocalKnowledgeRetriever,
+    load_canonical_library,
 )
 from nexo.infrastructure.intelligence.providers import (
     GeminiIntelligenceProvider,
@@ -21,7 +22,12 @@ from nexo.infrastructure.intelligence.storage import SqliteIntelligenceStorage
 
 
 def create_workspace(
-    settings: AISettings, storage: SqliteIntelligenceStorage, tools: FinancialTools
+    settings: AISettings,
+    storage: SqliteIntelligenceStorage,
+    tools: FinancialTools,
+    *,
+    include_library: bool = True,
+    data_mode: str = "normal",
 ) -> IntelligenceWorkspace:
     existing = {(m.methodology_id, m.version) for m in storage.methodologies()}
     for method in builtin_methodologies():
@@ -30,6 +36,8 @@ def create_workspace(
     provider: IntelligenceProvider
     retriever: KnowledgeRetriever
     local = LocalKnowledgeRetriever(storage)
+    if include_library:
+        load_canonical_library(storage)
     if settings.cloud:
         gemini = GeminiIntelligenceProvider(settings, storage)
         provider = gemini
@@ -50,6 +58,7 @@ def create_workspace(
         enabled=settings.enabled,
         max_tool_calls=settings.max_tool_calls,
         max_context_bytes=settings.max_input_tokens,
+        data_mode=data_mode,
     )
 
     def status() -> dict[str, Any]:
@@ -68,6 +77,7 @@ def create_workspace(
             upper_cost = None
         return {
             "enabled": settings.enabled,
+            "data_mode": data_mode,
             "configuration_error": settings.configuration_error,
             "mode": "Gemini" if settings.cloud else "Offline",
             "model": settings.model,

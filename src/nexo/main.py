@@ -134,6 +134,7 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
                 ai_storage,
                 transactions=ListTransactions(transactions),
             ),
+            data_mode="demo" if demo else "normal",
         )
         window = MainWindow(
             CreatePortfolio(repository),

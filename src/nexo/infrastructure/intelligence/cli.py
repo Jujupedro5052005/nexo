@@ -12,6 +12,7 @@ from nexo.infrastructure.intelligence.config import AISettings
 from nexo.infrastructure.intelligence.knowledge import (
     GeminiFileSearchRetriever,
     LocalKnowledgeRetriever,
+    load_canonical_library,
 )
 from nexo.infrastructure.intelligence.providers import (
     GeminiIntelligenceProvider,
@@ -28,10 +29,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--database", type=Path, help="Banco da IA (nunca o banco de carteiras)"
     )
+    parser.add_argument(
+        "--store", help="Store escolhido para esta operação; não altera .env"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status")
     sub.add_parser("test-connection")
     sub.add_parser("list")
+    sub.add_parser("list-stores")
+    cmd = sub.add_parser("create-store")
+    cmd.add_argument("name")
+    cmd = sub.add_parser("sync-library")
+    cmd.add_argument("--limit", type=int, default=3)
+    cmd.add_argument("--allow-paid-indexing", action="store_true")
+    sub.add_parser("load-library")
     for name in ("import-document", "import-methodology"):
         cmd = sub.add_parser(name)
         cmd.add_argument("path", type=Path)
@@ -53,11 +64,14 @@ def main(argv: list[str] | None = None) -> int:
     cmd.add_argument("--handle", default="@geracaodividendoss")
     cmd.add_argument("--confirmed-channel-id", required=True)
     cmd.add_argument("--limit", type=int, default=5)
+    cmd.add_argument("--video-id", action="append", default=[])
     cmd = sub.add_parser("authorize-video")
     cmd.add_argument("identity")
     cmd.add_argument("--permission-reference", required=True)
     args = parser.parse_args(argv)
     settings = AISettings.from_environment()
+    if args.store:
+        settings = settings.model_copy(update={"file_search_store": args.store})
     path = args.database or application_data_dir() / "nexo_intelligence.db"
     if path.name in {"nexo.db", "nexo_demo.db"}:
         parser.error("Selecione um banco dedicado à IA.")
@@ -82,6 +96,22 @@ def main(argv: list[str] | None = None) -> int:
                 "model": settings.model,
                 "usage": storage.usage(),
             }
+        elif args.command == "load-library":
+            result = {"loaded": load_canonical_library(storage)}
+        elif args.command in {"list-stores", "create-store", "sync-library"}:
+            if not isinstance(provider, GeminiIntelligenceProvider):
+                raise IntelligenceError(
+                    "Configure a chave Gemini para gerenciar o índice remoto."
+                )
+            if args.command == "list-stores":
+                result = GeminiFileSearchRetriever.list_stores(provider)
+            elif args.command == "create-store":
+                result = GeminiFileSearchRetriever.create_store(provider, args.name)
+            else:
+                load_canonical_library(storage)
+                result = GeminiFileSearchRetriever(
+                    provider, storage, settings.file_search_store
+                ).sync(limit=args.limit, allow_indexing=args.allow_paid_indexing)
         elif args.command == "test-connection":
             result = provider.test_connection()
         elif args.command == "list":
@@ -145,7 +175,10 @@ def main(argv: list[str] | None = None) -> int:
                     result = "Documento removido."
         elif args.command == "catalog-youtube":
             result = catalog.catalog(
-                args.handle, args.confirmed_channel_id, limit=args.limit
+                args.handle,
+                args.confirmed_channel_id,
+                limit=args.limit,
+                video_ids=tuple(args.video_id),
             )
         elif args.command == "authorize-video":
             catalog.authorize(args.identity, args.permission_reference)

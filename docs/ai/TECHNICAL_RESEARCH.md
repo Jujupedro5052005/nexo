@@ -46,3 +46,27 @@ Referências oficiais consultadas:
 O teste de transporte usa o SDK real com `httpx.MockTransport`: verifica
 serialização efetiva sem contactar o Google. Isso não comprova permissões nem
 disponibilidade remota do modelo no projeto do usuário.
+
+## Pesquisa e revalidação — Missão 2
+
+Referências primárias: Damodaran/NYU, BCB IF.data/juros, IBGE/IPCA, CVM, SUSEP,
+ANEEL, B3 e RI das companhias, listadas por tema na [biblioteca](knowledge/README.md).
+Textos e exemplos são originais; taxas sintéticas não representam mercado atual.
+Desconto, retorno excedente e correlação têm testes com valores conhecidos.
+Não se alega certificação regulatória ou revisão independente do corpus.
+
+Os dois endpoints oficiais oEmbed confirmaram títulos/autoria:
+[Nunca mais compre um banco caro!](https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D7wOGP2bklNc&format=json)
+e [Calculei o preço teto do Itaú e o resultado me surpreendeu](https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D_CVsSXQ6NMc&format=json).
+Ambos identificam `@geracaodividendoss`. Isso não confirma conteúdo, data,
+duração, licença ou ID UC. Zero vídeos processados.
+
+Recuperação, function calling e proposta estruturada ficam separados. Contratos
+de stores/cenários foram exercitados com clientes simulados, sem comprovar
+permissões ou disponibilidade remota do modelo.
+
+O ciclo de vida dos gráficos foi revisado com a documentação
+[QAreaSeries](https://doc.qt.io/qt-6/qareaseries-qtcharts.html) e
+[QChartView](https://doc.qt.io/qt-6/qchartview-qtcharts.html). A view retém wrappers,
+fronteiras têm pai explícito e o construtor usa a sobrecarga upper/lower.
+Um teste força coleta de lixo e descarte de widgets em substituições repetidas.

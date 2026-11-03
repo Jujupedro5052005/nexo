@@ -123,3 +123,12 @@ obrigatórios sem revisão de escopo.
 Permanecem pendentes: registro da proposta aprovada, ano do cronograma,
 tratamento acadêmico final de A-008 e confirmação de artefatos finais não
 enumerados claramente na fonte oficial.
+
+## Complemento autorizado — NEXO Intelligence, Missão 2
+
+Chat, investigação da carteira, relatórios e 15 documentos complementam o núcleo
+acadêmico. Pareceres podem favorecer/desfavorecer ampliação sob premissas e
+critérios de revisão explícitos. Hipóteses estimadas têm proveniência e opção
+de desativação; cálculos são determinísticos. IA não executa operações financeiras.
+Credenciais, licença de vídeos e indexação paga não são presumidas.
+Evidências: [MISSION_2_REPORT](../ai/MISSION_2_REPORT.md).

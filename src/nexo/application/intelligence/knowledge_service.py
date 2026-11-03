@@ -22,7 +22,12 @@ class KnowledgeService:
                 "Esta versão já foi processada; importe conteúdo revisado para reprocessar."
             )
         method = self.provider.extract(str(doc["text"]))
-        if method.methodology_id in {"gordon", "target_yield", "multiples"}:
+        if method.methodology_id in {
+            "gordon",
+            "target_yield",
+            "multiples",
+            "bank_residual",
+        }:
             method = method.model_copy(
                 update={"methodology_id": "extracted_" + method.methodology_id}
             )
@@ -46,7 +51,12 @@ class KnowledgeService:
         if path.stat().st_size > 100000:
             raise IntelligenceError("Metodologia JSON excede 100 KB.")
         method = Methodology.model_validate_json(path.read_text(encoding="utf-8-sig"))
-        if method.methodology_id in {"gordon", "target_yield", "multiples"}:
+        if method.methodology_id in {
+            "gordon",
+            "target_yield",
+            "multiples",
+            "bank_residual",
+        }:
             raise IntelligenceError("IDs de cálculos nativos são reservados.")
         if any(
             m.methodology_id == method.methodology_id and m.version >= method.version

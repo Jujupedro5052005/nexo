@@ -73,20 +73,32 @@ class YouTubeCatalog:
                 self.storage.delete_document(doc["id"])
 
     def catalog(
-        self, handle: str, expected_id: str, *, limit: int = 5
+        self,
+        handle: str,
+        expected_id: str,
+        *,
+        limit: int = 5,
+        video_ids: tuple[str, ...] = (),
     ) -> tuple[str, ...]:
-        if not 1 <= limit <= 10:
-            raise IntelligenceError("Lotes de catálogo permitem 1 a 10 vídeos.")
+        if not 1 <= limit <= 30:
+            raise IntelligenceError("Lotes de catálogo permitem 1 a 30 vídeos.")
         self.purge_expired()
         channel = self.confirm_channel(handle, expected_id)
         playlist = channel["contentDetails"]["relatedPlaylists"]["uploads"]
-        page = self._get(
-            "playlistItems",
-            part="contentDetails",
-            playlistId=playlist,
-            maxResults=limit,
-        )
-        ids = [item["contentDetails"]["videoId"] for item in page.get("items", [])]
+        if video_ids:
+            if len(video_ids) > 30 or any(
+                not re.fullmatch(r"[A-Za-z0-9_-]{11}", value) for value in video_ids
+            ):
+                raise IntelligenceError("Informe até 30 IDs de vídeo válidos.")
+            ids = list(dict.fromkeys(video_ids))
+        else:
+            page = self._get(
+                "playlistItems",
+                part="contentDetails",
+                playlistId=playlist,
+                maxResults=limit,
+            )
+            ids = [item["contentDetails"]["videoId"] for item in page.get("items", [])]
         if not ids:
             return ()
         videos = self._get(
@@ -118,6 +130,7 @@ class YouTubeCatalog:
             previous = existing.get(identity, {})
             self.storage.put_document(
                 {
+                    **previous,
                     "id": identity,
                     "kind": "youtube",
                     "channel_id": expected_id,
@@ -128,6 +141,15 @@ class YouTubeCatalog:
                     "duration": item.get("contentDetails", {}).get("duration"),
                     "uri": "https://www.youtube.com/watch?v=" + item["id"],
                     "priority": priority,
+                    "mentioned_assets": sorted(
+                        set(re.findall(r"\b[A-Z]{4}\d{1,2}\b", text.upper()))
+                    ),
+                    "potential_methods": [
+                        term
+                        for term in ("gordon", "bazin", "valuation", "preço teto")
+                        if term in text
+                    ],
+                    "metadata_note": "Temas indicados por metadados, sem comprovação de metodologia no conteúdo.",
                     "status": previous.get("status", "cataloged"),
                     "authorized": previous.get("authorized", False),
                     "fetched_at": datetime.now(timezone.utc).isoformat(),
@@ -170,6 +192,10 @@ class YouTubeCatalog:
         if doc.get("status") == "processed":
             raise IntelligenceError(
                 "Vídeo já processado. Nenhuma nova chamada foi realizada."
+            )
+        if not doc.get("channel_id"):
+            raise IntelligenceError(
+                "Confirme o vídeo e o canal pela Data API antes do processamento."
             )
         self.storage.put_document({**doc, "status": "processing"})
         try:

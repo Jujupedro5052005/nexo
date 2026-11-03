@@ -88,12 +88,9 @@ class IntelligenceWorkspace:
         return self._import(path, authorized)
 
     def export(self, path: Path, response: AnalysisResponse) -> None:
-        from nexo.application.intelligence.tools import encode
+        from nexo.application.intelligence.report_export import report_markdown
 
-        self._export(
-            path,
-            response.markdown
-            + "\n\n## Evidências\n\n```json\n"
-            + encode(response)
-            + "\n```\n",
-        )
+        self._export(path, report_markdown(response))
+
+    def export_diagnostics(self, path: Path, response: AnalysisResponse) -> None:
+        self._export(path, response.model_dump_json(indent=2))

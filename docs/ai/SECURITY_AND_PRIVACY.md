@@ -14,8 +14,9 @@
 - Documentos e histórico são dados não confiáveis em campos próprios. O system
   prompt não é concatenado ao texto de documentos. Tentativas de executar SQL,
   shell, Python ou acessar outra carteira são rejeitadas pela lista de ferramentas.
-- Fórmulas externas nunca se tornam código. O LLM não fornece premissas aos
-  cálculos: o usuário preenche os campos. Cotações operacionais têm prioridade.
+- Fórmulas externas nunca se tornam código. Com consentimento, o LLM pode propor
+  hipóteses tipadas e limitadas, identificadas como estimadas. Matemática fica
+  local e cotações operacionais têm prioridade.
 - Markdown não carrega imagens/arquivos embutidos; links externos só abrem por
   clique e com esquema HTTP/HTTPS. Links `file:`, `javascript:` e similares não
   são encaminhados ao sistema operacional.

@@ -1,5 +1,10 @@
 import hashlib
+import json
 import re
+import sys
+import unicodedata
+from datetime import date
+from itertools import islice
 from pathlib import Path
 from typing import Any
 
@@ -50,18 +55,39 @@ class LocalKnowledgeRetriever:
         return digest
 
     def search(self, query: str, limit: int = 4) -> tuple[KnowledgeHit, ...]:
-        terms = set(re.findall(r"\w{3,}", query.casefold()))
+        def words(text: str) -> set[str]:
+            normalized = "".join(
+                c
+                for c in unicodedata.normalize("NFKD", text.casefold())
+                if not unicodedata.combining(c)
+            )
+            return set(re.findall(r"\w{3,}", normalized))
+
+        terms = words(query)
         scored: list[tuple[int, str, dict[str, Any]]] = []
         for doc in self.storage.documents():
-            if doc.get("kind") != "local" or not doc.get("authorized"):
+            if (
+                doc.get("kind") != "local"
+                or not doc.get("authorized")
+                or doc.get("active") is False
+            ):
                 continue
             text = doc.get("text", "")
             for offset in range(0, len(text), 1200):
                 chunk = text[offset : offset + 1500]
-                score = len(terms & set(re.findall(r"\w{3,}", chunk.casefold())))
+                score = len(terms & words(chunk)) + 2 * len(
+                    terms & words(doc.get("title", ""))
+                )
                 if score:
                     scored.append((score, chunk, doc))
         scored.sort(key=lambda item: -item[0])
+        unique = []
+        counts: dict[str, int] = {}
+        for item in scored:
+            identity = item[2]["id"]
+            if counts.get(identity, 0) < 2:
+                unique.append(item)
+                counts[identity] = counts.get(identity, 0) + 1
         return tuple(
             KnowledgeHit(
                 document_id=doc["id"],
@@ -69,18 +95,67 @@ class LocalKnowledgeRetriever:
                 text=chunk,
                 sources=(SourceReference(title=doc["title"], uri=doc["uri"]),),
             )
-            for _, chunk, doc in scored[: min(limit, 4)]
+            for _, chunk, doc in unique[: min(limit, 4)]
         )
 
 
 class GeminiFileSearchRetriever:
+    @staticmethod
+    def list_stores(provider: GeminiIntelligenceProvider) -> list[dict[str, Any]]:
+        client = provider._client()
+        identity = provider.storage.reserve(
+            "file_search_metadata",
+            0,
+            provider.settings.daily_request_limit,
+            provider.settings.daily_token_limit,
+        )
+        try:
+            result = [
+                {"name": s.name, "display_name": s.display_name}
+                for s in islice(
+                    client.file_search_stores.list(config={"page_size": 20}), 20
+                )
+            ]
+        except Exception:  # noqa: BLE001 - SDK boundary; safe diagnostics.
+            provider.storage.finish_usage(identity, 0, "failed")
+            raise IntelligenceError(
+                "Listagem File Search indisponível; confira permissões."
+            ) from None
+        provider.storage.finish_usage(identity, 0, "complete")
+        return result
+
+    @staticmethod
+    def create_store(provider: GeminiIntelligenceProvider, name: str) -> str:
+        if not name.strip() or len(name) > 100:
+            raise IntelligenceError("Nome do store deve ter 1 a 100 caracteres.")
+        client = provider._client()
+        identity = provider.storage.reserve(
+            "file_search_metadata",
+            0,
+            provider.settings.daily_request_limit,
+            provider.settings.daily_token_limit,
+        )
+        try:
+            store = client.file_search_stores.create(
+                config={"display_name": name.strip()}
+            )
+        except Exception:  # noqa: BLE001 - SDK boundary; safe diagnostics.
+            provider.storage.finish_usage(identity, 0, "failed")
+            raise IntelligenceError(
+                "Criação File Search indisponível; confira permissões antes de repetir."
+            ) from None
+        provider.storage.finish_usage(identity, 0, "complete")
+        if not store.name:
+            raise IntelligenceError("Store não retornou identificador.")
+        return str(store.name)
+
     def __init__(
         self,
         provider: GeminiIntelligenceProvider,
         storage: SqliteIntelligenceStorage,
         store: str,
     ) -> None:
-        if not store.startswith("fileSearchStores/"):
+        if not re.fullmatch(r"fileSearchStores/[A-Za-z0-9_-]+", store):
             raise IntelligenceError(
                 "NEXO_AI_FILE_SEARCH_STORE deve identificar fileSearchStores/…"
             )
@@ -118,6 +193,8 @@ class GeminiFileSearchRetriever:
                         ),
                         None,
                     )
+                    if registered and registered.get("active") is False:
+                        continue
                     uri = (
                         registered["uri"]
                         if registered
@@ -176,7 +253,17 @@ class GeminiFileSearchRetriever:
             operation = client.file_search_stores.upload_to_file_search_store(
                 file=io.BytesIO(doc["text"].encode()),
                 file_search_store_name=self.store,
-                config={"display_name": identity, "mime_type": "text/plain"},
+                config={
+                    "display_name": identity,
+                    "mime_type": "text/plain",
+                    "custom_metadata": [
+                        {"key": "version", "string_value": doc["version"]},
+                        {
+                            "key": "canonical_id",
+                            "string_value": doc.get("canonical_id", identity),
+                        },
+                    ],
+                },
             )
             doc.update(
                 remote_operation=operation.name,
@@ -238,3 +325,79 @@ class GeminiFileSearchRetriever:
                     "Falha ao excluir documento remoto; registro local preservado."
                 ) from None
         self.storage.delete_document(identity)
+
+    def sync(self, *, limit: int = 3, allow_indexing: bool = False) -> dict[str, str]:
+        if not 1 <= limit <= 3:
+            raise IntelligenceError(
+                "Sincronização limitada a três documentos por lote."
+            )
+        docs = [
+            d
+            for d in self.storage.documents()
+            if d.get("kind") == "local"
+            and d.get("authorized")
+            and d.get("active", True)
+            and (not d.get("remote_name") or d.get("remote_store") != self.store)
+        ]
+        return {
+            d["id"]: self.index(d["id"], allow_indexing=allow_indexing)
+            for d in docs[:limit]
+        }
+
+
+def load_canonical_library(storage: SqliteIntelligenceStorage) -> int:
+    """One canonical corpus; remote stores are replaceable indexes of these hashes."""
+    root = Path(__file__).resolve().parents[4] / "docs" / "ai" / "knowledge"
+    if not root.exists():
+        root = Path(sys.prefix) / "share" / "nexo" / "knowledge"
+    if not root.exists():
+        return 0
+    local = LocalKnowledgeRetriever(storage)
+    count = 0
+    for path in sorted(root.rglob("*.md")):
+        if path.name == "README.md":
+            continue
+        canonical_id = path.relative_to(root).as_posix()
+        identity = local.import_document(
+            path, authorized=True, source_uri="nexo://knowledge/" + canonical_id
+        )
+        for doc in storage.documents():
+            if (
+                doc.get("canonical_id") == canonical_id
+                and doc["id"] != identity
+                and doc.get("active", True)
+            ):
+                storage.put_document({**doc, "active": False})
+        doc = next(d for d in storage.documents() if d["id"] == identity)
+        storage.put_document(
+            {
+                **doc,
+                "canonical_id": canonical_id,
+                "active": True,
+                "title": path.read_text(encoding="utf-8").splitlines()[0].lstrip("# "),
+                "origin": "nexo_reference",
+                "review_status": "reference_reviewed",
+            }
+        )
+        count += 1
+    seed_path = root / "sources" / "videos.json"
+    if seed_path.exists():
+        seeds = json.loads(seed_path.read_text(encoding="utf-8"))
+        if utc_now().date() < date.fromisoformat(seeds["expires_at"]):
+            existing = {d["id"] for d in storage.documents()}
+            for record in seeds["records"]:
+                identity = "youtube_" + record["video_id"]
+                if identity not in existing:
+                    storage.put_document(
+                        {
+                            **record,
+                            "id": identity,
+                            "kind": "youtube",
+                            "fetched_at": seeds["verification_date"]
+                            + "T00:00:00+00:00",
+                            "verification": seeds["verification"],
+                            "channel_id": None,
+                            "methodologies": [],
+                        }
+                    )
+    return count

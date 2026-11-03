@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -81,6 +81,11 @@ class AnalysisRequest(Record):
     )
     assumptions: dict[str, Any] = Field(default_factory=dict)
     allow_cloud: bool = False
+    analysis_mode: Literal["chat", "deep"] = "chat"
+    focus_symbols: tuple[
+        Annotated[str, Field(max_length=24, pattern=r"^[A-Z0-9.^=_-]+$")], ...
+    ] = Field(default=(), max_length=20)
+    allow_estimates: bool = True
 
 
 class AnalysisResponse(Record):
@@ -89,6 +94,23 @@ class AnalysisResponse(Record):
     knowledge: tuple[KnowledgeHit, ...] = ()
     mode: str
     created_at: datetime = Field(default_factory=utc_now)
+    report: dict[str, Any] = Field(default_factory=dict)
+
+
+class EstimatedScenario(Record):
+    label: Literal["conservador", "base", "otimista"]
+    required_return: Decimal = Field(
+        ge=Decimal("0.06"), le=Decimal("0.40"), decimal_places=4
+    )
+    growth: Decimal = Field(ge=Decimal("-0.05"), le=Decimal("0.06"), decimal_places=4)
+    target_yield: Decimal = Field(
+        ge=Decimal("0.03"), le=Decimal("0.20"), decimal_places=4
+    )
+    justification: str = Field(min_length=20, max_length=1500)
+
+
+class ScenarioProposal(Record):
+    scenarios: tuple[EstimatedScenario, ...] = Field(min_length=3, max_length=3)
 
 
 class IntelligenceError(RuntimeError):

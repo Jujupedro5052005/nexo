@@ -30,3 +30,14 @@ Evoluções recomendadas:
 - Curadoria transacional com trilha detalhada de revisões e reconciliação
   automatizada de operações remotas incertas.
 - Avaliações de qualidade de respostas com corpus financeiro revisado.
+
+## Missão 2
+
+Entregue: chat/contexto recolhível, cards/gráficos; investigação limitada,
+cenários assistidos, retorno excedente bancário e revisão conversacional;
+15 capítulos, stores/sincronização por CLI e duas referências de vídeo.
+
+Pendente: catálogo 20–30 via Data API sem chave disponível; aceite autenticado
+Gemini/File Search e custo autorizado; licença de vídeos. Próximos incrementos:
+macro/pares estruturados, cadastro setorial amplo, análise causal de eventos,
+revisão independente do corpus, reconciliação de uploads incertos, streaming/PDF.

@@ -110,3 +110,11 @@ requisitos, roadmap, backlog e status.
 ## Incremento 07 entregue
 
 Caixa BRL explícito, histórico de patrimônio/TWR diário aproximado, cenários financeiros manuais, risco de mercado, três modelos de insolvência e diligência educacional. Sem execução real de ordens, FX implícito, probabilidade de falência inventada, motor tributário legal ou conformidade regulatória. Ver [políticas e rastreabilidade](../02_architecture/FINANCIAL_TOOLS.md).
+
+## Escopo autorizado da Missão 2
+
+Inclui análise educacional direcional condicionada à carteira selecionada,
+cenários assistidos e relatório auditável. Não inclui ordens reais, garantia de
+retorno ou adequação regulatória. Investigação limita-se a 20 ativos/100 chamadas
+lógicas, sem screener ilimitado. Biblioteca e índice remoto são separados do
+system prompt; conhecimento revisado não cria código executável.

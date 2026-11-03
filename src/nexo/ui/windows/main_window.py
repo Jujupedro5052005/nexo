@@ -402,6 +402,12 @@ class MainWindow(QMainWindow):
     def show_page(self, index: int) -> None:
         if index == 10:
             self.intelligence_page.reload()
+            if not getattr(self, "_intelligence_context_initialized", False):
+                self._intelligence_context_initialized = True
+                if self.selected_portfolio_id is not None:
+                    selected = self.intelligence_page.portfolio.findData(self.selected_portfolio_id)
+                    if selected >= 0:
+                        self.intelligence_page.portfolio.setCurrentIndex(selected)
         if index == 8:
             self.reports_page.reload()
         if index in (4, 5, 6):

@@ -1,5 +1,28 @@
 # Status atual do projeto
 
+## NEXO Intelligence — Missão 2 — 03/11/2026
+
+- Copiloto prioriza chat, contexto recolhível, sugestões, Enter/Shift+Enter e
+  relatório visual. Identidade azul escuro/ciano preservada; JSON sob demanda.
+- Investigação limitada da carteira, cenários assistidos identificados, retorno
+  excedente bancário, risco/correlação e pareceres condicionais auditáveis.
+- Follow-ups mantêm foco e recalculam margem; mudança de contexto limpa resultados.
+- Quinze documentos originais integrados e incluídos no wheel. Documentos ficam
+  fora do system prompt; não criam fórmulas executáveis.
+- Stores/sincronização File Search por CLI, testados com SDK simulado. Nenhum
+  índice remoto criado nem inferência paga executada nesta missão.
+- Dois vídeos com títulos/autoria verificados por oEmbed. Zero processados;
+  catálogo 20–30 pela Data API pendente de chave/ID UC e direitos de conteúdo.
+- `.env` e bancos financeiros originais preservados. Não é necessário reenviar
+  chave já configurada. Branch/PR existentes, sem merge.
+
+Validação, capturas e limites: [MISSION_2_REPORT](../ai/MISSION_2_REPORT.md).
+
+Suíte completa: 799 aprovados/2 ignorados (405,99 s). Após os últimos ajustes
+de apresentação e troca de ativo: 111 testes de IA aprovados/2 ignorados
+(16,13 s). Ruff, mypy (153 arquivos), compileall, diff-check e build/inspeção
+do wheel aprovados. Validação externa paga não executada.
+
 ## NEXO Intelligence — 03/11/2026
 
 - Página integrada: conversa, histórico local, contexto, valuation Decimal,

@@ -30,7 +30,7 @@ def builtin_methodologies() -> tuple[Methodology, ...]:
             "Métrica positiva; para FII apenas VPA; diferenças contábeis e setoriais limitam comparação.",
         ),
     )
-    return tuple(
+    methods = tuple(
         Methodology(
             methodology_id=identity,
             name=name,
@@ -53,4 +53,30 @@ def builtin_methodologies() -> tuple[Methodology, ...]:
             ),
         )
         for identity, name, required, formula, assumption, constraint in entries
+    )
+    return methods + (
+        Methodology(
+            methodology_id="bank_residual",
+            name="Bancos · retorno excedente estável",
+            version=1,
+            description="Valor patrimonial acrescido do valor presente do retorno excedente; cenário de ROE e crescimento constantes.",
+            applicable_asset_types=("bank",),
+            required_inputs=("bvps", "roe", "required_return", "growth"),
+            formula_reference="VPA × (ROE − g) / (Ke − g)",
+            assumptions=(
+                "Clean surplus, ROE constante e crescimento financiável; taxas estimadas não são observadas.",
+            ),
+            constraints=(
+                "Ke > g; VPA positivo; ROE >= g; qualidade do crédito e capital regulatório exigem revisão.",
+            ),
+            review_status="approved",
+            origin="nexo",
+            reviewed_by="Nexo · fórmula versionada com testes independentes",
+            source_references=(
+                SourceReference(
+                    title="Biblioteca Nexo · bancos",
+                    uri="nexo://knowledge/sectors/05_bancos.md",
+                ),
+            ),
+        ),
     )
