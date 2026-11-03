@@ -67,6 +67,13 @@ class MarketIntegrationPanel(SectionCard):
     def display(self, status: MarketIntegrationStatus) -> None:
         self.status = status
         self.provider_label.setText(f"Provider: {status.provider}")
+        if status.state == "presentation":
+            self.configuration_label.setText("Status: dados fictícios locais")
+            self.mode_label.setText("Modo: Apresentação offline")
+            self.authentication_label.setText("Autenticação: não se aplica")
+            self.feedback.setText(status.message)
+            self.guidance.setText("")
+            return
         self.configuration_label.setText(
             "Status: Configurado • chave configurada"
             if status.configured

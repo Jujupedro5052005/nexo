@@ -1,5 +1,15 @@
 # Status atual do projeto
 
+## Revisão de entrega — 03/11/2026
+
+Demonstração não inicializa mais clientes de mercado reais. Empacotamento recusa
+variantes de segredos/sidecars e distribuição incompleta. Corrigida colisão na
+coleta dos testes do README; escopo registra manutenção individual de carteiras
+como pendente. Roteiro cronometrado, evidências de POO e checklist de arquivos em
+[FINAL_REVIEW.md](../00_project/FINAL_REVIEW.md). Planilha oficial, slides finais
+e aceite Windows continuam pendentes; nenhum executável Windows novo foi gerado
+nesta revisão Linux.
+
 ## Entrega para avaliação — 03/11/2026
 
 Copiloto visual restaurado no chat. Apresentação com caixa e eventos financeiros

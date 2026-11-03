@@ -93,7 +93,7 @@ PAGE_INFO = (
     ),
     ("Metas", "Acompanhe objetivos financeiros e seu progresso.", "goals"),
     ("Alertas", "Monitore condições relevantes para suas estratégias.", "alerts"),
-    ("Análises", "Analise ativos e compare carteiras com dados reais.", "analytics"),
+    ("Análises", "Analise ativos e compare as carteiras selecionadas.", "analytics"),
     ("Relatórios", "Prepare relatórios para consulta e exportação.", "reports"),
     (
         "NEXO Intelligence",

@@ -1,4 +1,4 @@
-﻿# Nexo Invest
+# Nexo Invest
 
 Aplicação desktop de investimentos simulados e planejamento financeiro, desenvolvida para a disciplina de Programação Orientada a Objetos. Python, PySide6, SQLAlchemy e SQLite. Não executa ordens reais.
 
@@ -51,5 +51,7 @@ UI → Application → Domain/Calculations; Infrastructure implementa persistên
 Para desenvolvimento, instale `requirements-dev.txt`. Testes direcionados da entrega:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests/integration/test_professor_delivery.py tests/ui/test_professor_delivery.py tests/ui/test_main_window.py tests/intelligence/test_hotfix_focus.py
+.\.venv\Scripts\python.exe -m pytest -q tests/integration/test_professor_delivery_persistence.py tests/ui/test_professor_delivery.py tests/ui/test_main_window.py tests/intelligence/test_hotfix_focus.py
 ```
+
+Para a entrega final: [roteiro de 10 minutos](docs/04_development/FINAL_PRESENTATION.md), [checklist de arquivos e aceite](docs/00_project/DELIVERY_CHECKLIST.md) e [avaliação da versão](docs/00_project/FINAL_REVIEW.md).

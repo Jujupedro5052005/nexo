@@ -39,8 +39,9 @@ credenciais, bancos ou caches. Use o mesmo Windows/arquitetura alvo; a receita
 não é compilação cruzada para Linux/macOS. Não há assinatura de código nesta etapa.
 
 O terceiro comando gera `dist\Nexo-Windows.zip`, com a pasta inteira, instruções
-e template sem valores de chaves/tokens. Recusa `.env`, bancos e contador de
-consumo dentro da distribuição. Não inclua seus próprios dados ao enviar o ZIP.
+e template sem valores de chaves/tokens. Recusa `.env` e variantes privadas, bancos e sidecars SQLite, links simbólicos
+e contador de consumo dentro da distribuição. Exige `_internal` ao lado do EXE;
+o ZIP deve ficar fora da pasta de origem e o diretório de destino é criado se necessário. Não inclua seus próprios dados ao enviar o ZIP.
 
 As dependências de build ficam separadas das dependências de execução.
 Referências: [PyInstaller spec files](https://pyinstaller.org/en/stable/spec-files.html)
@@ -82,3 +83,7 @@ Não foi realizado aceite em outra máquina sem Python.
 ```
 
 Roteiro e capturas: [relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
+Para entregar também o código completo e a planilha exigida, siga o
+[checklist da entrega](../00_project/DELIVERY_CHECKLIST.md). O pacote do executável
+não substitui esses arquivos.

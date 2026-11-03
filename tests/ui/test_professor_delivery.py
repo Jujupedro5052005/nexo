@@ -19,21 +19,21 @@ def test_composed_application_modes_and_presentation_equity(
             return None
 
     unavailable = NoNetwork()
+    def services(*args):
+        if demo:
+            pytest.fail("Presentation must not construct live provider services")
+        return SimpleNamespace(
+            yahoo=unavailable, market=unavailable, fundamentals=unavailable,
+            dividends=unavailable, official=None, actions=None,
+            health=lambda: (), close=lambda: None,
+        )
+
     monkeypatch.setenv("NEXO_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("NEXO_AI_PROVIDER", "mock")
     monkeypatch.setattr(
         entry,
         "ProviderServices",
-        lambda *args: SimpleNamespace(
-            yahoo=unavailable,
-            market=unavailable,
-            fundamentals=unavailable,
-            dividends=unavailable,
-            official=None,
-            actions=None,
-            health=lambda: (),
-            close=lambda: None,
-        ),
+        services,
     )
 
     def inspect():
@@ -53,6 +53,10 @@ def test_composed_application_modes_and_presentation_equity(
                     )
                     assert "R$" in window.overview_page.cash_card.value_label.text()
                 assert window.mode_badge.text() == "Apresentação"
+                panel = window.settings_page.market_panel
+                assert panel.status.state == "presentation"
+                assert not panel.test_button.isEnabled()
+                assert "offline" in panel.mode_label.text()
             else:
                 assert window.selected_portfolio_id is None
             window.show_page(9)
