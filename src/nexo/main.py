@@ -113,22 +113,11 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
             None, "Banco local", "Não foi possível abrir o banco local."
         )
         return 1
-    providers: ProviderServices | None = None
-    cached: MarketDataProvider
-    fundamentals: FundamentalDataProvider
-    dividends: DividendDataProvider
-    if demo:
-        from nexo.infrastructure.market_data.presentation import PresentationMarketData
-
-        presentation = PresentationMarketData()
-        cached = presentation
-        fundamentals = presentation
-        dividends = presentation
-    else:
-        providers = ProviderServices(settings, data_dir)
-        cached = providers.market
-        fundamentals = providers.fundamentals
-        dividends = providers.dividends
+    providers = ProviderServices(settings, data_dir)
+    provider = providers.yahoo
+    cached: MarketDataProvider = providers.market
+    fundamentals: FundamentalDataProvider = providers.fundamentals
+    dividends: DividendDataProvider = providers.dividends
     window: MainWindow | None = None
     try:
         initialize_database(engine)
@@ -177,8 +166,8 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
                 cached,
                 fundamentals,
                 dividends=dividends,
-                official=providers.official if providers else None,
-                actions=providers.actions if providers else None,
+                official=providers.official,
+                actions=providers.actions,
             ),
             finances=finances,
             account=PortfolioAccount(transactions, transactions, cached),
@@ -192,11 +181,9 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
                 CsvReportWriter(),
                 events=transactions,
             ),
-            provider_health=GetProviderHealth(providers.health) if providers else None,
-            integration_status=GetMarketIntegrationStatus(
-                providers.yahoo if providers else cached
-            ),
-            test_connection=TestMarketConnection(providers.yahoo) if providers else None,
+            provider_health=GetProviderHealth(providers.health),
+            integration_status=GetMarketIntegrationStatus(provider),
+            test_connection=TestMarketConnection(provider),
             compare_portfolios=ComparePortfolios(
                 ListPortfolios(repository), ListTransactions(transactions), valuation
             ),
@@ -224,8 +211,7 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
             window.wait_for_market()
             if window.intelligence_page.workspace is not None:
                 window.intelligence_page.workspace.orchestrator.provider.close()
-        if providers is not None:
-            providers.close()
+        providers.close()
         engine.dispose()
 
 

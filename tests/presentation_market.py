@@ -1,4 +1,4 @@
-"""Explicit fictional data for presentation mode, never a live-provider fallback."""
+"""Test-only market fixtures. Never imported by the application or bundled."""
 
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
@@ -25,7 +25,6 @@ from nexo.domain.models.market_data import (
     PriceHistory,
     Quote,
 )
-from nexo.domain.models.market_integration import MarketIntegrationStatus
 
 SOURCE = "Apresentação · dados fictícios, sem valor de mercado"
 
@@ -35,13 +34,6 @@ class PresentationMarketData(
 ):
     def __init__(self) -> None:
         self.as_of = datetime.now(timezone.utc).replace(microsecond=0)
-
-    def get_integration_status(self) -> MarketIntegrationStatus:
-        return MarketIntegrationStatus(
-            "Apresentação", False, None, tuple(ENTRY_PRICES),
-            SOURCE + ". Abra Meu ambiente para consultar provedores reais.",
-            "presentation",
-        )
 
     @staticmethod
     def _price(asset: Asset) -> Decimal:

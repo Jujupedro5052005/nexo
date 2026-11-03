@@ -9,7 +9,7 @@ Este checklist não substitui a planilha oficial do professor.
 - [ ] Ensaiar o [roteiro de dez minutos](../04_development/FINAL_PRESENTATION.md).
 - [ ] Demonstrar um fluxo completo com persistência após reabrir.
 - [ ] Selecionar prints atuais dos gráficos e dos métodos de POO indicados no roteiro.
-- [ ] Distinguir preços fictícios, dados reais de API e respostas locais/Gemini.
+- [ ] Distinguir operações fictícias, mercado real de API e respostas locais/Gemini.
 - [ ] Explicar limites de IR, TWR aproximado e alertas manuais.
 - [ ] Comparar a proposta com a implementação real, inclusive Portfolio sem posições internas.
 
@@ -40,13 +40,15 @@ Execute após o merge e atualização local da `master`, ou no commit aprovado d
 PR. `git archive` não inclui alterações não commitadas nem arquivos ignorados;
 confira os arquivos versionados antes. Acrescente slides e planilha oficial à
 pasta final separadamente caso não estejam no commit. Não adicione credenciais
-para tornar a entrega executável: Apresentação não precisa delas.
+na entrega. O acesso público depende dos provedores; serviços autenticados
+exigem configuração própria.
 
 ## Aceite na máquina de apresentação
 
 - [ ] Instalar pelo README em ambiente novo ou extrair o executável completo.
 - [ ] Abrir no Windows alvo, idealmente sem Python; conferir resolução e escala.
-- [ ] Abrir Apresentação sem internet; conferir caixa, patrimônio e gráficos preenchidos.
+- [ ] Abrir Apresentação online; conferir fonte/horário e métricas. Sem internet,
+  conferir caixa/ledger locais e indisponibilidade das métricas de mercado.
 - [ ] Criar carteira e registrar compra/venda; rejeitar saldo insuficiente.
 - [ ] Fechar/reabrir e conferir persistência e separação de Meu ambiente.
 - [ ] Exportar CSV e conferir os valores no aplicativo de planilhas utilizado.

@@ -1,6 +1,8 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from presentation_market import PresentationMarketData
+
 from nexo.application.portfolio.account import PortfolioAccount
 from nexo.application.portfolio.performance import LoadPortfolioPerformance
 from nexo.demo_dataset import ENTRY_PRICES, create_demo_dataset
@@ -17,7 +19,6 @@ from nexo.infrastructure.database.session import (
     create_database_engine,
     create_session_factory,
 )
-from nexo.infrastructure.market_data.presentation import PresentationMarketData
 
 
 def test_presentation_accounts_equity_and_user_changes_survive_restart(tmp_path):

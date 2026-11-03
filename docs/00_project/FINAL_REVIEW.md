@@ -1,5 +1,18 @@
 # Revisão final para entrega — 03/11/2026
 
+## Atualização após integrar master
+
+A master avançou para `b09f0371d557e82f123ce540765275ffcfd326c1`, com mercado
+online real nos dois modos. A resolução preserva essa mudança: o isolamento
+com preços fictícios descrito na revisão original abaixo foi substituído.
+`PresentationMarketData` fica apenas em `tests/presentation_market.py`.
+O teste de composição foi substituído na master por `test_delivery_market_modes`,
+que verifica os dois ambientes com disponibilidade e indisponibilidade de mercado.
+Mantidos o empacotamento, a renomeação do teste de persistência e a documentação
+acadêmica; roteiro/checklist refletem o comportamento online atual.
+
+## Registro da revisão original (anterior à atualização)
+
 Base revisada: `master`, commit `a66c7d4e5767a7d2e5c64b1d4e86346f1ebf2797`.
 Fontes acadêmicas: orientações Projeto Semestral fornecidas nesta revisão,
 proposta revisada anexada e instruções finais de apresentação/entrega.

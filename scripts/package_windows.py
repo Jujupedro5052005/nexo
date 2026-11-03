@@ -42,7 +42,8 @@ def package(folder: Path | None = None, destination: Path | None = None) -> Path
     (folder / ".env.example").write_text(template, encoding="utf-8")
     (folder / "LEIA-ME.txt").write_text(
         "NEXO INVEST\n\nExtraia a pasta inteira e abra Nexo.exe. Mantenha _internal ao lado do EXE. Não exige Python.\n"
-        "Apresentação: carteiras, caixa, orçamento, metas, alertas e mercado fictícios, disponíveis sem internet.\n"
+        "Apresentação: carteiras e movimentacoes de exemplo; mercado online real, como em Meu ambiente.\n"
+        "Cotacoes, historicos e fundamentos exigem internet e disponibilidade dos provedores. Sem dados, mostra indisponibilidade.\n"
         "Meu ambiente: seus registros e provedores de mercado reais.\n"
         "Dados: %LOCALAPPDATA%\\NexoInvest. O pacote não importa bancos do checkout.\n"
         "Gemini/mercado: crie .env ao lado do EXE com suas chaves; use .env.example como referência.\n"

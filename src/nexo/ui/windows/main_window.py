@@ -312,7 +312,7 @@ class MainWindow(QMainWindow):
             "Badge" if self.demo_mode else "SuccessBadge",
         )
         self.mode_badge.setToolTip(
-            "Registros, preços e fundamentos fictícios para apresentação; separados dos seus dados."
+            "Carteiras e movimentações de exemplo; cotações e fundamentos dos provedores reais."
             if self.demo_mode
             else "Seu ambiente local de carteiras e movimentações."
         )

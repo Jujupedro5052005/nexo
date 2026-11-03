@@ -193,4 +193,4 @@ def test_real_entry_point_uses_separate_db_and_labels_demo(tmp_path, qtbot, monk
 
     monkeypatch.setattr(application, "exec", run)
     assert entry.main(demo=True) == 0 if demo_mode else entry.main(normal) == 0
-    assert closed == ([] if demo_mode else [True])
+    assert closed == [True]

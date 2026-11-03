@@ -1,14 +1,25 @@
 # Status atual do projeto
 
-## Revisão de entrega — 03/11/2026
+## Revisão de entrega — integração com master — 03/11/2026
 
-Demonstração não inicializa mais clientes de mercado reais. Empacotamento recusa
-variantes de segredos/sidecars e distribuição incompleta. Corrigida colisão na
-coleta dos testes do README; escopo registra manutenção individual de carteiras
-como pendente. Roteiro cronometrado, evidências de POO e checklist de arquivos em
-[FINAL_REVIEW.md](../00_project/FINAL_REVIEW.md). Planilha oficial, slides finais
-e aceite Windows continuam pendentes; nenhum executável Windows novo foi gerado
-nesta revisão Linux.
+Preservado o mercado online real nos dois modos, conforme a atualização da
+master. Mantidas as correções de empacotamento, o nome único do teste de
+persistência e a documentação acadêmica. Roteiro/checklist atualizados: sem
+internet, comprovar o ledger e o caixa; métricas de mercado podem ficar
+indisponíveis. [Revisão](../00_project/FINAL_REVIEW.md).
+
+## Correção do mercado online — 03/11/2026
+
+Removida a substituição de mercado no modo Apresentação. Ambos os modos usam os
+mesmos provedores reais, inclusive fundamentos, proventos e dados oficiais.
+Dados fictícios de mercado existem apenas nas fixtures de testes e não no bundle.
+Consulta pública Yahoo confirmada: PETR4/VALE3/ITUB4, histórico de PETR4 (20 pontos),
+fundamentos com LPA/VPA e quatro proventos. Sem chamadas autenticadas pagas.
+Esta correção substitui a descrição de mercado fictício da entrega anterior.
+Limite Yahoo do `.env.example` ampliado para 500 consultas locais; os limites
+dos provedores pagos permanecem intactos. Na configuração local, havia 51/50
+consultas registradas; o mesmo ajuste permite consultas automáticas novamente.
+
 
 ## Entrega para avaliação — 03/11/2026
 
