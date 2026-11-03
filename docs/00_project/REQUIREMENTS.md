@@ -1,5 +1,22 @@
 # Requisitos do Nexo Invest
 
+## Complemento autorizado — missão final (03/11/2026)
+
+Entrada visual Demo/Normal, acabamento de IA/Análises, assistente vetorial,
+finanças pessoais no DEMO e PyInstaller complementam a apresentação acadêmica.
+Relatórios recebe conferência mensal e cenário manual de IR, sem classificação
+tributária automática ou declaração oficial. Preservar núcleo, dados, `.env`,
+providers, biblioteca e camadas. [Evidências](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
+## Complemento autorizado — NEXO Intelligence (03/11/2026)
+
+RF-203/RF-204 recebem implementação complementar: chat local/Gemini, ferramentas
+somente leitura sobre serviços existentes, valuation determinístico, fontes,
+datas e premissas; biblioteca de documentos autorizados e metodologias revisadas.
+UI em workers, credenciais externas e cotas locais. Prioridades acadêmicas
+preservadas. Aceite autenticado Gemini/File Search/YouTube separado dos mocks.
+Evidências: [TESTING](../ai/TESTING.md) e [relatório](../ai/IMPLEMENTATION_REPORT.md).
+
 ## Convenções
 
 - **MUST:** necessário para o núcleo funcional ou para a obrigação acadêmica.
@@ -114,3 +131,12 @@ obrigatórios sem revisão de escopo.
 Permanecem pendentes: registro da proposta aprovada, ano do cronograma,
 tratamento acadêmico final de A-008 e confirmação de artefatos finais não
 enumerados claramente na fonte oficial.
+
+## Complemento autorizado — NEXO Intelligence, Missão 2
+
+Chat, investigação da carteira, relatórios e 15 documentos complementam o núcleo
+acadêmico. Pareceres podem favorecer/desfavorecer ampliação sob premissas e
+critérios de revisão explícitos. Hipóteses estimadas têm proveniência e opção
+de desativação; cálculos são determinísticos. IA não executa operações financeiras.
+Credenciais, licença de vídeos e indexação paga não são presumidas.
+Evidências: [MISSION_2_REPORT](../ai/MISSION_2_REPORT.md).

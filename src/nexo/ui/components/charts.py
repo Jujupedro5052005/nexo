@@ -15,7 +15,16 @@ from PySide6.QtCharts import (
     QPieSeries,
     QValueAxis,
 )
-from PySide6.QtCore import QDate, QDateTime, QMargins, QPointF, Qt, QTime, QTimeZone
+from PySide6.QtCore import (
+    QDate,
+    QDateTime,
+    QMargins,
+    QObject,
+    QPointF,
+    Qt,
+    QTime,
+    QTimeZone,
+)
 from PySide6.QtGui import QColor, QCursor, QLinearGradient, QPainter, QPen
 from PySide6.QtWidgets import QToolTip
 
@@ -23,11 +32,28 @@ from nexo.domain.models.market_data import PriceHistory
 from nexo.ui.styles.theme import BORDER, TEXT_PRIMARY, TEXT_SECONDARY
 
 
+class _OwnedChartView(QChartView):
+    """Keep Python wrappers alive for the same lifetime as their C++ chart.
+
+    QChartView owns QChart; QChart owns added series/axes. Area boundaries are
+    separate line objects and also need an explicit lifetime in PySide.
+    """
+
+    def __init__(self, chart: QChart) -> None:
+        super().__init__(chart)
+        self._chart_objects: list[QObject] = [chart, *chart.series(), *chart.axes()]
+        for series in chart.series():
+            if isinstance(series, QAreaSeries):
+                for boundary in (series.upperSeries(), series.lowerSeries()):
+                    if boundary is not None:
+                        self._chart_objects.append(boundary)
+
+
 def _view(chart: QChart, minimum_height: int = 220) -> QChartView:
     chart.setBackgroundVisible(False)
     chart.legend().setLabelColor(QColor(TEXT_SECONDARY))
     chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
-    view = QChartView(chart)
+    view = _OwnedChartView(chart)
     view.setBackgroundBrush(QColor("#0C1727"))
     view.setRenderHint(QPainter.RenderHint.Antialiasing)
     view.setStyleSheet("background: transparent; border: 0;")
@@ -240,7 +266,7 @@ def capital_timeline_chart(points: Sequence[tuple[datetime, Decimal]]) -> QChart
     ]
     for timestamp_ms, amount in coordinates:
         line.append(timestamp_ms, float(amount))
-    area = QAreaSeries(line)
+    area = QAreaSeries(line, None)
     line.setParent(area)  # QAreaSeries does not own its boundary line by default.
     area.setName("Capital a custo • BRL")
     area.setPen(QPen(QColor("#10C7C7"), 2.5))

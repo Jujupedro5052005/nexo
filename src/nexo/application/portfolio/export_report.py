@@ -1,4 +1,5 @@
 import csv
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from io import StringIO
 from typing import Protocol
@@ -6,6 +7,7 @@ from typing import Protocol
 from nexo.application.financial_planning.manage_finances import ManageFinances
 from nexo.application.portfolio.list_transactions import ListTransactions
 from nexo.application.portfolio.load_portfolio_positions import LoadPortfolioPositions
+from nexo.application.portfolio.tax_worksheet import BuildTaxWorksheet
 from nexo.domain.interfaces.portfolio_event_repository import PortfolioEventRepository
 
 
@@ -30,10 +32,15 @@ class ExportReport:
             writer,
         )
 
-    def execute(self, kind: str, portfolio_id: int | None, path: str) -> int:
+    def execute(
+        self, kind: str, portfolio_id: int | None, path: str, *, year: int | None = None
+    ) -> int:
         headers: tuple[str, ...]
         rows: list[tuple[str, ...]] = []
-        if kind in {"positions", "transactions", "events"} and portfolio_id is None:
+        if (
+            kind in {"positions", "transactions", "events", "tax"}
+            and portfolio_id is None
+        ):
             raise ValueError("Selecione uma carteira.")
         if kind == "positions":
             assert portfolio_id is not None
@@ -117,6 +124,32 @@ class ExportReport:
                     e.note,
                 )
                 for e in self.events.list_events(portfolio_id)
+            ]
+        elif kind == "tax":
+            assert portfolio_id is not None
+            selected_year = year if year is not None else datetime.now().astimezone().year
+            headers = (
+                "carteira_id",
+                "ano",
+                "mes",
+                "vendas_brutas_brl",
+                "taxas_pagas_brl",
+                "resultado_contabil_brl",
+                "ativos_sem_classificacao_fiscal",
+            )
+            rows = [
+                (
+                    str(portfolio_id),
+                    str(selected_year),
+                    str(m.month),
+                    str(m.sales),
+                    str(m.fees),
+                    str(m.realized),
+                    ",".join(m.symbols),
+                )
+                for m in BuildTaxWorksheet(self.transactions, self.events).execute(
+                    portfolio_id, selected_year
+                )
             ]
         elif kind == "planning":
             headers = ("descricao", "tipo", "mes", "valor_brl")

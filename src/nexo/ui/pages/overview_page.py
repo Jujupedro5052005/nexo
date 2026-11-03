@@ -36,7 +36,7 @@ class OverviewPage(PageContent):
     def __init__(self) -> None:
         super().__init__("overview")
         self.page_layout.addWidget(
-            Badge("Seu panorama • dados reais da carteira selecionada")
+            Badge("Seu panorama • carteira selecionada")
         )
         self.context_label = QLabel("Selecione uma carteira para começar.")
         self.page_layout.addWidget(self.context_label)

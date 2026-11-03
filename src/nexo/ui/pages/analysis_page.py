@@ -1,7 +1,7 @@
 from typing import Any
 
 from PySide6.QtCharts import QChartView
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
@@ -29,6 +29,7 @@ from nexo.ui.components.account_panel import PerformancePanel
 from nexo.ui.components.asset_analysis_panel import AssetAnalysisPanel
 from nexo.ui.components.charts import bar_chart
 from nexo.ui.components.common import Badge, DataTable, PageContent, SectionCard
+from nexo.ui.components.companion import GuideCard
 from nexo.ui.components.research_workbench import ResearchWorkbench
 from nexo.ui.financial_formatting import (
     currency_text,
@@ -261,6 +262,8 @@ class PortfolioComparisonPanel(SectionCard):
 
 
 class AnalysisPage(PageContent):
+    explain_requested = Signal(str)
+
     def __init__(
         self,
         analyze_asset: AnalyzeAsset | None = None,
@@ -271,7 +274,14 @@ class AnalysisPage(PageContent):
     ) -> None:
         super().__init__("analysis")
         self.page_layout.addWidget(
-            Badge("Análises reais • premissas e origem explícitas")
+            Badge("Dados de mercado · cenários manuais identificados")
+        )
+        self.page_layout.addWidget(
+            GuideCard(
+                "Escolha o que deseja investigar",
+                "Avalie um ativo, compare carteiras, acompanhe o patrimônio ou aprenda com simulações.",
+                "Ativo: informe ticker e consulte. Carteiras: selecione duas ou mais. Patrimônio: prepare o caixa. Guia: explore exemplos sem alterar seus investimentos.",
+            )
         )
         self.tabs = QTabWidget()
         self.asset_panel = AssetAnalysisPanel(analyze_asset)
@@ -289,8 +299,8 @@ class AnalysisPage(PageContent):
         self._workbench: ResearchWorkbench | None = None
         self._workbench_page = QWidget()
         self._workbench_layout = QVBoxLayout(self._workbench_page)
-        self.tabs.addTab(self.performance_panel, "Patrimônio / TWR")
-        self.tabs.addTab(self._workbench_page, "Ferramentas / teoria")
+        self.tabs.addTab(self.performance_panel, "Patrimônio e retorno")
+        self.tabs.addTab(self._workbench_page, "Guia e simuladores")
         self.tabs.currentChanged.connect(self._load_tools)
         self.page_layout.addWidget(self.tabs)
         self.page_layout.addStretch()
@@ -299,6 +309,7 @@ class AnalysisPage(PageContent):
     def workbench(self) -> ResearchWorkbench:
         if self._workbench is None:
             self._workbench = ResearchWorkbench(self._market_research)
+            self._workbench.diligence.explain_requested.connect(self.explain_requested)
             self._workbench_layout.addWidget(self._workbench)
         return self._workbench
 

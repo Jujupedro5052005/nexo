@@ -1,5 +1,19 @@
 # Design system do Nexo Invest
 
+## Missão final — experiência desktop
+
+Manter azul escuro/ciano e componentes existentes. O assistente é vetor Qt de
+64 px, com mensagens curtas; animação só ao analisar, interrompida quando oculto
+ou ao desligar movimento. Não cobre a leitura e não exige assets externos.
+
+Contexto abre em janela redimensionável para evitar disputa com o chat; todos
+os fundos/labels seguem o tema. Conversas usam títulos legíveis em vez de IDs.
+Relatório vazio orienta a próxima ação; preenchido alinha tabela e gráfico.
+Educação e TWR têm guias em cards. IR separa conferência de simulação manual.
+Badges descrevem origem/limites sem anunciar dados não consultados como atuais.
+Revisão com capturas em 1180×720 e 1440×900; outros DPI e leitores de tela não
+foram auditados. [Capturas e decisões](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
 ## Fechamento — 27/10/2026
 
 O tema escuro continua padrão; Configurações oferece claro e sistema com seleção
@@ -87,7 +101,7 @@ mantém estilo uniforme sem imagens raster ou dependência adicional.
 
 ## Dados demonstrativos
 
-O protótipo usa o dataset em `src/nexo/ui/demo/data.py` e ainda possui
+Nota histórica do protótipo (dataset desconectado removido na entrega final): havia
 constantes inline nas páginas. Páginas com esses valores mostram o badge
 “Dados demonstrativos”. Esses dados não pertencem ao Domain, Application ou
 Infrastructure e serão substituídos por resultados de casos de uso.
@@ -204,3 +218,12 @@ inicial para quem só acompanha posições. Números novos recebem fórmula/inte
 na tabela e tooltip. Ajuda dos cards usa botão focável e acionável por teclado;
 novas entradas recebem nomes acessíveis. Revisão visual offscreen em 100%, 125%
 e 150%; isto não substitui validação com leitor de tela e monitores físicos.
+
+## NEXO Intelligence — Missão 2
+
+Preservar superfícies azul escuro, ciano, tipografia e componentes existentes.
+Referências externas orientam hierarquia sem importar suas paletas. Copiloto
+é a aba inicial; contexto recolhível. Enter envia; Shift+Enter cria linha.
+Relatório separa indicadores/cenários/histórico/fontes. Biblioteca mostra textos
+e fichas humanas; JSON fica no inspetor técnico. Rolagem acomoda 1180×720 e
+1440×900, com capturas/teste Qt. Não houve avaliação exaustiva de DPI/monitores.

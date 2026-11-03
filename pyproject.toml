@@ -15,3 +15,13 @@ dependencies = {file = ["requirements.txt"]}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.data-files]
+"share/nexo/knowledge" = ["docs/ai/knowledge/README.md"]
+"share/nexo/knowledge/foundations" = ["docs/ai/knowledge/foundations/*.md"]
+"share/nexo/knowledge/valuation" = ["docs/ai/knowledge/valuation/*.md"]
+"share/nexo/knowledge/sectors" = ["docs/ai/knowledge/sectors/*.md"]
+"share/nexo/knowledge/portfolio" = ["docs/ai/knowledge/portfolio/*.md"]
+"share/nexo/knowledge/macro" = ["docs/ai/knowledge/macro/*.md"]
+"share/nexo/knowledge/recommendations" = ["docs/ai/knowledge/recommendations/*.md"]
+"share/nexo/knowledge/sources" = ["docs/ai/knowledge/sources/*.json"]
+

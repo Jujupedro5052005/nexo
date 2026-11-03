@@ -199,8 +199,12 @@ class YahooFinanceProvider(
                 source="Yahoo Finance",
                 change=optional("regularMarketChange"),
                 change_percent=optional("regularMarketChangePercent"),
-                day_high=optional("regularMarketDayHigh"),
-                day_low=optional("regularMarketDayLow"),
+                day_high=optional("regularMarketDayHigh")
+                if (optional("regularMarketDayHigh") or Decimal(0)) > 0
+                else None,
+                day_low=optional("regularMarketDayLow")
+                if (optional("regularMarketDayLow") or Decimal(0)) > 0
+                else None,
                 open=optional("regularMarketOpen"),
                 previous_close=optional("regularMarketPreviousClose"),
                 volume=int(volume)

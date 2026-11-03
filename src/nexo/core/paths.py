@@ -5,6 +5,21 @@ import sys
 from pathlib import Path
 
 
+def environment_file() -> Path:
+    """External secrets stay beside the executable, never inside its bundle."""
+    if getattr(sys, "frozen", False):
+        external = Path(sys.executable).resolve().parent / ".env"
+        working = Path.cwd() / ".env"
+        return external if external.is_file() or not working.is_file() else working
+    return Path(__file__).resolve().parents[3] / ".env"
+
+
+def bundled_knowledge_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent)) / "knowledge"
+    return Path(__file__).resolve().parents[3] / "docs" / "ai" / "knowledge"
+
+
 def application_data_dir() -> Path:
     configured = os.environ.get("NEXO_DATA_DIR", "").strip()
     if configured:

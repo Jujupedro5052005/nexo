@@ -1,0 +1,32 @@
+{
+  "verification_date": "2026-11-03",
+  "expires_at": "2026-12-02",
+  "verification": "YouTube official oEmbed; no video processing",
+  "channel_handle": "@geracaodividendoss",
+  "channel_id": null,
+  "channel_id_status": "pending_authenticated_data_api",
+  "records": [
+    {
+      "video_id": "7wOGP2bklNc",
+      "title": "Nunca mais compre um banco caro!",
+      "uri": "https://www.youtube.com/watch?v=7wOGP2bklNc",
+      "topic": "Bancos e valuation: tema indicado por título; metodologia não confirmada",
+      "published_at": null,
+      "duration": null,
+      "authorized": false,
+      "status": "reference_only",
+      "source": "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D7wOGP2bklNc&format=json"
+    },
+    {
+      "video_id": "_CVsSXQ6NMc",
+      "title": "Calculei o preço teto do Itaú e o resultado me surpreendeu",
+      "uri": "https://www.youtube.com/watch?v=_CVsSXQ6NMc",
+      "topic": "ITUB4 e preço teto: tema indicado por título; metodologia não confirmada",
+      "published_at": null,
+      "duration": null,
+      "authorized": false,
+      "status": "reference_only",
+      "source": "https://www.youtube.com/oembed?url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D_CVsSXQ6NMc&format=json"
+    }
+  ]
+}

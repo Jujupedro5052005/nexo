@@ -1,5 +1,38 @@
 # Backlog priorizado
 
+## Fechamento de apresentação
+
+- [x] Seletor visual, assistente vetorial e correções de contexto/nova conversa.
+- [x] Estados guiados de relatórios, Análises/TWR e educação.
+- [x] Exemplos DEMO persistentes e simulações de aporte/alocação.
+- [x] Auxiliar de IR parcial e receita de distribuição PyInstaller.
+- [ ] Assinar o binário e testar em Windows limpo, outros DPI e leitor de tela.
+- [ ] Ampliar alertas além de condições de preço, sem anunciar motor inexistente.
+
+[Relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
+## NEXO Intelligence — Missão 2
+
+- [x] Chat, contexto recolhível, relatório visual e diagnóstico separado.
+- [x] Investigação, cenários, revisão conversacional e pareceres condicionais.
+- [x] Quinze capítulos originais, hash/versões e inclusão no wheel.
+- [x] Stores/sincronização por CLI; dois vídeos com oEmbed, sem processamento.
+- [ ] Catálogo 20–30: chave Data API e ID UC confirmado pendentes.
+- [ ] Aceite autenticado Gemini/File Search e custo autorizado.
+- [ ] Revisão especializada independente e cobertura setorial ampliada.
+
+Evidências: [MISSION_2_REPORT](../ai/MISSION_2_REPORT.md).
+
+## NEXO Intelligence — aceite externo
+
+- [x] Implementação integrada, cálculos, ferramentas, histórico, biblioteca e mocks.
+- [ ] Chave local e validação da geração no modelo disponível no projeto.
+- [ ] Store existente e autorização de eventual indexação de embeddings.
+- [ ] Chave YouTube, confirmação do ID UC e autorização do titular para vídeos.
+- [ ] Curadoria das metodologias extraídas antes do uso nas análises.
+
+Relatório: [IMPLEMENTATION_REPORT](../ai/IMPLEMENTATION_REPORT.md).
+
 ## Aceite restante — 05.2
 
 - [x] Implementar quatro providers, routing fechado, budgets e snapshot avançado.

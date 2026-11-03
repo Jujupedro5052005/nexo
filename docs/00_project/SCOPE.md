@@ -1,5 +1,21 @@
 # Escopo do Nexo Invest
 
+## Fechamento autorizado — missão final
+
+Entrada gráfica, navegação, guia vetorial e DEMO enriquecido integram o fechamento.
+O apoio de IR consolida ledger e simula premissas manuais; não inclui motor fiscal
+legal, segregação day trade, isenções automáticas, DARF ou envio de declaração.
+Distribuição Windows em pasta; assinatura e aceite em máquina limpa permanecem
+posteriores. Núcleo acadêmico preservado.
+
+## Ampliação autorizada — 03/11/2026
+
+NEXO Intelligence adiciona copiloto educacional com Gemini opcional, ferramentas
+somente leitura, cálculos determinísticos e biblioteca autorizada com curadoria.
+O núcleo acadêmico mantém prioridade. Sem ordens reais ou fórmulas executáveis
+criadas pelo modelo. Limites e aceite externo em
+[IMPLEMENTATION_REPORT.md](../ai/IMPLEMENTATION_REPORT.md).
+
 ## Ampliação autorizada — 21/10/2026
 
 A evolução solicitada inclui Yahoo como fonte pública principal, cenários
@@ -102,3 +118,11 @@ requisitos, roadmap, backlog e status.
 ## Incremento 07 entregue
 
 Caixa BRL explícito, histórico de patrimônio/TWR diário aproximado, cenários financeiros manuais, risco de mercado, três modelos de insolvência e diligência educacional. Sem execução real de ordens, FX implícito, probabilidade de falência inventada, motor tributário legal ou conformidade regulatória. Ver [políticas e rastreabilidade](../02_architecture/FINANCIAL_TOOLS.md).
+
+## Escopo autorizado da Missão 2
+
+Inclui análise educacional direcional condicionada à carteira selecionada,
+cenários assistidos e relatório auditável. Não inclui ordens reais, garantia de
+retorno ou adequação regulatória. Investigação limita-se a 20 ativos/100 chamadas
+lógicas, sem screener ilimitado. Biblioteca e índice remoto são separados do
+system prompt; conhecimento revisado não cria código executável.

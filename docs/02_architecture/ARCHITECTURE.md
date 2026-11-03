@@ -1,5 +1,31 @@
 # Arquitetura de software do Nexo Invest
 
+## Fechamento de apresentação e distribuição — 03/11/2026
+
+O seletor Qt escolhe o ambiente antes de bancos/providers. `StartupDialog` apenas
+apresenta a escolha; `main.py` continua como composition root. O seed complementar
+fica na Infrastructure, com transação/marcador de versão, somente no banco demo.
+Não sobrescreve finanças pessoais existentes ou adiciona exemplos ao Normal.
+
+`BuildTaxWorksheet` usa `ListTransactions`, eventos e replay existente para
+conferência mensal. Cenário fiscal, alocação e resumo de fluxos TWR ficam em
+Calculations. UI converte/formata entradas; não há SQL/HTTP, classificação fiscal
+inventada ou regra tributária legal nos widgets. CSV reutiliza `ExportReport`.
+
+O companheiro vetorial recebe estados da UI, sem regras de investimento ou acesso
+a dados. Workbench permanece carregado sob demanda. `core/paths.py` distingue
+corpus congelado, dados graváveis e `.env` externo. `launcher.py` conserva
+`freeze_support`; PyInstaller é dependência de build separada da execução.
+
+## NEXO Intelligence — 03/11/2026
+
+Workspace e orquestrador coordenam protocolos de IA, recuperação e persistência.
+FinancialTools usa os casos de uso/providers compartilhados; fórmulas Decimal
+ficam em Calculations. SDK Gemini e SQLite dedicado ficam em Infrastructure.
+IntelligencePage usa TaskRunner e recebe a composição de main.py. Ledger e
+posições preservados. Arquitetura efetiva, POO e limites:
+[docs/ai/ARCHITECTURE.md](../ai/ARCHITECTURE.md).
+
 ## Fechamento de fluxos — 27/10/2026
 
 `ManageLocalData` coordena o protocolo `LocalDataStorage`; a implementação

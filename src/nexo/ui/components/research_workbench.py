@@ -1,6 +1,7 @@
 from decimal import Decimal
 from typing import Any
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -22,6 +23,7 @@ from nexo.application.analysis.solvency import EvaluateSolvency
 from nexo.application.education.checklists import TOPICS, findings
 from nexo.domain.errors import DomainValidationError
 from nexo.ui.components.common import DataTable, SectionCard, action_button
+from nexo.ui.components.companion import CompanionCard, CompanionState, GuideCard
 from nexo.ui.decimal_parser import DecimalInputError, parse_decimal
 from nexo.ui.financial_formatting import currency_text, percent_text, replace_rows
 from nexo.ui.workers import TaskRunner
@@ -264,8 +266,16 @@ class SolvencyPanel(SectionCard):
 
 
 class DiligencePanel(SectionCard):
+    explain_requested = Signal(str)
+
     def __init__(self) -> None:
         super().__init__("Educação financeira e roteiro de diligência")
+        self.companion = CompanionCard(
+            "Aprenda por tema. Marque os pontos que ainda precisa investigar e leia as orientações correspondentes."
+        )
+        self.companion.help_button.setText("Explicar este tema")
+        self.companion.help_requested.connect(self.explain)
+        self.content.addWidget(self.companion)
         self.topic = QComboBox()
         self.topic.addItems(list(TOPICS))
         self.content.addWidget(self.topic)
@@ -299,8 +309,15 @@ class DiligencePanel(SectionCard):
         selected = tuple(i for i, b in enumerate(self.boxes) if b.isChecked())
         self.feedback.setText(
             "\n\n".join(findings(self.topic.currentText(), selected))
-            + "\n\nRoteiro educacional, sem score de fraude, julgamento de empresa ou certificação de adequação. Fontes: PDFs fornecidos de planejamento, análise, mercado, pig butchering e artigo de opinião sobre tesourarias em cripto. Opinião não é norma; criptoativo não é sinônimo de pirâmide."
+            + "\n\nChecklist de investigação; marcar itens não certifica um investimento. Revise as evidências e suas fontes."
         )
+
+    def explain(self) -> None:
+        self.companion.set_state(
+            CompanionState.EXPLAINING,
+            "Vou preparar uma pergunta no Copiloto. Você decide quando enviar.",
+        )
+        self.explain_requested.emit(self.topic.currentText())
 
 
 class MarketRiskPanel(SectionCard):
@@ -432,15 +449,23 @@ class ResearchWorkbench(QWidget):
         super().__init__()
         layout = QVBoxLayout(self)
         tabs = QTabWidget()
+        self.tabs = tabs
+        layout.addWidget(
+            GuideCard(
+                "Aprenda, simule, revise",
+                "Calculadoras usam valores informados; risco de mercado consulta séries; educação ajuda a organizar sua investigação.",
+                "1 · Escolha um tema. 2 · Confira as unidades e ajuste os campos. 3 · Calcule e leia a interpretação. Nenhuma simulação altera a carteira.",
+            )
+        )
         self.calculators = CalculatorPanel()
         self.solvency = SolvencyPanel()
         self.market = MarketRiskPanel(market)
         self.diligence = DiligencePanel()
         for title, panel in (
-            ("Calculadoras", self.calculators),
-            ("Mercado e VaR", self.market),
-            ("Insolvência", self.solvency),
-            ("Diligência / educação", self.diligence),
+            ("Simular cenários", self.calculators),
+            ("Risco de mercado", self.market),
+            ("Solidez da empresa", self.solvency),
+            ("Aprender e revisar", self.diligence),
         ):
             tabs.addTab(panel, title)
         layout.addWidget(tabs)

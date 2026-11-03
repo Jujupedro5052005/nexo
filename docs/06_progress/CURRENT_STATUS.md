@@ -1,5 +1,93 @@
 # Status atual do projeto
 
+## Entrega para avaliação — 03/11/2026
+
+Copiloto visual restaurado no chat. Apresentação com caixa e eventos financeiros
+nas três carteiras, patrimônio e provedor de mercado fictício exclusivo, sem
+depender de internet. Migração preserva contas já inicializadas. Removidos
+marcadores vazios e formulários antigos sem persistência. README com clone da
+master e execução via launcher após instalar requirements; pendências em TODO.md.
+Persistência verificada após reabrir banco, com aporte adicional preservado.
+Validação direcionada: 29 testes aprovados, Ruff e mypy dos módulos alterados;
+um build e um smoke nativo aprovados. ZIP conferido sem credenciais ou bancos.
+
+## Hotfix NEXO Intelligence — 03/11/2026
+
+Corrigidos foco por ticker, contexto da posição na síntese, fallback local de
+erros Gemini e busca do `.env` em execução congelada. Chat simplificado, provedor
+e consentimento visíveis. 17 testes específicos; sem suíte completa ou chamadas
+pagas. [Detalhes e execução](../ai/HOTFIX_INTELLIGENCE.md).
+
+## Missão final — UX e distribuição — 03/11/2026
+
+- Entrada visual Demo/Normal, sem flags; cancelar não cria bancos/providers.
+- Copiloto vetorial, estados, movimento reduzível, contexto em janela própria,
+  nomes legíveis de conversas e relatório guiado. Configurações por último.
+- DEMO com orçamento, metas/progresso e três alertas de preço persistentes,
+  importados uma vez, preservando registros existentes.
+- Planejamento com projeção e alocação manual; Análises com roteiro de
+  patrimônio/TWR, simuladores e educação ligada ao Copiloto.
+- Conferência mensal para IR, CSV e cenário manual, sem classificação fiscal
+  automática, declaração ou DARF.
+- Receita PyInstaller e caminhos de recursos/dados/segredos para executável.
+
+Capturas, validações e limites: [relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md)
+e [validação](../ai/FINAL_VALIDATION.md).
+
+Suíte completa: 820 aprovados/2 ignorados (436,26 s); regressão final de UI e
+finanças: 28 aprovados (39,92 s). Ruff, mypy (160 arquivos), compileall,
+diff-check e build PyInstaller aprovados. Smokes nativos de entrada/ambientes
+isolados executados sem inferência paga.
+
+## NEXO Intelligence — Missão 2 — 03/11/2026
+
+- Copiloto prioriza chat, contexto recolhível, sugestões, Enter/Shift+Enter e
+  relatório visual. Identidade azul escuro/ciano preservada; JSON sob demanda.
+- Investigação limitada da carteira, cenários assistidos identificados, retorno
+  excedente bancário, risco/correlação e pareceres condicionais auditáveis.
+- Follow-ups mantêm foco e recalculam margem; mudança de contexto limpa resultados.
+- Quinze documentos originais integrados e incluídos no wheel. Documentos ficam
+  fora do system prompt; não criam fórmulas executáveis.
+- Stores/sincronização File Search por CLI, testados com SDK simulado. Nenhum
+  índice remoto criado nem inferência paga executada nesta missão.
+- Dois vídeos com títulos/autoria verificados por oEmbed. Zero processados;
+  catálogo 20–30 pela Data API pendente de chave/ID UC e direitos de conteúdo.
+- `.env` e bancos financeiros originais preservados. Não é necessário reenviar
+  chave já configurada. Branch/PR existentes, sem merge.
+
+Validação, capturas e limites: [MISSION_2_REPORT](../ai/MISSION_2_REPORT.md).
+
+Suíte completa: 799 aprovados/2 ignorados (405,99 s). Após os últimos ajustes
+de apresentação e troca de ativo: 111 testes de IA aprovados/2 ignorados
+(16,13 s). Ruff, mypy (153 arquivos), compileall, diff-check e build/inspeção
+do wheel aprovados. Validação externa paga não executada.
+
+## NEXO Intelligence — 03/11/2026
+
+- Página integrada: conversa, histórico local, contexto, valuation Decimal,
+  sensibilidade, exportação Markdown, biblioteca e revisão de metodologias.
+- SDK Gemini com chave externa, modo auto/mock, prompt versionado e ferramentas
+  read-only. Sem HTTP/SQL na UI ou integração financeira redundante.
+- Recuperação textual local e File Search opcional; catálogo YouTube oficial
+  limitado, confirmação de ID, autorização e preflight de tokens de vídeo.
+- Extrações entram em pending_review e não criam fórmulas executáveis. Os três
+  métodos nativos são do Nexo, sem atribuição a vídeos não processados.
+- SQLite da IA separado, quota atômica, erros seguros, contexto limitado,
+  retentativa 429 e cancelamento cooperativo em worker.
+- `.env` e bancos financeiros originais preservados. Projeto informado já
+  configurado; basta adicionar GEMINI_API_KEY no `.env` local.
+- Gemini/File Search/YouTube/vídeo testados com mocks e transporte simulado do SDK.
+  Sem inferência/indexação paga real. oEmbed oficial confirmou
+  `@geracaodividendoss`; ID UC e autorização do titular pendentes.
+- Branch feature/nexo-intelligence; remoto possui master, não main.
+- Validação: suíte completa 764 aprovados/2 ignorados (376,84 s); após os últimos
+  ajustes de UI/precisão, regressão IA final 77 aprovados/2 ignorados (5,75 s).
+  Ruff, mypy (146 arquivos), compileall e diff-check aprovados. Testes reais
+  Gemini continuam desativados por padrão, sem custo de inferência nesta sessão.
+
+Documentação, instalação Windows/Linux, resultados e limites:
+[IMPLEMENTATION_REPORT](../ai/IMPLEMENTATION_REPORT.md).
+
 ## Fechamento de fluxos — 27/10/2026
 
 - Boleta consulta automaticamente a cotação após 500 ms sem digitação do ticker,

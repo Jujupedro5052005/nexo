@@ -1,5 +1,27 @@
 # Roadmap acadêmico do Nexo Invest
 
+## Missão final — 03/11/2026
+
+- [x] Seletor visual de ambiente, sem depender de `--demo`.
+- [x] Copiloto visual, contexto legível, relatório guiado e Configurações por último.
+- [x] DEMO de orçamento/metas/alertas; projeção e alocação manual.
+- [x] Orientação em patrimônio/TWR, simuladores e educação.
+- [x] Conferência para IR e calculadora manual com CSV.
+- [x] Receita PyInstaller e validação local do executável.
+- [ ] Assinatura e avaliação numa instalação Windows limpa.
+
+[Relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
+## NEXO Intelligence — 03/11/2026
+
+- [x] Copiloto integrado, modo offline e Gemini pronto para chave local.
+- [x] Ferramentas read-only sobre providers/cache e ledger existentes.
+- [x] Valuation Decimal, cenários, biblioteca, revisão e histórico.
+- [x] Adapters File Search/YouTube com testes controlados e documentação.
+- [ ] Aceite autenticado real e autorização de conteúdo do canal.
+
+Detalhes: [roadmap de IA](../ai/ROADMAP.md).
+
 ## Fechamento — 27/10/2026
 
 - [x] Cotação automática na boleta, alternativa manual e entrada por quantidade/valor.
@@ -124,3 +146,9 @@ As fases abaixo preservam o registro dos incrementos anteriores.
 ## Incremento 07 — 21/10/2026
 
 Implementados caixa/eventos, proteção de escrita concorrente, patrimônio/TWR diário aproximado e ferramentas quantitativas/educacionais dos PDFs. Próximos pontos: correção auditável do ledger, FX e eventos corporativos adicionais, HTTP cancelável nos outros adaptadores, acessibilidade assistiva e empacotamento. Plano autenticado e confirmações acadêmicas permanecem dependentes de evidência externa.
+
+## NEXO Intelligence — Missão 2 — 03/11/2026
+
+Copiloto, relatórios, cenários assistidos, 15 capítulos, retorno excedente bancário
+e sincronização entregues. Aceite real Gemini/File Search e catálogo ampliado
+dependem de credenciais/orçamento. [Relatório](../ai/MISSION_2_REPORT.md).

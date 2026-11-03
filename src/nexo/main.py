@@ -20,6 +20,7 @@ from nexo.application.assets.market_integration import (
 )
 from nexo.application.assets.provider_status import GetProviderHealth
 from nexo.application.financial_planning.manage_finances import ManageFinances
+from nexo.application.intelligence.tools import FinancialTools
 from nexo.application.local_data import ManageLocalData
 from nexo.application.portfolio.account import PortfolioAccount
 from nexo.application.portfolio.compare_portfolios import ComparePortfolios
@@ -33,7 +34,11 @@ from nexo.application.portfolio.performance import LoadPortfolioPerformance
 from nexo.application.portfolio.register_transaction import RegisterTransaction
 from nexo.core.paths import application_data_dir
 from nexo.demo_dataset import DEMO_NOTICE, ensure_demo_dataset
+from nexo.domain.interfaces.dividend_data_provider import DividendDataProvider
+from nexo.domain.interfaces.fundamental_data_provider import FundamentalDataProvider
+from nexo.domain.interfaces.market_data_provider import MarketDataProvider
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
+from nexo.infrastructure.database.demo_finances import seed_demo_finances
 from nexo.infrastructure.database.local_data import SqliteLocalDataStorage
 from nexo.infrastructure.database.repositories.personal_finance import (
     SqlPersonalFinanceRepository,
@@ -49,9 +54,13 @@ from nexo.infrastructure.database.session import (
     create_session_factory,
     initialize_database,
 )
+from nexo.infrastructure.intelligence.composition import create_workspace
+from nexo.infrastructure.intelligence.config import AISettings
+from nexo.infrastructure.intelligence.storage import SqliteIntelligenceStorage
 from nexo.infrastructure.market_data.composition import ProviderServices
 from nexo.infrastructure.market_data.config import MarketSettings
 from nexo.infrastructure.persistence.report_writer import CsvReportWriter
+from nexo.ui.dialogs.startup import choose_startup_mode
 from nexo.ui.preferences import apply_theme
 from nexo.ui.windows.main_window import MainWindow
 
@@ -69,14 +78,20 @@ def create_application() -> QApplication:
     application.setStyle("Fusion")
     apply_theme()
     if not application.property("theme_listener_connected"):
-        application.styleHints().colorSchemeChanged.connect(lambda _scheme: apply_theme())
+        application.styleHints().colorSchemeChanged.connect(
+            lambda _scheme: apply_theme()
+        )
         application.setProperty("theme_listener_connected", True)
     return application
 
 
-def main(database_path: Path | None = None, *, demo: bool = False) -> int:
+def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
     """Start the Nexo desktop application."""
     application = create_application()
+    if demo is None and database_path is None:
+        demo = choose_startup_mode()
+        if demo is None:
+            return 0
     settings = MarketSettings.from_environment()
     try:
         data_dir = application_data_dir()
@@ -99,32 +114,67 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
         )
         return 1
     providers = ProviderServices(settings, data_dir)
-    provider, cached = providers.yahoo, providers.market
+    provider = providers.yahoo
+    cached: MarketDataProvider = providers.market
+    fundamentals: FundamentalDataProvider = providers.fundamentals
+    dividends: DividendDataProvider = providers.dividends
+    if demo:
+        from nexo.infrastructure.market_data.presentation import PresentationMarketData
+
+        presentation = PresentationMarketData()
+        cached = presentation
+        fundamentals = presentation
+        dividends = presentation
     window: MainWindow | None = None
     try:
         initialize_database(engine)
+        if demo:
+            seed_demo_finances(engine)
         session_factory = create_session_factory(engine)
         repository = SqlAlchemyPortfolioRepository(session_factory)
         transactions = SqlAlchemyTransactionRepository(session_factory)
         load_positions = LoadPortfolioPositions(transactions)
         valuation = LoadPortfolioValuation(load_positions, cached)
         finances = ManageFinances(SqlPersonalFinanceRepository(session_factory), cached)
+        ai_storage = SqliteIntelligenceStorage(
+            Path(str(engine.url.database)).with_name(
+                Path(str(engine.url.database)).stem + "_intelligence.db"
+            )
+        )
+        intelligence = create_workspace(
+            AISettings.from_environment(),
+            ai_storage,
+            FinancialTools(
+                ListPortfolios(repository),
+                load_positions,
+                valuation,
+                GetAssetQuote(cached),
+                GetAssetHistory(cached),
+                fundamentals,
+                dividends,
+                ai_storage,
+                transactions=ListTransactions(transactions),
+            ),
+            data_mode="demo" if demo else "normal",
+        )
         window = MainWindow(
             CreatePortfolio(repository),
             ListPortfolios(repository),
             RegisterTransaction(transactions),
             ListTransactions(transactions),
             load_positions,
+            intelligence=intelligence,
+            demo_mode=bool(demo),
             load_valuation=valuation,
             search_assets=SearchAssets(cached),
             get_quote=GetAssetQuote(cached),
             get_history=GetAssetHistory(cached),
             analyze_asset=AnalyzeAsset(
                 cached,
-                providers.fundamentals,
-                dividends=providers.dividends,
-                official=providers.official,
-                actions=providers.actions,
+                fundamentals,
+                dividends=dividends,
+                official=None if demo else providers.official,
+                actions=None if demo else providers.actions,
             ),
             finances=finances,
             account=PortfolioAccount(transactions, transactions, cached),
@@ -147,7 +197,6 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
         )
         if demo:
             window.setWindowTitle(f"Nexo Invest — {DEMO_NOTICE}")
-            window.statusBar().showMessage(DEMO_NOTICE)
             portfolios = repository.list_all()
             if portfolios and portfolios[0].id is not None:
                 window._select_portfolio(portfolios[0].id)
@@ -161,22 +210,29 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
     finally:
         if window is not None:
             window.market_runner.stop()
+            window.intelligence_page.runner.stop()
             window.alerts_page.runner.stop()
             window.assets_page.runner.stop()
             window.analysis_page.stop()
             window.settings_page.market_panel.runner.stop()
             window.wait_for_market()
+            if window.intelligence_page.workspace is not None:
+                window.intelligence_page.workspace.orchestrator.provider.close()
         providers.close()
         engine.dispose()
 
 
 def cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Nexo Invest — aplicação desktop")
-    parser.add_argument(
-        "--demo", action="store_true", help="Abrir o banco separado de demonstração"
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument(
+        "--demo", action="store_true", help="Abrir demonstração diretamente"
+    )
+    modes.add_argument(
+        "--normal", action="store_true", help="Abrir ambiente normal diretamente"
     )
     args = parser.parse_args(argv)
-    return main(demo=args.demo)
+    return main(demo=True if args.demo else False if args.normal else None)
 
 
 if __name__ == "__main__":
