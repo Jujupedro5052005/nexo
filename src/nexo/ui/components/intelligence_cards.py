@@ -17,7 +17,9 @@ from PySide6.QtWidgets import (
 
 from nexo.ui.components.charts import allocation_donut, line_chart
 from nexo.ui.components.common import DataTable, SectionCard
+from nexo.ui.components.companion import GuideCard
 from nexo.ui.components.metric_card import MetricCard
+from nexo.ui.components.responsive_pair import ResponsivePair
 from nexo.ui.financial_formatting import currency_text, percent_text
 
 
@@ -57,11 +59,50 @@ class MethodologyCard(SectionCard):
     def __init__(self, method: Any) -> None:
         super().__init__(method.name)
         for text in (
-            f"Versão {method.version} · {method.review_status} · origem {method.origin}",
+            f"Versão {method.version} · "
+            + {
+                "approved": "aprovada",
+                "pending_review": "aguarda revisão",
+                "draft": "rascunho",
+                "superseded": "substituída",
+                "rejected": "rejeitada",
+            }.get(method.review_status, method.review_status)
+            + " · origem "
+            + {
+                "nexo": "Nexo",
+                "inference": "inferência",
+                "source": "fonte externa",
+                "synthetic": "exemplo sintético",
+            }.get(method.origin, method.origin),
             method.description,
-            "Aplicabilidade: " + ", ".join(method.applicable_asset_types),
+            "Aplicabilidade: "
+            + ", ".join(
+                {
+                    "bank": "bancos",
+                    "stock": "ações",
+                    "fii": "fundos imobiliários",
+                    "insurer": "seguradoras",
+                }.get(v, v)
+                for v in method.applicable_asset_types
+            ),
             "Fórmula: " + method.formula_reference,
-            "Entradas: " + ", ".join(method.required_inputs),
+            "Entradas: "
+            + ", ".join(
+                {
+                    "bvps": "VPA",
+                    "roe": "ROE",
+                    "required_return": "retorno requerido",
+                    "growth": "crescimento",
+                    "expected_dividend": "dividendo esperado",
+                    "target_yield": "yield alvo",
+                    "dividend_source": "fonte do dividendo",
+                    "sustainability_note": "sustentabilidade",
+                    "metric_per_share": "métrica por ação",
+                    "reference_multiple": "múltiplo",
+                    "comparability_note": "comparabilidade",
+                }.get(v, v)
+                for v in method.required_inputs
+            ),
             "Limitações: " + " ".join(method.constraints),
             "Fontes: " + "; ".join(s.title for s in method.source_references),
         ):
@@ -127,7 +168,11 @@ class AssetAnalysisCard(SectionCard):
                         s["label"].title(),
                         money(s.get("theoretical_value")),
                         money(s.get("ceiling_price")),
-                        "Hipótese estimada · " + s["origin"],
+                        "Hipótese estimada · "
+                        + {
+                            "nexo_policy": "política Nexo",
+                            "gemini_estimate": "Gemini",
+                        }.get(s["origin"], s["origin"]),
                     )
                     for s in asset["scenarios"]
                 ],
@@ -155,6 +200,8 @@ class FinancialReportView(QWidget):
         self.setObjectName("PageContent")
         self.content = QVBoxLayout(self)
         self.content.setContentsMargins(0, 0, 0, 0)
+        self.content.setSpacing(14)
+        self.content.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.report: dict[str, Any] = {}
 
     def clear(self) -> None:
@@ -169,8 +216,17 @@ class FinancialReportView(QWidget):
         self.report = report
         if not report:
             self.content.addWidget(
-                QLabel(
-                    "Execute uma análise aprofundada para explorar posições, cenários e fontes."
+                GuideCard(
+                    "Sua análise começa pela conversa",
+                    "Este painel organiza os resultados da investigação: parecer, indicadores, cenários e evidências.",
+                    "1 · Selecione uma carteira ou ativo em Contexto.\n2 · Peça uma análise aprofundada no Copiloto.\n3 · Volte aqui para comparar cenários e conferir as fontes.",
+                )
+            )
+            self.content.addWidget(
+                GuideCard(
+                    "O que você encontrará aqui",
+                    "Carteira: exposição e concentração. Ativos: cotação, preço teto, risco e histórico.",
+                    "Cenários são hipóteses revisáveis. Use a conversa para alterar a margem ou pedir uma explicação; exporte o relatório quando estiver pronto.",
                 )
             )
             return
@@ -187,19 +243,22 @@ class FinancialReportView(QWidget):
             row.addWidget(MetricCard(title, value, "Sem incluir caixa · posição atual"))
         headline.content.addLayout(row)
         if report.get("sector_exposure"):
-            headline.content.addWidget(
-                DataTable(
-                    ("SETOR", "EXPOSIÇÃO"),
-                    [(s, ratio(w)) for s, w in report["sector_exposure"].items()],
-                )
+            table = DataTable(
+                ("SETOR", "EXPOSIÇÃO"),
+                [(s, ratio(w)) for s, w in report["sector_exposure"].items()],
             )
+            table.setMinimumHeight(150)
+            table.setMaximumHeight(240)
+            donut = allocation_donut(
+                [
+                    (sector, float(weight))
+                    for sector, weight in report["sector_exposure"].items()
+                ]
+            )
+            donut.setMinimumHeight(220)
+            donut.setMaximumHeight(240)
             headline.content.addWidget(
-                allocation_donut(
-                    [
-                        (sector, float(weight))
-                        for sector, weight in report["sector_exposure"].items()
-                    ]
-                )
+                ResponsivePair(table, donut, breakpoint=760, stretches=(1, 1))
             )
         self.content.addWidget(headline)
         for asset in report.get("assets", []):
@@ -224,7 +283,14 @@ class FinancialReportView(QWidget):
             report.get("macro", "") + "\n" + " · ".join(report.get("issues", []))
         )
         notice.setWordWrap(True)
-        self.content.addWidget(notice)
+        notes = SectionCard("Fontes, cobertura e próximos passos")
+        notes.content.addWidget(notice)
+        followup = QLabel(
+            "Revise as premissas e datas. No Copiloto, experimente: “Refaça com margem de segurança de 25%” ou “Explique por que chegou a essa conclusão”."
+        )
+        followup.setWordWrap(True)
+        notes.content.addWidget(followup)
+        self.content.addWidget(notes)
 
 
 def structured_text(payload: Any) -> str:

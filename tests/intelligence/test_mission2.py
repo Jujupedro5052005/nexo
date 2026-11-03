@@ -241,8 +241,8 @@ def test_library_falls_back_to_installed_wheel_data(storage, monkeypatch, tmp_pa
     )
     monkeypatch.setattr(
         knowledge,
-        "__file__",
-        str(tmp_path / "installed" / "src" / "nexo" / "infra" / "knowledge.py"),
+        "bundled_knowledge_dir",
+        lambda: tmp_path / "missing",
     )
     monkeypatch.setattr(knowledge.sys, "prefix", str(tmp_path))
     assert load_canonical_library(storage) == 1

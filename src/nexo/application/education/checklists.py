@@ -3,6 +3,38 @@
 from nexo.domain.errors import DomainValidationError
 
 TOPICS = {
+    "Noções básicas antes de investir": (
+        (
+            "Ainda não defini objetivo e prazo",
+            "Descreva para que serve o dinheiro e quando pode precisar dele. Prazo curto exige atenção à liquidez e à oscilação.",
+        ),
+        (
+            "Não comparei risco, retorno e liquidez",
+            "Retorno esperado é hipótese, não promessa. Confira prazo de resgate, custos e cenários de perda.",
+        ),
+        (
+            "Estou confundindo preço baixo com valor",
+            "Preço nominal não mede oportunidade. Compare geração de caixa, patrimônio, risco e premissas de valuation.",
+        ),
+        (
+            "Não entendi o efeito dos aportes",
+            "Use o simulador de planejamento. Compare cenários com a mesma taxa e prazo; a taxa futura permanece incerta.",
+        ),
+    ),
+    "Roteiro de análise de um investimento": (
+        (
+            "Ainda não consultei documentos e datas",
+            "Identifique a fonte primária e a data do resultado. Separe fato publicado de estimativa.",
+        ),
+        (
+            "Não testei um cenário desfavorável",
+            "Reduza crescimento, aumente retorno requerido e revise concentração. Um cenário não é uma probabilidade.",
+        ),
+        (
+            "Ainda não defini critérios de revisão",
+            "Registre quais mudanças de lucro, dívida, liquidez ou tese justificariam revisar a decisão.",
+        ),
+    ),
     "Fraudes, pirâmides e pig butchering": (
         (
             "Contato afetivo ou mensagem inesperada levou à oferta",

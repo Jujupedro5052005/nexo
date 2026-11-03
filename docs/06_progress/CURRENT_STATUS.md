@@ -1,5 +1,26 @@
 # Status atual do projeto
 
+## Missão final — UX e distribuição — 03/11/2026
+
+- Entrada visual Demo/Normal, sem flags; cancelar não cria bancos/providers.
+- Copiloto vetorial, estados, movimento reduzível, contexto em janela própria,
+  nomes legíveis de conversas e relatório guiado. Configurações por último.
+- DEMO com orçamento, metas/progresso e três alertas de preço persistentes,
+  importados uma vez, preservando registros existentes.
+- Planejamento com projeção e alocação manual; Análises com roteiro de
+  patrimônio/TWR, simuladores e educação ligada ao Copiloto.
+- Conferência mensal para IR, CSV e cenário manual, sem classificação fiscal
+  automática, declaração ou DARF.
+- Receita PyInstaller e caminhos de recursos/dados/segredos para executável.
+
+Capturas, validações e limites: [relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md)
+e [validação](../ai/FINAL_VALIDATION.md).
+
+Suíte completa: 820 aprovados/2 ignorados (436,26 s); regressão final de UI e
+finanças: 28 aprovados (39,92 s). Ruff, mypy (160 arquivos), compileall,
+diff-check e build PyInstaller aprovados. Smokes nativos de entrada/ambientes
+isolados executados sem inferência paga.
+
 ## NEXO Intelligence — Missão 2 — 03/11/2026
 
 - Copiloto prioriza chat, contexto recolhível, sugestões, Enter/Shift+Enter e

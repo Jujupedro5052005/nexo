@@ -1,5 +1,13 @@
 # Escopo do Nexo Invest
 
+## Fechamento autorizado — missão final
+
+Entrada gráfica, navegação, guia vetorial e DEMO enriquecido integram o fechamento.
+O apoio de IR consolida ledger e simula premissas manuais; não inclui motor fiscal
+legal, segregação day trade, isenções automáticas, DARF ou envio de declaração.
+Distribuição Windows em pasta; assinatura e aceite em máquina limpa permanecem
+posteriores. Núcleo acadêmico preservado.
+
 ## Ampliação autorizada — 03/11/2026
 
 NEXO Intelligence adiciona copiloto educacional com Gemini opcional, ferramentas

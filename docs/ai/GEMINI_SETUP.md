@@ -1,5 +1,10 @@
 # Configuração — basta incluir a chave
 
+No executável Windows, o `.env` fica **ao lado de `Nexo.exe`**, fora de `_internal`.
+O build não copia suas chaves do checkout. A tela inicial escolhe Demo/Normal;
+os bancos ficam em `%LOCALAPPDATA%\NexoInvest`, separados dos arquivos em `data/`
+do desenvolvimento. [Distribuição Windows](../04_development/WINDOWS_EXECUTABLE.md).
+
 Projeto informado pelo usuário:
 
 - Nome: NEXO Intelligence.

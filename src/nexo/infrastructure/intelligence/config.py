@@ -5,6 +5,7 @@ from typing import Literal
 from dotenv import load_dotenv
 from pydantic import Field
 
+from nexo.core.paths import environment_file
 from nexo.domain.models.intelligence import Record
 
 DEFAULT_MODEL = "gemini-3.5-flash-lite"
@@ -42,7 +43,7 @@ class AISettings(Record):
     @classmethod
     def from_environment(cls, path: Path | None = None) -> "AISettings":
         load_dotenv(
-            path or Path(__file__).resolve().parents[4] / ".env",
+            path or environment_file(),
             override=False,
             encoding="utf-8-sig",
         )

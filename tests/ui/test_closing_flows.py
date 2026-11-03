@@ -420,7 +420,7 @@ def test_visual_review(closing_window, qtbot, tmp_path):
     window, *_ = closing_window
     for theme in ("dark", "light"):
         window.settings_page.findChild(QRadioButton, f"theme_{theme}").setChecked(True)
-        window.show_page(9)
+        window.show_page(10)
         qtbot.wait(20)
         assert window.grab().save(str(tmp_path / f"settings_{theme}.png"))
         window.open_dialog("transaction")

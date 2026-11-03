@@ -35,6 +35,7 @@ from nexo.application.portfolio.register_transaction import RegisterTransaction
 from nexo.core.paths import application_data_dir
 from nexo.demo_dataset import DEMO_NOTICE, ensure_demo_dataset
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
+from nexo.infrastructure.database.demo_finances import seed_demo_finances
 from nexo.infrastructure.database.local_data import SqliteLocalDataStorage
 from nexo.infrastructure.database.repositories.personal_finance import (
     SqlPersonalFinanceRepository,
@@ -56,6 +57,7 @@ from nexo.infrastructure.intelligence.storage import SqliteIntelligenceStorage
 from nexo.infrastructure.market_data.composition import ProviderServices
 from nexo.infrastructure.market_data.config import MarketSettings
 from nexo.infrastructure.persistence.report_writer import CsvReportWriter
+from nexo.ui.dialogs.startup import choose_startup_mode
 from nexo.ui.preferences import apply_theme
 from nexo.ui.windows.main_window import MainWindow
 
@@ -80,9 +82,13 @@ def create_application() -> QApplication:
     return application
 
 
-def main(database_path: Path | None = None, *, demo: bool = False) -> int:
+def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
     """Start the Nexo desktop application."""
     application = create_application()
+    if demo is None and database_path is None:
+        demo = choose_startup_mode()
+        if demo is None:
+            return 0
     settings = MarketSettings.from_environment()
     try:
         data_dir = application_data_dir()
@@ -109,6 +115,8 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
     window: MainWindow | None = None
     try:
         initialize_database(engine)
+        if demo:
+            seed_demo_finances(engine)
         session_factory = create_session_factory(engine)
         repository = SqlAlchemyPortfolioRepository(session_factory)
         transactions = SqlAlchemyTransactionRepository(session_factory)
@@ -143,6 +151,7 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
             ListTransactions(transactions),
             load_positions,
             intelligence=intelligence,
+            demo_mode=bool(demo),
             load_valuation=valuation,
             search_assets=SearchAssets(cached),
             get_quote=GetAssetQuote(cached),
@@ -203,11 +212,15 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
 
 def cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Nexo Invest — aplicação desktop")
-    parser.add_argument(
-        "--demo", action="store_true", help="Abrir o banco separado de demonstração"
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument(
+        "--demo", action="store_true", help="Abrir demonstração diretamente"
+    )
+    modes.add_argument(
+        "--normal", action="store_true", help="Abrir ambiente normal diretamente"
     )
     args = parser.parse_args(argv)
-    return main(demo=args.demo)
+    return main(demo=True if args.demo else False if args.normal else None)
 
 
 if __name__ == "__main__":

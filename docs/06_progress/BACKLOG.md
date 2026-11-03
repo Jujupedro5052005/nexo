@@ -1,5 +1,16 @@
 # Backlog priorizado
 
+## Fechamento de apresentação
+
+- [x] Seletor visual, assistente vetorial e correções de contexto/nova conversa.
+- [x] Estados guiados de relatórios, Análises/TWR e educação.
+- [x] Exemplos DEMO persistentes e simulações de aporte/alocação.
+- [x] Auxiliar de IR parcial e receita de distribuição PyInstaller.
+- [ ] Assinar o binário e testar em Windows limpo, outros DPI e leitor de tela.
+- [ ] Ampliar alertas além de condições de preço, sem anunciar motor inexistente.
+
+[Relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
 ## NEXO Intelligence — Missão 2
 
 - [x] Chat, contexto recolhível, relatório visual e diagnóstico separado.

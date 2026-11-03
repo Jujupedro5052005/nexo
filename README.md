@@ -9,6 +9,16 @@ avaliação de adequação individual ou execução pelo usuário.
 
 ## Status
 
+**Missão final — 03/11/2026:** ao abrir, escolha visualmente **Demo** ou
+**Normal**. Copiloto com assistente vetorial, relatórios guiados, planejamento com
+simulação de aportes/alocação, metas e alertas preenchidos no DEMO, educação
+interativa e assistente parcial de IR. Configurações fica por último.
+O DEMO preserva seus registros e não altera o ambiente Normal.
+
+[Relatório final e capturas](docs/ai/FINAL_IMPLEMENTATION_REPORT.md) ·
+[Executável Windows](docs/04_development/WINDOWS_EXECUTABLE.md) ·
+[Validação final](docs/ai/FINAL_VALIDATION.md).
+
 **NEXO Intelligence — Missão 2, 03/11/2026:** chat prioritário, relatórios
 visuais, investigação de carteira, cenários identificados e pareceres condicionais.
 Biblioteca com 15 documentos originais e matemática Decimal local auditável.

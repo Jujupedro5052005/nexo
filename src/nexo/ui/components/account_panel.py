@@ -21,6 +21,8 @@ from nexo.domain.models.asset import Asset
 from nexo.domain.models.portfolio_event import PortfolioEvent, PortfolioEventType
 from nexo.ui.components.charts import line_chart
 from nexo.ui.components.common import DataTable, SectionCard, action_button
+from nexo.ui.components.companion import GuideCard
+from nexo.ui.components.metric_card import MetricCard
 from nexo.ui.components.research_workbench import signed_number
 from nexo.ui.decimal_parser import DecimalInputError
 from nexo.ui.financial_formatting import currency_text, percent_text, replace_rows
@@ -219,6 +221,8 @@ class AccountPanel(SectionCard):
 
 
 class PerformancePanel(SectionCard):
+    prepare_requested = Signal()
+
     def __init__(self, case: LoadPortfolioPerformance | None) -> None:
         super().__init__("Patrimônio histórico e retorno temporal • BRL")
         self.case = case
@@ -226,13 +230,48 @@ class PerformancePanel(SectionCard):
         self.runner = TaskRunner(self)
         self.generation = 0
         self.chart: QChartView | None = None
+        self.content.addWidget(
+            GuideCard(
+                "Entenda seu patrimônio e retorno",
+                "Patrimônio = caixa + ativos a mercado. TWR encadeia retornos diários para reduzir o efeito de aportes e retiradas; aqui é uma aproximação por fechamentos.",
+                "1 · Selecione a carteira.\n2 · Registre o saldo inicial e os fluxos em Movimentações.\n3 · Consulte o histórico; sem caixa conhecido ou preços suficientes, o retorno fica indisponível.",
+            )
+        )
+        prepare = action_button("Preparar caixa em Movimentações")
+        prepare.clicked.connect(self.prepare_requested)
+        self.content.addWidget(prepare)
+        from PySide6.QtWidgets import QHBoxLayout
+
+        row = QHBoxLayout()
+        self.summary_metrics = [
+            MetricCard(title, "—", tip)
+            for title, tip in (
+                (
+                    "Patrimônio",
+                    "Caixa mais ativos avaliados; não confundir com custo de aquisição.",
+                ),
+                ("Fluxo externo", "Aportes menos retiradas no período consultado."),
+                (
+                    "Retorno TWR",
+                    "Encadeamento diário aproximado, não retorno sobre custo.",
+                ),
+            )
+        ]
+        for metric in self.summary_metrics:
+            row.addWidget(metric)
+        self.content.addLayout(row)
+        self.period_summary = QLabel(
+            "Período: aguardando histórico. A comparação usa o primeiro e o último fechamento disponíveis."
+        )
+        self.period_summary.setWordWrap(True)
+        self.content.addWidget(self.period_summary)
         self.feedback = QLabel(
             "Inicialize o caixa em Movimentações. Histórico não é inferido de custo de aquisição."
         )
         self.feedback.setWordWrap(True)
         self.content.addWidget(self.feedback)
         self.load_button = action_button(
-            "Consultar histórico e reconstruir patrimônio", True
+            "Calcular patrimônio e retorno do período", True
         )
         self.load_button.clicked.connect(self.load)
         self.content.addWidget(self.load_button)
@@ -257,6 +296,11 @@ class PerformancePanel(SectionCard):
         self.runner.cancel()
         self.generation += 1
         replace_rows(self.table, [])
+        for metric in self.summary_metrics:
+            metric.set_value("—")
+        self.period_summary.setText(
+            "Período: aguardando consulta para a carteira selecionada."
+        )
         self.feedback.setText(
             f"Carteira #{identity}. Consulte para reconstruir caixa + ativos até ontem e calcular TWR diário."
             if identity
@@ -291,6 +335,18 @@ class PerformancePanel(SectionCard):
                 )
                 return
             latest = result.points[-1] if result.points else None
+            self.summary_metrics[0].set_value(
+                currency_text(latest.equity if latest else None)
+            )
+            self.summary_metrics[1].set_value(
+                currency_text(result.total_external_flow)
+            )
+            self.summary_metrics[2].set_value(percent_text(result.twr))
+            if result.points and latest is not None:
+                first = result.points[0]
+                self.period_summary.setText(
+                    f"Período: {first.date} a {latest.date} · patrimônio inicial {currency_text(first.equity)} e final {currency_text(latest.equity)}. Diferença de patrimônio também inclui fluxos."
+                )
             self.feedback.setText(
                 f"TWR diário aproximado: {percent_text(result.twr)} • Último patrimônio: {currency_text(latest.equity if latest else None)}\n{result.convention}\n"
                 + "\n".join((*result.sources, *result.issues))

@@ -1,5 +1,19 @@
 # Design system do Nexo Invest
 
+## Missão final — experiência desktop
+
+Manter azul escuro/ciano e componentes existentes. O assistente é vetor Qt de
+64 px, com mensagens curtas; animação só ao analisar, interrompida quando oculto
+ou ao desligar movimento. Não cobre a leitura e não exige assets externos.
+
+Contexto abre em janela redimensionável para evitar disputa com o chat; todos
+os fundos/labels seguem o tema. Conversas usam títulos legíveis em vez de IDs.
+Relatório vazio orienta a próxima ação; preenchido alinha tabela e gráfico.
+Educação e TWR têm guias em cards. IR separa conferência de simulação manual.
+Badges descrevem origem/limites sem anunciar dados não consultados como atuais.
+Revisão com capturas em 1180×720 e 1440×900; outros DPI e leitores de tela não
+foram auditados. [Capturas e decisões](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
 ## Fechamento — 27/10/2026
 
 O tema escuro continua padrão; Configurações oferece claro e sistema com seleção

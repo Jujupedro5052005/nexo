@@ -199,7 +199,7 @@ def test_refuses_other_targets(tmp_path, filename):
         create_demo_dataset(tmp_path / filename)
 
 
-@pytest.mark.parametrize("argv, demo", [([], False), (["--demo"], True)])
+@pytest.mark.parametrize("argv, demo", [([], None), (["--demo"], True), (["--normal"], False)])
 def test_cli_selects_mode_without_changing_normal_default(monkeypatch, argv, demo):
     import nexo.main as entry
 

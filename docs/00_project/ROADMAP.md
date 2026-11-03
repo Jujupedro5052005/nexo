@@ -1,5 +1,17 @@
 # Roadmap acadêmico do Nexo Invest
 
+## Missão final — 03/11/2026
+
+- [x] Seletor visual de ambiente, sem depender de `--demo`.
+- [x] Copiloto visual, contexto legível, relatório guiado e Configurações por último.
+- [x] DEMO de orçamento/metas/alertas; projeção e alocação manual.
+- [x] Orientação em patrimônio/TWR, simuladores e educação.
+- [x] Conferência para IR e calculadora manual com CSV.
+- [x] Receita PyInstaller e validação local do executável.
+- [ ] Assinatura e avaliação numa instalação Windows limpa.
+
+[Relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
 ## NEXO Intelligence — 03/11/2026
 
 - [x] Copiloto integrado, modo offline e Gemini pronto para chave local.

@@ -27,11 +27,13 @@ from nexo.ui.components.charts import bar_chart
 from nexo.ui.components.common import (
     Badge,
     DataTable,
+    GoalProgress,
     PageContent,
     SectionCard,
     action_button,
 )
 from nexo.ui.components.metric_card import MetricCard
+from nexo.ui.components.planning_scenario import PlanningScenarioPanel
 from nexo.ui.decimal_parser import DecimalInputError, parse_decimal
 from nexo.ui.financial_formatting import money_text, percent_text, replace_rows
 from nexo.ui.workers import TaskRunner
@@ -93,6 +95,7 @@ class FinancePage(PageContent):
         self.case = case
         self.editor: RecordDialog | None = None
         top = QHBoxLayout()
+        self.toolbar = top
         top.addWidget(Badge("Dados locais persistidos • independente do ledger"))
         top.addStretch()
         self.add_button = action_button(title, True)
@@ -148,6 +151,13 @@ class PlanningPage(FinancePage):
         self.chart_card = SectionCard("Receitas e despesas do mês • BRL")
         self.chart: QChartView | None = None
         self.page_layout.addWidget(self.chart_card)
+        self.scenario = PlanningScenarioPanel()
+        self.page_layout.addWidget(self.scenario)
+        self.scenario_button = action_button("Simular aportes e alocação")
+        self.scenario_button.clicked.connect(
+            lambda: self.ensureWidgetVisible(self.scenario)
+        )
+        self.toolbar.insertWidget(1, self.scenario_button)
         self.table.cellDoubleClicked.connect(lambda row, _column: self.edit(row))
         self.add_button.clicked.connect(lambda: self.edit())
         self.reload()
@@ -245,6 +255,8 @@ class GoalsPage(FinancePage):
     def __init__(self, case: ManageFinances | None = None) -> None:
         super().__init__("goals", "+ Nova meta", case)
         self.goals: tuple[FinancialGoal, ...] = ()
+        self.progress_card = SectionCard("Seu progresso por objetivo")
+        self.page_layout.addWidget(self.progress_card)
         self.table = DataTable(
             (
                 "META",
@@ -273,9 +285,22 @@ class GoalsPage(FinancePage):
             self.feedback.setText(str(error))
             return
         rows = []
+        while self.progress_card.content.count() > 1:
+            item = self.progress_card.content.takeAt(1)
+            widget = item.widget() if item else None
+            if widget is not None:
+                widget.deleteLater()
         for goal in self.goals:
             progress, monthly = goal_projection(
                 goal, cast(date, QDate.currentDate().toPython())
+            )
+            self.progress_card.content.addWidget(
+                GoalProgress(
+                    goal.name,
+                    money_text(goal.current),
+                    money_text(goal.target),
+                    int(progress * 100),
+                )
             )
             rows.append(
                 (
@@ -288,6 +313,12 @@ class GoalsPage(FinancePage):
                 )
             )
         replace_rows(self.table, rows)
+        if not rows:
+            self.progress_card.content.addWidget(
+                QLabel(
+                    "Crie sua primeira meta para acompanhar objetivo, prazo e aporte mensal."
+                )
+            )
 
     def edit(self, row: int | None = None) -> None:
         if not self.case:

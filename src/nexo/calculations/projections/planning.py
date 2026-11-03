@@ -3,7 +3,24 @@ from datetime import date
 from decimal import Decimal, localcontext
 
 from nexo.calculations.precision import financial_context
+from nexo.domain.errors import DomainValidationError
 from nexo.domain.models.personal_finance import BudgetEntry, FinancialGoal
+
+
+def allocate_contribution(
+    amount: Decimal, weights: tuple[Decimal, ...]
+) -> tuple[Decimal, ...]:
+    if (
+        not amount.is_finite()
+        or amount < 0
+        or not weights
+        or any(not w.is_finite() or w < 0 or w > 1 for w in weights)
+    ):
+        raise DomainValidationError("Aporte não negativo e percentuais entre 0 e 100%.")
+    with localcontext(financial_context([amount, *weights], count=len(weights))):
+        if sum(weights, Decimal(0)) != 1:
+            raise DomainValidationError("Os objetivos de alocação devem somar 100%.")
+        return tuple(amount * weight for weight in weights)
 
 
 @dataclass(frozen=True)

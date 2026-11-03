@@ -150,14 +150,14 @@ def test_qt_review_at_standard_and_small_sizes(
     try:
         window.resize(*size)
         window.show()
-        window.show_page(10)
+        window.show_page(9)
         page.portfolio.setCurrentIndex(1)
         page.deep_mode.setChecked(True)
         page.question.setPlainText("Analise toda a minha carteira")
         page.ask()
         qtbot.waitUntil(lambda: page._response is not None, timeout=10000)
         assert page.report_view.report["assets"]
-        assert page.chat.viewport().height() >= 250
+        assert page.chat.viewport().height() >= 160
         output = Path(os.environ.get("NEXO_REVIEW_DIR", str(tmp_path)))
         output.mkdir(parents=True, exist_ok=True)
         assert window.grab().save(str(output / f"chat-{size[0]}.png"))

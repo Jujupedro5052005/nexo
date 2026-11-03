@@ -32,6 +32,17 @@ class PortfolioPerformance:
     convention: str = "TWR diário por convenção de fluxos no fim do dia; aproximação para fluxos intradiários. Fechamentos sem reinvestimento automático de proventos."
     sources: tuple[str, ...] = ()
 
+    @property
+    def total_external_flow(self) -> Decimal | None:
+        if not self.points:
+            return None
+        with localcontext(
+            financial_context(
+                [p.external_flow for p in self.points], count=len(self.points)
+            )
+        ):
+            return sum((p.external_flow for p in self.points), Decimal(0))
+
 
 def _portfolio_performance(
     trades: list[Transaction],

@@ -4,11 +4,12 @@ from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
-from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtCore import Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QResizeEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
     QFileDialog,
     QFormLayout,
     QGridLayout,
@@ -36,6 +37,7 @@ from nexo.domain.models.intelligence import (
 from nexo.ui.components.charts import line_chart
 from nexo.ui.components.chat_composer import ChatComposer
 from nexo.ui.components.common import PageContent, SectionCard
+from nexo.ui.components.companion import CompanionCard, CompanionState
 from nexo.ui.components.intelligence_cards import (
     EvidenceInspector,
     FinancialReportView,
@@ -84,11 +86,10 @@ class IntelligencePage(PageContent):
         layout.addWidget(intro)
         row = QHBoxLayout()
         self.conversations = QComboBox()
-        self.conversations.currentTextChanged.connect(self._switch_conversation)
+        self.conversations.currentIndexChanged.connect(
+            lambda: self._switch_conversation(self.conversations.currentData() or "")
+        )
         row.addWidget(self.conversations, 1)
-        new = QPushButton("Nova conversa")
-        new.clicked.connect(self._new_conversation)
-        row.addWidget(new)
         layout.addLayout(row)
         context = QFormLayout()
         self.portfolio = QComboBox()
@@ -218,11 +219,17 @@ class IntelligencePage(PageContent):
     def _modernize(self) -> None:
         context_tab = self.tabs.widget(0)
         assert context_tab is not None
+        context_tab.setObjectName("PageContent")
         self.tabs.removeTab(0)
         chat_tab = QWidget()
         root = QVBoxLayout(chat_tab)
         root.setContentsMargins(0, 6, 0, 0)
+        self.companion = CompanionCard()
+        self.companion.help_requested.connect(self._guide)
+        root.addWidget(self.companion)
         toolbar = QHBoxLayout()
+        toolbar.addWidget(QLabel("Conversa"))
+        self.conversations.setMinimumWidth(120)
         toolbar.addWidget(self.conversations, 1)
         new = QPushButton("Nova conversa")
         new.clicked.connect(self._new_conversation)
@@ -259,12 +266,12 @@ class IntelligencePage(PageContent):
             )
             suggestions.addWidget(button)
         layout.addLayout(suggestions)
-        self.chat.setMinimumHeight(360)
+        self.chat.setMinimumHeight(220)
         layout.addWidget(self.chat, 1)
         self.question.setPlaceholderText(
             "Pergunte ao Nexo… Enter envia · Shift+Enter cria uma linha"
         )
-        self.question.setMaximumHeight(110)
+        self.question.setMaximumHeight(76)
         layout.addWidget(self.question)
         actions = QHBoxLayout()
         for button in (self.send, self.cancel_button, self.export_button):
@@ -274,12 +281,23 @@ class IntelligencePage(PageContent):
         self.chat_splitter.addWidget(body)
         self.context_drawer = QScrollArea()
         self.context_drawer.setWidgetResizable(True)
+        self.context_drawer.viewport().setObjectName("PageContent")
         self.context_drawer.setWidget(context_tab)
-        self.context_drawer.setMinimumWidth(280)
-        self.context_drawer.setMaximumWidth(420)
+        self.context_drawer.setMinimumWidth(0)
+        self.context_drawer.setObjectName("PageContent")
+        self.context_dialog = QDialog(self)
+        self.context_dialog.setWindowTitle("Contexto e preferências da análise")
+        self.context_dialog.setObjectName("PageContent")
+        self.context_dialog.resize(720, 630)
+        self.context_dialog.setMinimumSize(580, 420)
+        dialog_layout = QVBoxLayout(self.context_dialog)
+        dialog_layout.addWidget(self.context_drawer)
+        close_context = QPushButton("Voltar à conversa")
+        close_context.clicked.connect(self.context_dialog.close)
+        dialog_layout.addWidget(close_context)
         self.context_drawer.hide()
-        toggle.toggled.connect(self.context_drawer.setVisible)
-        self.chat_splitter.addWidget(self.context_drawer)
+        toggle.toggled.connect(self._toggle_context)
+        self.context_dialog.finished.connect(lambda: toggle.setChecked(False))
         self.chat_splitter.setStretchFactor(0, 1)
         root.addWidget(self.chat_splitter, 1)
         self.tabs.insertTab(0, chat_tab, "Copiloto")
@@ -298,6 +316,7 @@ class IntelligencePage(PageContent):
         self.report_view.show_report({})
         report_layout.addWidget(self.report_view)
         report_layout.addWidget(self.results)
+        self.results.hide()
         self.evidence.hide()
         self.tabs.insertTab(1, report_tab, "Relatório financeiro")
         self.method_preview.hide()
@@ -344,7 +363,13 @@ class IntelligencePage(PageContent):
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         if hasattr(self, "chat_splitter"):
-            self.tabs.setFixedHeight(max(460, self.viewport().height() - 58))
+            QTimer.singleShot(0, self._fit_tabs)
+
+    def _fit_tabs(self) -> None:
+        self.chat.setMinimumHeight(180 if self.viewport().width() < 1000 else 220)
+        self.tabs.setFixedHeight(
+            max(440, self.viewport().height() - self.tabs.y() - 24)
+        )
 
     def _filter_sources(self, text: str) -> None:
         if not self.workspace:
@@ -379,7 +404,7 @@ class IntelligencePage(PageContent):
         self.question.setPlainText(question)
         self.deep_mode.setChecked(deep)
         if deep and not self.portfolio.currentData() and not self.symbol.text().strip():
-            self.context_drawer.show()
+            self.context_toggle.setChecked(True)
             self.feedback.setText(
                 "Selecione a carteira ou o ativo no painel de contexto e envie a pergunta."
             )
@@ -388,6 +413,33 @@ class IntelligencePage(PageContent):
     def _show_progress(self, text: str) -> None:
         if self._busy:
             self.feedback.setText(text)
+            self.companion.set_state(CompanionState.ANALYZING, text)
+
+    def _toggle_context(self, visible: bool) -> None:
+        self.context_drawer.setVisible(visible)
+        if visible:
+            self.context_dialog.show()
+            self.context_dialog.raise_()
+        else:
+            self.context_dialog.hide()
+
+    def _guide(self) -> None:
+        self.companion.set_state(
+            CompanionState.EXPLAINING,
+            "1. Abra Contexto e selecione a carteira. 2. Escolha Analisar carteira. 3. Consulte o Relatório e revise as premissas. Para conceitos, basta perguntar.",
+        )
+
+    def explain_topic(self, topic: str) -> None:
+        self.question.setPlainText(
+            "Explique de forma didática "
+            + topic
+            + ", com um exemplo e cuidados para iniciantes."
+        )
+        self.tabs.setCurrentIndex(0)
+        self.companion.set_state(
+            CompanionState.EXPLAINING,
+            "Preparei sua pergunta. Envie para receber a explicação; o contexto só vai ao Gemini com sua autorização.",
+        )
 
     def _context_changed(self) -> None:
         if self._busy:
@@ -594,10 +646,18 @@ class IntelligencePage(PageContent):
         self.portfolio.blockSignals(False)
         self.conversations.blockSignals(True)
         self.conversations.clear()
-        self.conversations.addItems(
-            list(dict.fromkeys((self._conversation, *self.workspace.conversations())))
+        for index, identity in enumerate(
+            dict.fromkeys((self._conversation, *self.workspace.conversations()))
+        ):
+            messages = self.workspace.history(identity, 2)
+            title = next(
+                (m.text.replace("\n", " ")[:44] for m in messages if m.role == "user"),
+                "Conversa principal" if identity == "default" else "Nova conversa",
+            )
+            self.conversations.addItem(f"{index + 1} · {title}", identity)
+        self.conversations.setCurrentIndex(
+            self.conversations.findData(self._conversation)
         )
-        self.conversations.setCurrentText(self._conversation)
         self.conversations.blockSignals(False)
         self._load_history()
         self.sources.clear()
@@ -642,15 +702,31 @@ class IntelligencePage(PageContent):
 
     def _switch_conversation(self, identity: str) -> None:
         if identity:
-            self.cancel()
+            if self._busy:
+                self.cancel()
+            else:
+                self._generation += 1
+                self.runner.cancel()
             self._conversation = identity
             self._load_history()
             self._clear_results()
+            self.feedback.setText(
+                "Conversa pronta. Escolha uma sugestão ou escreva sua pergunta."
+            )
+            if hasattr(self, "companion"):
+                self.companion.set_state(
+                    CompanionState.READY,
+                    "Vamos começar. Seu contexto permanece selecionado; nenhuma análise é enviada automaticamente.",
+                )
 
     def _new_conversation(self) -> None:
-        self._switch_conversation(uuid4().hex[:12])
-        self.conversations.addItem(self._conversation)
-        self.conversations.setCurrentText(self._conversation)
+        self.context_toggle.setChecked(False)
+        identity = uuid4().hex[:12]
+        self.conversations.addItem(
+            f"{self.conversations.count() + 1} · Nova conversa", identity
+        )
+        self.conversations.setCurrentIndex(self.conversations.findData(identity))
+        self.question.clear()
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
@@ -659,6 +735,13 @@ class IntelligencePage(PageContent):
         )
         self.cancel_button.setEnabled(busy)
         self.send.setText("Processando…" if busy else "Analisar")
+        if hasattr(self, "companion"):
+            self.companion.set_state(
+                CompanionState.ANALYZING if busy else CompanionState.READY,
+                "Consultando evidências e preparando cenários…"
+                if busy
+                else "Você pode continuar a conversa ou explorar o relatório.",
+            )
 
     def ask(self) -> None:
         if not self.workspace or self._busy:
@@ -697,6 +780,10 @@ class IntelligencePage(PageContent):
                 return
             self._set_busy(False)
             if error or result is None:
+                self.companion.set_state(
+                    CompanionState.ALERT,
+                    "A análise precisa de atenção. Confira a mensagem e ajuste o contexto antes de tentar novamente.",
+                )
                 self.feedback.setText(
                     str(error)
                     if isinstance(error, IntelligenceError)
@@ -707,9 +794,13 @@ class IntelligencePage(PageContent):
                     and isinstance(error, IntelligenceError)
                     and "Autorize" in str(error)
                 ):
-                    self.context_drawer.show()
+                    self.context_toggle.setChecked(True)
                 return
             self._response = result
+            self.companion.set_state(
+                CompanionState.COMPLETE,
+                "Análise pronta. Veja o relatório, revise as fontes ou peça outra margem de segurança.",
+            )
             self._load_history()
             self._show_result(result)
             if hasattr(self, "report_view"):
@@ -726,6 +817,7 @@ class IntelligencePage(PageContent):
         self._response = None
         self.export_button.setEnabled(False)
         self.evidence.clear()
+        self.results.hide()
         if hasattr(self, "report_view"):
             self.report_view.show_report({})
         while self.metrics.count():
@@ -739,6 +831,12 @@ class IntelligencePage(PageContent):
             self._chart = None
 
     def _show_result(self, response: AnalysisResponse) -> None:
+        self.results.setVisible(
+            any(
+                r.name == "calculate_valuation" and r.available
+                for r in response.evidence
+            )
+        )
         self.evidence.setPlainText(
             json.dumps(
                 json.loads(

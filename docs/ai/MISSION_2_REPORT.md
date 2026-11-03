@@ -1,5 +1,8 @@
 # NEXO Intelligence — entrega da Missão 2
 
+> Registro desta etapa. Interface e distribuição foram aprimoradas na
+> [missão final](FINAL_IMPLEMENTATION_REPORT.md), com capturas e validação próprias.
+
 Data: 03/11/2026. Branch: `feature/nexo-intelligence`.
 PR: [#1 — NEXO Intelligence](https://github.com/Jujupedro5052005/nexo/pull/1),
 base `master`, sem merge. Este documento substitui o relatório histórico da

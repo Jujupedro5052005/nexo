@@ -42,6 +42,7 @@ from nexo.application.portfolio.load_portfolio_positions import LoadPortfolioPos
 from nexo.application.portfolio.load_portfolio_valuation import LoadPortfolioValuation
 from nexo.application.portfolio.performance import LoadPortfolioPerformance
 from nexo.application.portfolio.register_transaction import RegisterTransaction
+from nexo.application.portfolio.tax_worksheet import BuildTaxWorksheet
 from nexo.calculations.valuation.portfolio import PortfolioValuation
 from nexo.domain.errors import DomainValidationError
 from nexo.domain.interfaces.market_data_provider import MarketDataError
@@ -97,12 +98,12 @@ PAGE_INFO = (
     ("Alertas", "Monitore condições relevantes para suas estratégias.", "alerts"),
     ("Análises", "Analise ativos e compare carteiras com dados reais.", "analytics"),
     ("Relatórios", "Prepare relatórios para consulta e exportação.", "reports"),
-    ("Configurações", "Gerencie preferências e informações da aplicação.", "settings"),
     (
         "NEXO Intelligence",
         "Converse, consulte evidências e explore cenários financeiros.",
         "analytics",
     ),
+    ("Configurações", "Gerencie preferências e informações da aplicação.", "settings"),
 )
 
 
@@ -136,8 +137,10 @@ class MainWindow(QMainWindow):
         market_research: AnalyzeMarketRisk | None = None,
         local_data: ManageLocalData | None = None,
         intelligence: IntelligenceWorkspace | None = None,
+        demo_mode: bool = False,
     ) -> None:
         super().__init__()
+        self.demo_mode = demo_mode
         self._create_portfolio = create_portfolio
         self._list_portfolios = list_portfolios
         self._register_transaction = register_transaction
@@ -212,10 +215,13 @@ class MainWindow(QMainWindow):
             self._performance,
             self._market_research,
         )
+        self.analysis_page.performance_panel.prepare_requested.connect(
+            self._prepare_cash
+        )
         self.assets_page = AssetsPage(*self._asset_cases)
         self.assets_page.analysis_requested.connect(lambda: self.show_page(7))
         self.assets_page.asset_selected.connect(self.analysis_page.set_asset)
-        self.assets_page.integration_requested.connect(lambda: self.show_page(9))
+        self.assets_page.integration_requested.connect(lambda: self.show_page(10))
         self.settings_page = SettingsPage(
             *self._integration_cases,
             provider_health=self._provider_health,
@@ -228,8 +234,18 @@ class MainWindow(QMainWindow):
         self.planning_page = PlanningPage(self._finances)
         self.goals_page = GoalsPage(self._finances)
         self.alerts_page = AlertsPage(self._finances)
-        self.reports_page = ReportsPage(self._list_portfolios, self._export_report)
+        self.reports_page = ReportsPage(
+            self._list_portfolios,
+            self._export_report,
+            BuildTaxWorksheet(
+                self._list_transactions,
+                self._export_report.events if self._export_report else None,
+            )
+            if self._list_transactions
+            else None,
+        )
         self.intelligence_page = IntelligencePage(self._intelligence)
+        self.analysis_page.explain_requested.connect(self._explain_education)
         pages = (
             self.overview_page,
             self.portfolios_page,
@@ -240,10 +256,14 @@ class MainWindow(QMainWindow):
             self.alerts_page,
             self.analysis_page,
             self.reports_page,
-            self.settings_page,
             self.intelligence_page,
+            self.settings_page,
         )
         for page in pages:
+            if self.demo_mode and hasattr(page, "page_layout"):
+                page.page_layout.insertWidget(
+                    0, Badge("DEMO · dados fictícios · alterações ficam neste ambiente")
+                )
             signal = getattr(page, "dialog_requested", None)
             if signal is not None:
                 signal.connect(self.open_dialog)
@@ -281,7 +301,16 @@ class MainWindow(QMainWindow):
         period_label.setObjectName("SecondaryText")
         layout.addWidget(period_label)
         layout.addWidget(period)
-        layout.addWidget(Badge("●  Banco local", "SuccessBadge"))
+        self.mode_badge = Badge(
+            "DEMO · fictício" if self.demo_mode else "●  Banco local",
+            "Badge" if self.demo_mode else "SuccessBadge",
+        )
+        self.mode_badge.setToolTip(
+            "Ambiente de demonstração com registros fictícios; separado dos seus dados."
+            if self.demo_mode
+            else "Seu ambiente local de carteiras e movimentações."
+        )
+        layout.addWidget(self.mode_badge)
         self.market_refresh = QPushButton("Atualizar mercado")
         self.market_refresh.setObjectName("SecondaryButton")
         self.market_refresh.setProperty("action", "market_refresh")
@@ -400,12 +429,14 @@ class MainWindow(QMainWindow):
         self.reports_page.reload()
 
     def show_page(self, index: int) -> None:
-        if index == 10:
+        if index == 9:
             self.intelligence_page.reload()
             if not getattr(self, "_intelligence_context_initialized", False):
                 self._intelligence_context_initialized = True
                 if self.selected_portfolio_id is not None:
-                    selected = self.intelligence_page.portfolio.findData(self.selected_portfolio_id)
+                    selected = self.intelligence_page.portfolio.findData(
+                        self.selected_portfolio_id
+                    )
                     if selected >= 0:
                         self.intelligence_page.portfolio.setCurrentIndex(selected)
         if index == 8:
@@ -420,13 +451,22 @@ class MainWindow(QMainWindow):
         if index in (0, 1, 3):
             self._refresh_financial_data()
         self.page_stack.setCurrentIndex(index)
-        if index == 9:
+        if index == 10:
             self.settings_page.provider_panel.refresh()
         title, subtitle, _icon_name = PAGE_INFO[index]
         self.page_title.setText(title)
         self.page_subtitle.setText(subtitle)
         for button in self.navigation_buttons:
             button.setChecked(button.page_index == index)
+
+    def _prepare_cash(self) -> None:
+        self.show_page(3)
+        self.account_panel.toggle.setChecked(True)
+        self.account_panel.amount.setFocus()
+
+    def _explain_education(self, topic: str) -> None:
+        self.show_page(9)
+        self.intelligence_page.explain_topic(topic)
 
     def open_dialog(self, kind: str) -> None:
         if kind in {"asset", "report", "notifications"}:
@@ -674,7 +714,7 @@ class MainWindow(QMainWindow):
     def _show_profile_menu(self, anchor: QPushButton) -> None:
         menu = QMenu(self)
         menu.addAction("Perfil", self._edit_profile)
-        menu.addAction("Preferências", lambda: self.show_page(9))
+        menu.addAction("Preferências", lambda: self.show_page(10))
         menu.popup(anchor.mapToGlobal(anchor.rect().bottomLeft()))
 
     def _edit_profile(self) -> None:

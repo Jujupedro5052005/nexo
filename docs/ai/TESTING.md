@@ -1,5 +1,9 @@
 # Validação de NEXO Intelligence
 
+Fechamento atual: [FINAL_VALIDATION](FINAL_VALIDATION.md) — 820 testes completos
+aprovados/2 ignorados e 28 testes na regressão final de UI/finanças, com build e
+smokes nativos Windows. Os registros abaixo descrevem as etapas anteriores.
+
 Entrega atual: [MISSION_2_REPORT](MISSION_2_REPORT.md). Os registros da Missão 1
 abaixo permanecem como histórico.
 

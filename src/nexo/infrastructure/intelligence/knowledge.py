@@ -11,6 +11,7 @@ from typing import Any
 from google.genai import types
 
 from nexo.core.cancellation import check_cancelled
+from nexo.core.paths import bundled_knowledge_dir
 from nexo.domain.models.intelligence import (
     IntelligenceError,
     KnowledgeHit,
@@ -347,7 +348,7 @@ class GeminiFileSearchRetriever:
 
 def load_canonical_library(storage: SqliteIntelligenceStorage) -> int:
     """One canonical corpus; remote stores are replaceable indexes of these hashes."""
-    root = Path(__file__).resolve().parents[4] / "docs" / "ai" / "knowledge"
+    root = bundled_knowledge_dir()
     if not root.exists():
         root = Path(sys.prefix) / "share" / "nexo" / "knowledge"
     if not root.exists():

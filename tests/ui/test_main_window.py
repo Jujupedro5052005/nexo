@@ -44,8 +44,8 @@ def test_sidebar_and_all_product_pages_exist(window: MainWindow) -> None:
         "alerts_page",
         "analysis_page",
         "reports_page",
-        "settings_page",
         "intelligence_page",
+        "settings_page",
     ]
 
 

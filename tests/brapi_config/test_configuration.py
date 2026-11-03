@@ -20,7 +20,7 @@ def test_env_is_loaded_from_project_root_even_with_another_working_directory(
         "BRAPI_TOKEN=TEST_TOKEN\nBRAPI_BATCH_SIZE=3\n", encoding="utf-8-sig"
     )
     monkeypatch.setattr(
-        config, "__file__", str(root / "src/nexo/infrastructure/market_data/config.py")
+        config, "environment_file", lambda: root / ".env"
     )
     monkeypatch.chdir(tmp_path)
     settings = MarketSettings.from_environment()

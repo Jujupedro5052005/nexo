@@ -4,6 +4,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from nexo.core.paths import environment_file
+
 PUBLIC_SYMBOLS = ("PETR4", "MGLU3", "VALE3", "ITUB4")
 
 
@@ -25,9 +27,7 @@ class MarketSettings:
     def from_environment(cls, env_path: Path | None = None) -> "MarketSettings":
         # Existing environment takes precedence. Never log credentials or file contents.
         load_dotenv(
-            env_path
-            if env_path is not None
-            else Path(__file__).resolve().parents[4] / ".env",
+            env_path if env_path is not None else environment_file(),
             override=False,
             encoding="utf-8-sig",
         )

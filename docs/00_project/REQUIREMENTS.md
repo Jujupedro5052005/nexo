@@ -1,5 +1,13 @@
 # Requisitos do Nexo Invest
 
+## Complemento autorizado — missão final (03/11/2026)
+
+Entrada visual Demo/Normal, acabamento de IA/Análises, assistente vetorial,
+finanças pessoais no DEMO e PyInstaller complementam a apresentação acadêmica.
+Relatórios recebe conferência mensal e cenário manual de IR, sem classificação
+tributária automática ou declaração oficial. Preservar núcleo, dados, `.env`,
+providers, biblioteca e camadas. [Evidências](../ai/FINAL_IMPLEMENTATION_REPORT.md).
+
 ## Complemento autorizado — NEXO Intelligence (03/11/2026)
 
 RF-203/RF-204 recebem implementação complementar: chat local/Gemini, ferramentas
