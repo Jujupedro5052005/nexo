@@ -118,13 +118,6 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
     cached: MarketDataProvider = providers.market
     fundamentals: FundamentalDataProvider = providers.fundamentals
     dividends: DividendDataProvider = providers.dividends
-    if demo:
-        from nexo.infrastructure.market_data.presentation import PresentationMarketData
-
-        presentation = PresentationMarketData()
-        cached = presentation
-        fundamentals = presentation
-        dividends = presentation
     window: MainWindow | None = None
     try:
         initialize_database(engine)
@@ -173,8 +166,8 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
                 cached,
                 fundamentals,
                 dividends=dividends,
-                official=None if demo else providers.official,
-                actions=None if demo else providers.actions,
+                official=providers.official,
+                actions=providers.actions,
             ),
             finances=finances,
             account=PortfolioAccount(transactions, transactions, cached),

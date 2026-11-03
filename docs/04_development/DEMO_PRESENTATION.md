@@ -15,6 +15,6 @@ Abra `launcher.py` (código) ou `Nexo.exe` (ZIP extraído) e escolha **Apresenta
 
 Três carteiras, 93 compras/vendas, 21 posições e 16 símbolos. Operações de abril/2024 a setembro/2026; sete eventos financeiros adicionais por carteira. Orçamento de exemplo com renda de R$ 8.500 e despesas de R$ 5.200, três metas e três alertas editáveis.
 
-Preços, históricos e fundamentos da apresentação são **fictícios**, fornecidos explicitamente por um provedor local exclusivo. Permitem experimentar os cálculos sem internet e sem consumir APIs de mercado. As fontes preservam essa identificação. Não representam preços atuais nem balanços reais; proventos externos de exemplo não são comprovantes oficiais.
+Preços, históricos, fundamentos e proventos externos usam **provedores online reais**, como no ambiente pessoal. Não há atualização fictícia nem fallback para preços de exemplo. Sem conexão, cobertura ou acesso ao provedor, os indicadores correspondentes ficam indisponíveis. Somente as operações e eventos financeiros do banco de apresentação são exemplos fictícios.
 
 Meu ambiente usa banco separado e provedores reais. Não recebe dados de apresentação como fallback. Arquivos SQLite são locais: no código, em `data/`; no executável, em `%LOCALAPPDATA%\NexoInvest`. O histórico da IA fica em outro banco. As pendências reais estão em [TODO.md](../../TODO.md).

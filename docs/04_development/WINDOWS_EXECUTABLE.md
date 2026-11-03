@@ -63,22 +63,22 @@ Isso não substitui teste de toda a aplicação em um Windows sem Python instala
 Evite rodar smokes em paralelo à apresentação. Eles criam suas próprias janelas
 e não encerram uma instância do usuário.
 
-## Demonstração sem internet
+## Mercado online nos dois modos
 
-Apresentação usa um provedor exclusivo com preços, históricos e fundamentos
-fictícios dos 16 símbolos do catálogo. Caixa e patrimônio ficam preenchidos sem
-internet. Meu ambiente continua usando provedores reais; não há fallback para
-dados fictícios. Gemini exige chave e autorização de envio.
+Apresentação e Meu ambiente usam os mesmos provedores online para cotações,
+históricos, fundamentos e proventos. Sem dados reais disponíveis, os indicadores
+correspondentes ficam indisponíveis. Não há provedor fictício na aplicação.
+Caixa, transações e planejamento permanecem locais. Gemini exige chave e autorização.
 
-Entrega atual: `dist/Nexo-Professor.zip`, gerada em `dist/Entrega/Nexo` para não
+Entrega atual: `dist/Nexo-Professor.zip`, gerada em `dist/Online/Nexo` para não
 sobrescrever executáveis antigos em uso. Envie o ZIP completo. O professor extrai
 a pasta Nexo e abre Nexo.exe; não precisa instalar Python. Alterações ficam no
 perfil dele e sobrevivem à reabertura e à atualização da pasta do programa.
 Não foi realizado aceite em outra máquina sem Python.
 
 ```powershell
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --distpath dist/Entrega Nexo.spec
-.\.venv\Scripts\python.exe scripts/package_windows.py --folder dist/Entrega/Nexo --destination dist/Nexo-Professor.zip
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --distpath dist/Online Nexo.spec
+.\.venv\Scripts\python.exe scripts/package_windows.py --folder dist/Online/Nexo --destination dist/Nexo-Professor.zip
 ```
 
 Roteiro e capturas: [relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md).

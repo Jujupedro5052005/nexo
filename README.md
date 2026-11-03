@@ -21,7 +21,7 @@ Na entrada, escolha **Apresentação** ou **Meu ambiente**. Os atalhos `python l
 ## O que explorar
 
 - **Apresentação:** três carteiras (Longo Prazo, Dividendos e Crescimento), 93 compras/vendas e 21 posições. Caixa aberto, aporte, retirada, dividendos, JCP, taxas e imposto em cada carteira. Orçamento mensal, três metas e três alertas editáveis.
-- Preços, históricos e fundamentos de exemplo disponíveis sem internet para os 16 símbolos do catálogo. Fontes identificam os dados fictícios. ETFs não recebem fundamentos corporativos artificiais. Não são preços atuais de bolsa.
+- Cotações, históricos, fundamentos e proventos usam os provedores online reais nos dois modos. A apresentação tem operações fictícias, mas não simula dados de mercado. Sem conexão ou cobertura, os dados aparecem como indisponíveis.
 - Visão Geral: caixa, patrimônio, posições, ganhos/perdas e concentração. Movimentações: histórico e eventos financeiros. Análises: valuation, cenários e desempenho. Planejamento: orçamento, projeções e alocação. Relatórios: CSV e apoio parcial de IR.
 - **NEXO Intelligence:** chat com copiloto visual, contexto da carteira e relatórios. Uma pergunta sobre PETR4 mantém PETR4 como foco; análise de toda a carteira depende de pedido explícito.
 - **Meu ambiente:** começa sem exemplos e utiliza os provedores de mercado configurados. Ausência de dados reais aparece como indisponibilidade, sem substituição por preços de apresentação.
@@ -51,5 +51,5 @@ UI → Application → Domain/Calculations; Infrastructure implementa persistên
 Para desenvolvimento, instale `requirements-dev.txt`. Testes direcionados da entrega:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests/integration/test_professor_delivery.py tests/ui/test_professor_delivery.py tests/ui/test_main_window.py tests/intelligence/test_hotfix_focus.py
+.\.venv\Scripts\python.exe -m pytest -q tests/integration/test_professor_delivery.py tests/ui/test_delivery_market_modes.py tests/ui/test_main_window.py tests/intelligence/test_hotfix_focus.py
 ```

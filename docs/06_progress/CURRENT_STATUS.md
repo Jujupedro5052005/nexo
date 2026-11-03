@@ -1,5 +1,17 @@
 # Status atual do projeto
 
+## Correção do mercado online — 03/11/2026
+
+Removida a substituição de mercado no modo Apresentação. Ambos os modos usam os
+mesmos provedores reais, inclusive fundamentos, proventos e dados oficiais.
+Dados fictícios de mercado existem apenas nas fixtures de testes e não no bundle.
+Consulta pública Yahoo confirmada: PETR4/VALE3/ITUB4, histórico de PETR4 (20 pontos),
+fundamentos com LPA/VPA e quatro proventos. Sem chamadas autenticadas pagas.
+Esta correção substitui a descrição de mercado fictício da entrega anterior.
+Limite Yahoo do `.env.example` ampliado para 500 consultas locais; os limites
+dos provedores pagos permanecem intactos. Na configuração local, havia 51/50
+consultas registradas; o mesmo ajuste permite consultas automáticas novamente.
+
 ## Entrega para avaliação — 03/11/2026
 
 Copiloto visual restaurado no chat. Apresentação com caixa e eventos financeiros

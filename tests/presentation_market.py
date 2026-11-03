@@ -1,4 +1,4 @@
-"""Explicit fictional data for presentation mode, never a live-provider fallback."""
+"""Test-only market fixtures. Never imported by the application or bundled."""
 
 from collections.abc import Iterable
 from datetime import date, datetime, timedelta, timezone
