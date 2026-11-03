@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QMessageBox,
     QPlainTextEdit,
     QPushButton,
@@ -226,21 +227,30 @@ class IntelligencePage(PageContent):
         root.setContentsMargins(0, 6, 0, 0)
         self.companion = CompanionCard()
         self.companion.help_requested.connect(self._guide)
-        root.addWidget(self.companion)
+        self.companion.hide()
         toolbar = QHBoxLayout()
         toolbar.addWidget(QLabel("Conversa"))
-        self.conversations.setMinimumWidth(120)
+        self.conversations.setMaximumWidth(190)
         toolbar.addWidget(self.conversations, 1)
         new = QPushButton("Nova conversa")
         new.clicked.connect(self._new_conversation)
         toolbar.addWidget(new)
+        toolbar.addWidget(QLabel("Carteira"))
+        toolbar.addWidget(self.portfolio, 2)
+        self.provider_label = QLabel()
+        self.provider_label.setObjectName("AccentText")
+        toolbar.addWidget(self.provider_label)
         toggle = QPushButton("Contexto e preferências")
         self.context_toggle = toggle
         toggle.setCheckable(True)
-        toolbar.addWidget(toggle)
-        details = QPushButton("Ver detalhes técnicos")
-        details.clicked.connect(self._inspect)
-        toolbar.addWidget(details)
+        toggle.hide()
+        options = QPushButton("Opções")
+        menu = QMenu(options)
+        menu.addAction("Configuração", self._open_settings)
+        menu.addAction("Biblioteca e fontes", lambda: self.tabs.setCurrentIndex(2))
+        menu.addAction("Detalhes técnicos", self._inspect)
+        options.setMenu(menu)
+        toolbar.addWidget(options)
         root.addLayout(toolbar)
         self.chat_splitter = QSplitter(Qt.Orientation.Horizontal)
         body = QWidget()
@@ -249,16 +259,16 @@ class IntelligencePage(PageContent):
         suggestions = QHBoxLayout()
         for label, question, deep in (
             (
-                "Analisar carteira",
+                "Analisar minha carteira",
                 "Analise toda a minha carteira e identifique as melhores oportunidades nas condições atuais.",
                 True,
             ),
             (
-                "Investigar ativo",
-                "Analise este ativo, com valuation, qualidade, riscos e cenários.",
+                "Analisar um ativo",
+                "Analise PETR4 considerando o preço atual e minha posição.",
                 True,
             ),
-            ("Explicar metodologia", "Explique uma metodologia de valuation.", False),
+            ("Calcular preço teto", "Qual é o preço teto de PETR4?", True),
         ):
             button = QPushButton(label)
             button.clicked.connect(
@@ -273,9 +283,21 @@ class IntelligencePage(PageContent):
         )
         self.question.setMaximumHeight(76)
         layout.addWidget(self.question)
+        self.cloud_consent.setText(
+            "Permitir que Gemini use a pergunta e os dados selecionados"
+        )
+        layout.addWidget(self.cloud_consent)
+        self.cloud_consent.setVisible(
+            bool(self.workspace and self.workspace.orchestrator.cloud)
+        )
         actions = QHBoxLayout()
-        for button in (self.send, self.cancel_button, self.export_button):
+        self.report_button = QPushButton("Ver análise completa")
+        self.report_button.setEnabled(False)
+        self.report_button.clicked.connect(lambda: self.tabs.setCurrentIndex(1))
+        for button in (self.send, self.cancel_button, self.report_button):
             actions.addWidget(button)
+        self.cancel_button.hide()
+        self.send.setText("Enviar")
         layout.addLayout(actions)
         layout.addWidget(self.feedback)
         self.chat_splitter.addWidget(body)
@@ -316,6 +338,7 @@ class IntelligencePage(PageContent):
         self.report_view.show_report({})
         report_layout.addWidget(self.report_view)
         report_layout.addWidget(self.results)
+        report_layout.addWidget(self.export_button)
         self.results.hide()
         self.evidence.hide()
         self.tabs.insertTab(1, report_tab, "Relatório financeiro")
@@ -345,7 +368,9 @@ class IntelligencePage(PageContent):
         assert settings_tab is not None
         cast(QVBoxLayout, settings_tab.layout()).insertWidget(1, self.status_summary)
         self._refresh_visuals()
-        self.portfolio.currentIndexChanged.connect(self._context_changed)
+        self.portfolio.currentIndexChanged.connect(
+            lambda: self._context_changed(reset_conversation=True)
+        )
         self.symbol.textChanged.connect(self._context_changed)
         for index in (1, 2, 3):
             content = self.tabs.widget(index)
@@ -359,6 +384,24 @@ class IntelligencePage(PageContent):
             scroll.setWidget(content)
             self.tabs.insertTab(index, scroll, title)
         self.tabs.setCurrentIndex(0)
+        self.tabs.tabBar().hide()
+        self.back_button = QPushButton("Voltar à conversa")
+        self.back_button.clicked.connect(lambda: self.tabs.setCurrentIndex(0))
+        self.back_button.hide()
+        self.page_layout.insertWidget(0, self.back_button)
+        self.tabs.currentChanged.connect(
+            lambda index: self.back_button.setVisible(index != 0)
+        )
+        if self.workspace:
+            status = self.workspace.status()
+            self.provider_label.setText(status.get("provider_note", status["mode"]))
+
+    def _open_settings(self) -> None:
+        window = self.window()
+        if hasattr(window, "show_page"):
+            window.show_page(10)
+        else:
+            self.tabs.setCurrentIndex(3)
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
@@ -404,9 +447,8 @@ class IntelligencePage(PageContent):
         self.question.setPlainText(question)
         self.deep_mode.setChecked(deep)
         if deep and not self.portfolio.currentData() and not self.symbol.text().strip():
-            self.context_toggle.setChecked(True)
             self.feedback.setText(
-                "Selecione a carteira ou o ativo no painel de contexto e envie a pergunta."
+                "Selecione uma carteira ou escreva o ticker na pergunta e envie."
             )
         self.question.setFocus()
 
@@ -441,10 +483,14 @@ class IntelligencePage(PageContent):
             "Preparei sua pergunta. Envie para receber a explicação; o contexto só vai ao Gemini com sua autorização.",
         )
 
-    def _context_changed(self) -> None:
+    def _context_changed(self, *, reset_conversation: bool = False) -> None:
         if self._busy:
             self.cancel()
         self._clear_results()
+        if reset_conversation:
+            draft = self.question.toPlainText()
+            self._new_conversation()
+            self.question.setPlainText(draft)
         if hasattr(self, "context_toggle"):
             name = self.portfolio.currentText()
             self.context_toggle.setText(
@@ -697,7 +743,7 @@ class IntelligencePage(PageContent):
             ]
             self.chat.setMarkdown(
                 "\n\n---\n\n".join(self._transcript)
-                or "### Comece uma análise\n\nEscolha um contexto ou faça uma pergunta. Nenhuma consulta remota ocorre ao abrir esta página."
+                or "Olá! Sou o Nexo, seu assistente de análise de investimentos. Posso analisar um ativo, explorar sua carteira ou explicar uma estratégia. O que gostaria de investigar?"
             )
 
     def _switch_conversation(self, identity: str) -> None:
@@ -734,7 +780,8 @@ class IntelligencePage(PageContent):
             not busy and self.workspace is not None and self.workspace.enabled
         )
         self.cancel_button.setEnabled(busy)
-        self.send.setText("Processando…" if busy else "Analisar")
+        self.cancel_button.setVisible(busy)
+        self.send.setText("Processando…" if busy else "Enviar")
         if hasattr(self, "companion"):
             self.companion.set_state(
                 CompanionState.ANALYZING if busy else CompanionState.READY,
@@ -789,12 +836,7 @@ class IntelligencePage(PageContent):
                     if isinstance(error, IntelligenceError)
                     else "Não foi possível concluir a análise. Revise a configuração e tente novamente."
                 )
-                if (
-                    hasattr(self, "context_drawer")
-                    and isinstance(error, IntelligenceError)
-                    and "Autorize" in str(error)
-                ):
-                    self.context_toggle.setChecked(True)
+                self.send.setText("Tentar novamente")
                 return
             self._response = result
             self.companion.set_state(
@@ -806,9 +848,14 @@ class IntelligencePage(PageContent):
             if hasattr(self, "report_view"):
                 self.report_view.show_report(result.report)
             self.feedback.setText(
-                f"Concluído · {result.mode} · {result.created_at.isoformat()}"
+                "Gemini · resposta concluída"
+                if result.mode == "gemini"
+                else "Consulta local concluída · interpretação Gemini não utilizada"
             )
             self.export_button.setEnabled(True)
+            self.report_button.setEnabled(
+                bool(result.report or result.evidence or result.knowledge)
+            )
 
         workspace = self.workspace
         self.runner.submit(lambda: workspace.ask(request), completed)
@@ -816,6 +863,8 @@ class IntelligencePage(PageContent):
     def _clear_results(self) -> None:
         self._response = None
         self.export_button.setEnabled(False)
+        if hasattr(self, "report_button"):
+            self.report_button.setEnabled(False)
         self.evidence.clear()
         self.results.hide()
         if hasattr(self, "report_view"):

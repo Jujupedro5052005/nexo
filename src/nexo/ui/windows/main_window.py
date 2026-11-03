@@ -52,7 +52,7 @@ from nexo.domain.models.portfolio import Portfolio
 from nexo.domain.models.position import Position
 from nexo.domain.reconstruction import ReconstructionResult
 from nexo.ui.components.account_panel import AccountPanel
-from nexo.ui.components.common import Badge
+from nexo.ui.components.common import Badge, SectionCard
 from nexo.ui.components.navigation_button import NavigationButton
 from nexo.ui.dialogs.forms import (
     AlertDialog,
@@ -245,6 +245,19 @@ class MainWindow(QMainWindow):
             else None,
         )
         self.intelligence_page = IntelligencePage(self._intelligence)
+        ai_options = SectionCard("NEXO Intelligence")
+        for label, callback in (
+            ("Configuração e conexão Gemini", lambda: self._open_ai_options(3)),
+            ("Biblioteca e fontes", lambda: self._open_ai_options(2)),
+            (
+                "Premissas e metodologia avançadas",
+                lambda: self.intelligence_page.context_toggle.setChecked(True),
+            ),
+        ):
+            button = QPushButton(label)
+            button.clicked.connect(callback)
+            ai_options.content.addWidget(button)
+        self.settings_page.page_layout.insertWidget(0, ai_options)
         self.analysis_page.explain_requested.connect(self._explain_education)
         pages = (
             self.overview_page,
@@ -463,6 +476,10 @@ class MainWindow(QMainWindow):
         self.show_page(3)
         self.account_panel.toggle.setChecked(True)
         self.account_panel.amount.setFocus()
+
+    def _open_ai_options(self, index: int) -> None:
+        self.show_page(9)
+        self.intelligence_page.tabs.setCurrentIndex(index)
 
     def _explain_education(self, topic: str) -> None:
         self.show_page(9)

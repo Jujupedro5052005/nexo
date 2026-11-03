@@ -80,24 +80,23 @@ def test_rag_paste_and_unsupported_attribution_are_rejected():
     )
 
 
-def test_failed_gemini_keeps_deterministic_report(investigation):
+def test_failed_gemini_reports_error_without_local_substitution(investigation):
     class FailingProvider(MockIntelligenceProvider):
         def synthesize(self, context):
             raise QuotaExceeded("Limite de geração atingido")
 
     investigation.orchestrator.provider = FailingProvider()
     investigation.orchestrator.cloud = True
-    response = investigation.ask(
-        AnalysisRequest(
-            question="Analise ITUB4",
-            symbol="ITUB4",
-            analysis_mode="deep",
-            allow_cloud=True,
+    with pytest.raises(QuotaExceeded, match="Limite"):
+        investigation.ask(
+            AnalysisRequest(
+                question="Analise ITUB4",
+                symbol="ITUB4",
+                analysis_mode="deep",
+                allow_cloud=True,
+            )
         )
-    )
-    assert response.mode == "local-fallback"
-    assert response.report["assets"][0]["scenarios"]
-    assert "determinístico preservado" in response.markdown
+    assert investigation.history("default") == ()
 
 
 def test_file_search_store_management_is_bounded_and_accounted(storage):

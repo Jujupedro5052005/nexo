@@ -30,6 +30,10 @@ def validate_synthesis(
             "insuficiên",
             "ampliar",
             "neutro",
+            "manter",
+            "acompanhar",
+            "compr",
+            "vend",
         )
     ):
         raise IntelligenceError(

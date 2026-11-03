@@ -8,7 +8,9 @@ from pathlib import Path
 def environment_file() -> Path:
     """External secrets stay beside the executable, never inside its bundle."""
     if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent / ".env"
+        external = Path(sys.executable).resolve().parent / ".env"
+        working = Path.cwd() / ".env"
+        return external if external.is_file() or not working.is_file() else working
     return Path(__file__).resolve().parents[3] / ".env"
 
 

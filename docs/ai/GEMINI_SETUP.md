@@ -83,8 +83,8 @@ Apenas a chave é necessária para conversar, consultar ferramentas e usar a
 biblioteca textual local. A chave YouTube é separada e só necessária ao catálogo.
 
 Diagnóstico: 401/403 indicam chave/permissão/modelo; 429 aplica uma retentativa
-com backoff curto e depois interrompe. Na investigação, falha de síntese preserva o relatório determinístico em
-`local-fallback`, com aviso. Sem estimativas permitidas, o valuation fica
+com backoff curto e depois interrompe. Falha de síntese Gemini exibe erro e permite
+tentar novamente; não substitui a interpretação por resposta local. Sem estimativas permitidas, o valuation fica
 indisponível e os dados consultados são preservados. Verifique o modelo no AI Studio se seu projeto não tiver
 acesso ao default. Não há fallback silencioso para um modelo mais caro.
 Configuração inválida de limites/store desativa somente a IA com mensagem

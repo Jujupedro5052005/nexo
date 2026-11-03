@@ -5,7 +5,6 @@ from threading import Lock
 from typing import Any
 
 from nexo.application.intelligence.deep_analysis import DeepAnalysis, compact_report
-from nexo.application.intelligence.evidence import evidence_appendix
 from nexo.application.intelligence.synthesis_quality import validate_synthesis
 from nexo.application.intelligence.tools import FinancialTools, encode
 from nexo.core.cancellation import check_cancelled
@@ -71,6 +70,18 @@ class IntelligenceOrchestrator:
 
     def _ask(self, request: AnalysisRequest) -> AnalysisResponse:
         check_cancelled()
+        question_symbols = tuple(
+            dict.fromkeys(
+                re.findall(r"\b[A-Z][A-Z0-9]{3}\d{1,2}\b", request.question.upper())
+            )
+        )
+        if question_symbols:
+            request = request.model_copy(
+                update={
+                    "symbol": question_symbols[0],
+                    "focus_symbols": question_symbols,
+                }
+            )
         previous = self.storage.get_state("conversation:" + request.conversation_id)
         same_scope = previous.get("portfolio_id") == request.portfolio_id and (
             not request.symbol or request.symbol == previous.get("symbol")
@@ -78,6 +89,10 @@ class IntelligenceOrchestrator:
         if (
             same_scope
             and previous
+            and (
+                not question_symbols
+                or question_symbols == tuple(previous.get("focus_symbols", ()))
+            )
             and any(
                 word in request.question.casefold()
                 for word in (
@@ -120,46 +135,53 @@ class IntelligenceOrchestrator:
             for w in (
                 "analise toda",
                 "analise minha carteira",
-                "melhores oportunidades",
+                "analise a minha carteira",
+                "carteira inteira",
+                "todas as posições",
                 "posições merecem",
                 "riscos na minha carteira",
             )
         )
-        question_symbols = tuple(
-            dict.fromkeys(re.findall(r"\b[A-Z]{4}\d{1,2}\b", request.question.upper()))
+        explicit_deep = explicit_deep and (
+            not question_symbols
+            or any(
+                w in request.question.casefold()
+                for w in ("analise toda", "carteira inteira", "todas as posições")
+            )
         )
         conceptual_question = any(
             word in request.question.casefold()
             for word in ("explique", "o que é", "conceito", "como funciona")
         )
-        asset_analysis = (
-            bool(question_symbols)
-            and not conceptual_question
-            and (
-                len(question_symbols) >= 2
-                or any(
-                    word in request.question.casefold()
-                    for word in (
-                        "preço teto",
-                        "valuation",
-                        "analise",
-                        "análise",
-                        "cenário",
-                        "atrativa",
-                        "aporte",
-                        "oportunidade",
-                    )
-                )
-            )
-        )
+        asset_analysis = bool(
+            question_symbols
+        ) and not request.question.casefold().startswith("consulte ")
         if explicit_deep or asset_analysis:
             changes = {"analysis_mode": "deep"}
             if explicit_deep:
                 changes["focus_symbols"] = ()
-            elif request.analysis_mode != "deep":
+                changes["symbol"] = ""
+            else:
                 changes["focus_symbols"] = question_symbols
+                if len(question_symbols) == 1:
+                    changes["symbol"] = question_symbols[0]
             request = AnalysisRequest.model_validate(
                 {**request.model_dump(), **changes}
+            )
+        if (
+            conceptual_question
+            and not question_symbols
+            and not any(
+                w in request.question.casefold()
+                for w in ("resultado", "anterior", "chegou", "conclusão")
+            )
+        ):
+            request = request.model_copy(
+                update={
+                    "analysis_mode": "chat",
+                    "focus_symbols": (),
+                    "methodology_id": "",
+                }
             )
         if request.analysis_mode == "deep":
             return self._deep(request)
@@ -285,7 +307,6 @@ class IntelligenceOrchestrator:
         context["evidence"] = [r.model_dump(mode="json") for r in evidence]
         # Keep source metadata in the answer; no retrieved text gets system privileges.
         answer = self.provider.synthesize(self._compact(context))
-        answer += evidence_appendix(evidence, knowledge)
         if context["knowledge_status"].startswith("unavailable"):
             answer += "\n\nA recuperação documental falhou nesta consulta; a análise usa somente as evidências operacionais disponíveis."
         check_cancelled()
@@ -317,7 +338,7 @@ class IntelligenceOrchestrator:
             "analysis": compact_report(report),
             "untrusted_knowledge": [],
             "evidence": [],
-            "instructions": "Produza parecer inicial direcional e condicional, depois qualidade/valuation/risco, cenários, exposição e condições de revisão. Não confunda perda no custo com ativo barato. Não calcule números novos. Não invente macro, pares ou setores.",
+            "instructions": "Responda diretamente à pergunta, começando pelo parecer e seu motivo principal. Interprete fundamentos, cotação, cenários e posição. A triagem local e o limiar ilustrativo de concentração não determinam sua conclusão: confronte as evidências. Explique riscos e o que faria rever o parecer. Não calcule números novos nem invente macro, pares ou setores. Não exponha nomes de ferramentas, IDs, hashes ou JSON. Não se limite a encaminhar para o relatório.",
         }
         previous = self.storage.get_state("conversation:" + request.conversation_id)
         if (
@@ -388,25 +409,18 @@ class IntelligenceOrchestrator:
             for a in report["assets"]
         )
         if self.cloud:
-            try:
-                answer = self.provider.synthesize(self._compact(context))
-                validate_synthesis(
-                    answer, knowledge, [a["symbol"] for a in report["assets"]]
-                )
-            except IntelligenceError as error:
-                mode = "local-fallback"
-                report["issues"].append("Síntese Gemini indisponível: " + str(error))
-                answer = (
-                    "**Síntese Gemini indisponível; relatório determinístico preservado.**\n\n"
-                    + local_answer
-                )
+            answer = self.provider.synthesize(self._compact(context))
+            validate_synthesis(
+                answer, knowledge, [a["symbol"] for a in report["assets"]]
+            )
         else:
             answer = local_answer
             if not report["assets"]:
                 answer += (
                     "Selecione uma carteira com posições ou um ativo para investigar."
                 )
-        answer += "\n\nCenários são estimativas revisáveis, sem probabilidade atribuída ou garantia. Consulte Relatório para números, fontes e critérios de revisão."
+        if not self.cloud:
+            answer += "\n\nModo local: cálculos e dados disponíveis, sem interpretação conversacional Gemini. Cenários estimados podem ser revistos na análise completa."
         if self.data_mode == "demo":
             answer = "**DEMO · registros fictícios de demonstração.**\n\n" + answer
         check_cancelled()

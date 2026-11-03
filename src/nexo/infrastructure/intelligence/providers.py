@@ -1,5 +1,6 @@
 import json
 import time
+from decimal import Decimal
 from typing import Any
 
 from google import genai
@@ -15,14 +16,19 @@ from nexo.domain.models.intelligence import (
 from nexo.infrastructure.intelligence.config import AISettings
 from nexo.infrastructure.intelligence.storage import SqliteIntelligenceStorage
 
-SYSTEM_PROMPT_VERSION = "2.0"
-SYSTEM_PROMPT = """NEXO Intelligence v2.0. Responda em português brasileiro.
+SYSTEM_PROMPT_VERSION = "2.1"
+SYSTEM_PROMPT = """NEXO Intelligence v2.1. Responda em português brasileiro.
 Você é um copiloto analítico, sem execução de transações.
 Na apresentação, dinheiro tem duas casas decimais e percentuais duas casas;
 a precisão integral é preservada no diagnóstico, sem expor JSON bruto na resposta.
 Apresente primeiro um parecer direcional CONDICIONAL quando houver evidências:
 favorável no cenário, aguardar, evitar ampliar, reavaliar ou rebalancear.
 Explique fatores determinantes, dados ausentes, cenários e condições de revisão.
+Converse com naturalidade e responda à decisão perguntada, sem inventários técnicos.
+Ticker explícito é o foco; a carteira selecionada contextualiza posição e peso.
+Não exponha nomes de funções, hashes, IDs ou datas ISO. Cite títulos/fontes legíveis.
+Use a posição e os dados observados para justificar a conclusão; a triagem local
+é ilustrativa e não substitui seu julgamento fundamentado sobre os dados.
 Não recuse discutir compra/manutenção/redução hipotéticas; jamais execute ordens.
 Não trate valorização acumulada como motivo suficiente de venda nem queda como desconto.
 Separe fatos, premissas, projeções e opiniões. Reconheça dados ausentes e atrasados.
@@ -52,11 +58,10 @@ class MockIntelligenceProvider:
         data = json.loads(context)
         evidence = data.get("evidence", [])
         lines = [
-            "### Análise local · modo offline",
-            "O modo offline apresenta evidências e cálculos determinísticos; não gera parecer por IA.",
+            "### Consulta local",
+            "A interpretação conversacional depende do Gemini. Estes são os dados disponíveis:",
         ]
         for item in evidence:
-            lines.append(f"\n**{item['name']}** · consulta {item['queried_at']}")
             if not item["available"]:
                 lines.append(item.get("error") or "Dado indisponível.")
                 continue
@@ -73,12 +78,11 @@ class MockIntelligenceProvider:
                     ]
                 )
             elif item["name"] == "get_asset_quote":
-                lines.append(
-                    f"Cotação: **{data['price']} {data['currency']}** · fonte {data['source']} · data de mercado {data.get('market_time') or 'não informada'}."
+                amount = f"{Decimal(data['price']):,.2f}".translate(
+                    str.maketrans(",.", ".,")
                 )
-            else:
                 lines.append(
-                    "Dados consultados disponíveis no painel de evidências. O modo offline não interpreta esses dados como recomendação."
+                    f"Cotação: **{amount} {data['currency']}** · fonte {data['source']}."
                 )
         if not evidence:
             lines.append(

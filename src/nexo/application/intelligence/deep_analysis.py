@@ -104,15 +104,24 @@ class DeepAnalysis:
                 p["position"]["asset"]["symbol"]: p
                 for p in snapshot["valuation"]["positions"]
             }
-        symbols = list(request.focus_symbols)
+        mentioned = re.findall(r"\b[A-Z][A-Z0-9]{3}\d{1,2}\b", request.question.upper())
+        symbols = list(request.focus_symbols or tuple(mentioned))
+        if request.portfolio_id and any(
+            w in request.question.casefold()
+            for w in ("analise toda", "carteira inteira", "todas as posições")
+        ):
+            symbols = list(positions)
+        if not symbols and request.symbol:
+            symbols = [request.symbol]
         if not symbols and request.analysis_mode == "deep":
             symbols = list(positions)
-        for symbol in re.findall(r"\b[A-Z]{4}\d{1,2}\b", request.question.upper()):
+        for symbol in mentioned:
             if symbol not in symbols:
                 symbols.append(symbol)
         if (
             request.symbol
             and not request.focus_symbols
+            and not mentioned
             and request.symbol not in symbols
         ):
             symbols.append(request.symbol)
@@ -575,6 +584,7 @@ def compact_report(report: dict[str, Any]) -> dict[str, Any]:
             k: a["quote"].get(k)
             for k in ("price", "currency", "market_time", "retrieved_at", "source")
         }
+        entry["position"] = a.get("position")
         entry["fundamentals"] = {
             k: a["fundamentals"].get(k)
             for k in (

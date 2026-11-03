@@ -18,6 +18,10 @@ entradas existentes. Inclua sua própria chave, sem enviá-la ao repositório.
 O build não copia o `.env` do desenvolvimento. Variáveis de ambiente continuam
 prevalecendo. A biblioteca de 15 capítulos já está incluída; File Search é opcional.
 
+Hotfix: se não existir `.env` ao lado do EXE, também é aceito o `.env` do diretório
+de onde ele foi executado. Assim, iniciar `dist\Nexo\Nexo.exe` pela raiz do checkout
+usa sua configuração existente. No duplo clique, mantenha o arquivo ao lado do EXE.
+
 ## Gerar a distribuição
 
 No PowerShell, na raiz do checkout:

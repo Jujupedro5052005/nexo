@@ -1,5 +1,12 @@
 # Status atual do projeto
 
+## Hotfix NEXO Intelligence — 03/11/2026
+
+Corrigidos foco por ticker, contexto da posição na síntese, fallback local de
+erros Gemini e busca do `.env` em execução congelada. Chat simplificado, provedor
+e consentimento visíveis. 17 testes específicos; sem suíte completa ou chamadas
+pagas. [Detalhes e execução](../ai/HOTFIX_INTELLIGENCE.md).
+
 ## Missão final — UX e distribuição — 03/11/2026
 
 - Entrada visual Demo/Normal, sem flags; cancelar não cria bancos/providers.

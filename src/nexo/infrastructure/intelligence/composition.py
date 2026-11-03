@@ -7,6 +7,7 @@ from nexo.application.intelligence.methodologies import builtin_methodologies
 from nexo.application.intelligence.orchestrator import IntelligenceOrchestrator
 from nexo.application.intelligence.tools import FinancialTools
 from nexo.application.intelligence.workspace import IntelligenceWorkspace
+from nexo.core.paths import environment_file
 from nexo.domain.interfaces.intelligence import IntelligenceProvider, KnowledgeRetriever
 from nexo.infrastructure.intelligence.config import AISettings
 from nexo.infrastructure.intelligence.knowledge import (
@@ -80,6 +81,15 @@ def create_workspace(
             "data_mode": data_mode,
             "configuration_error": settings.configuration_error,
             "mode": "Gemini" if settings.cloud else "Offline",
+            "provider": settings.provider,
+            "configuration_file": str(environment_file()),
+            "provider_note": "IA desativada · confira configuração"
+            if not settings.enabled
+            else "Gemini"
+            if settings.cloud
+            else "Local explícito"
+            if settings.provider == "mock"
+            else "Local · chave Gemini não encontrada",
             "model": settings.model,
             "key_configured": bool(settings.api_key),
             "project_id": settings.project_id,
