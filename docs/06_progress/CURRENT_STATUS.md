@@ -8,6 +8,8 @@ depender de internet. Migração preserva contas já inicializadas. Removidos
 marcadores vazios e formulários antigos sem persistência. README com clone da
 master e execução via launcher após instalar requirements; pendências em TODO.md.
 Persistência verificada após reabrir banco, com aporte adicional preservado.
+Validação direcionada: 29 testes aprovados, Ruff e mypy dos módulos alterados;
+um build e um smoke nativo aprovados. ZIP conferido sem credenciais ou bancos.
 
 ## Hotfix NEXO Intelligence — 03/11/2026
 

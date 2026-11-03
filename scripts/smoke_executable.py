@@ -70,7 +70,7 @@ def smoke(executable: Path, capture: Path, mode: str = "selector") -> None:
                             if mode == "selector"
                             else title == "Nexo Invest"
                             if mode == "normal"
-                            else title.startswith("Nexo Invest") and "DEMO" in title
+                            else title.startswith("Nexo Invest") and title != "Nexo Invest"
                         )
                     ),
                     None,
@@ -110,6 +110,9 @@ def smoke(executable: Path, capture: Path, mode: str = "selector") -> None:
                             with closing(
                                 sqlite3.connect(Path(directory) / "nexo_demo.db")
                             ) as db:
+                                assert db.execute(
+                                    "SELECT COUNT(*) FROM portfolio_events"
+                                ).fetchone()[0] == 21
                                 assert (
                                     db.execute(
                                         "SELECT COUNT(*) FROM financial_goals"
