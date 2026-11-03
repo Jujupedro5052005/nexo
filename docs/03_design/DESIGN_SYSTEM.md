@@ -101,7 +101,7 @@ mantém estilo uniforme sem imagens raster ou dependência adicional.
 
 ## Dados demonstrativos
 
-O protótipo usa o dataset em `src/nexo/ui/demo/data.py` e ainda possui
+Nota histórica do protótipo (dataset desconectado removido na entrega final): havia
 constantes inline nas páginas. Páginas com esses valores mostram o badge
 “Dados demonstrativos”. Esses dados não pertencem ao Domain, Application ou
 Infrastructure e serão substituídos por resultados de casos de uso.

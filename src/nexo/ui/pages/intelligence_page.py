@@ -227,7 +227,7 @@ class IntelligencePage(PageContent):
         root.setContentsMargins(0, 6, 0, 0)
         self.companion = CompanionCard()
         self.companion.help_requested.connect(self._guide)
-        self.companion.hide()
+        root.addWidget(self.companion)
         toolbar = QHBoxLayout()
         toolbar.addWidget(QLabel("Conversa"))
         self.conversations.setMaximumWidth(190)

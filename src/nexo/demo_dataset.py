@@ -30,7 +30,7 @@ from nexo.infrastructure.database.session import (
     initialize_database,
 )
 
-DEMO_NOTICE = "DEMO DATA — valores fictícios para apresentação"
+DEMO_NOTICE = "Apresentação · dados fictícios"
 
 # Four manually chosen, illustrative entry prices per real B3 symbol. These are
 # neither verified historical closes nor current quotes; no splits are simulated.

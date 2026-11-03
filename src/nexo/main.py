@@ -34,6 +34,9 @@ from nexo.application.portfolio.performance import LoadPortfolioPerformance
 from nexo.application.portfolio.register_transaction import RegisterTransaction
 from nexo.core.paths import application_data_dir
 from nexo.demo_dataset import DEMO_NOTICE, ensure_demo_dataset
+from nexo.domain.interfaces.dividend_data_provider import DividendDataProvider
+from nexo.domain.interfaces.fundamental_data_provider import FundamentalDataProvider
+from nexo.domain.interfaces.market_data_provider import MarketDataProvider
 from nexo.domain.interfaces.portfolio_repository import PortfolioRepositoryError
 from nexo.infrastructure.database.demo_finances import seed_demo_finances
 from nexo.infrastructure.database.local_data import SqliteLocalDataStorage
@@ -111,7 +114,17 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
         )
         return 1
     providers = ProviderServices(settings, data_dir)
-    provider, cached = providers.yahoo, providers.market
+    provider = providers.yahoo
+    cached: MarketDataProvider = providers.market
+    fundamentals: FundamentalDataProvider = providers.fundamentals
+    dividends: DividendDataProvider = providers.dividends
+    if demo:
+        from nexo.infrastructure.market_data.presentation import PresentationMarketData
+
+        presentation = PresentationMarketData()
+        cached = presentation
+        fundamentals = presentation
+        dividends = presentation
     window: MainWindow | None = None
     try:
         initialize_database(engine)
@@ -137,8 +150,8 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
                 valuation,
                 GetAssetQuote(cached),
                 GetAssetHistory(cached),
-                providers.fundamentals,
-                providers.dividends,
+                fundamentals,
+                dividends,
                 ai_storage,
                 transactions=ListTransactions(transactions),
             ),
@@ -158,10 +171,10 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
             get_history=GetAssetHistory(cached),
             analyze_asset=AnalyzeAsset(
                 cached,
-                providers.fundamentals,
-                dividends=providers.dividends,
-                official=providers.official,
-                actions=providers.actions,
+                fundamentals,
+                dividends=dividends,
+                official=None if demo else providers.official,
+                actions=None if demo else providers.actions,
             ),
             finances=finances,
             account=PortfolioAccount(transactions, transactions, cached),
@@ -184,7 +197,6 @@ def main(database_path: Path | None = None, *, demo: bool | None = None) -> int:
         )
         if demo:
             window.setWindowTitle(f"Nexo Invest — {DEMO_NOTICE}")
-            window.statusBar().showMessage(DEMO_NOTICE)
             portfolios = repository.list_all()
             if portfolios and portfolios[0].id is not None:
                 window._select_portfolio(portfolios[0].id)

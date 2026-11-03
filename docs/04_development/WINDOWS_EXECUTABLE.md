@@ -3,7 +3,7 @@
 ## Abrir o aplicativo
 
 Na distribuição em pasta, abra `Nexo\Nexo.exe`. Mantenha a pasta `_internal` ao
-lado do executável. A tela inicial oferece Demo e Normal, sem terminal ou flags.
+lado do executável. A tela inicial oferece Apresentação e Meu ambiente, sem terminal ou flags.
 Fechar essa tela cancela a abertura. Em desenvolvimento, use `python -m nexo.main`.
 `--demo` e `--normal` continuam disponíveis como atalhos opcionais.
 
@@ -38,7 +38,7 @@ diagnóstico, e mantém dados graváveis fora do bundle. `Nexo.spec` não inclui
 credenciais, bancos ou caches. Use o mesmo Windows/arquitetura alvo; a receita
 não é compilação cruzada para Linux/macOS. Não há assinatura de código nesta etapa.
 
-O segundo comando gera `dist\Nexo-Windows.zip`, com a pasta inteira, instruções
+O terceiro comando gera `dist\Nexo-Windows.zip`, com a pasta inteira, instruções
 e template sem valores de chaves/tokens. Recusa `.env`, bancos e contador de
 consumo dentro da distribuição. Não inclua seus próprios dados ao enviar o ZIP.
 
@@ -65,9 +65,20 @@ e não encerram uma instância do usuário.
 
 ## Demonstração sem internet
 
-Ledger, planejamento, metas, checklists, projeções, alocação e calculadora manual
-funcionam localmente. Cotações e fundamentos atuais dependem dos providers;
-respostas Gemini exigem chave e autorização de envio. Não existe cotação fictícia
-como fallback. Os exemplos do DEMO são identificados e permanecem separados.
+Apresentação usa um provedor exclusivo com preços, históricos e fundamentos
+fictícios dos 16 símbolos do catálogo. Caixa e patrimônio ficam preenchidos sem
+internet. Meu ambiente continua usando provedores reais; não há fallback para
+dados fictícios. Gemini exige chave e autorização de envio.
+
+Entrega atual: `dist/Nexo-Professor.zip`, gerada em `dist/Entrega/Nexo` para não
+sobrescrever executáveis antigos em uso. Envie o ZIP completo. O professor extrai
+a pasta Nexo e abre Nexo.exe; não precisa instalar Python. Alterações ficam no
+perfil dele e sobrevivem à reabertura e à atualização da pasta do programa.
+Não foi realizado aceite em outra máquina sem Python.
+
+```powershell
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --distpath dist/Entrega Nexo.spec
+.\.venv\Scripts\python.exe scripts/package_windows.py --folder dist/Entrega/Nexo --destination dist/Nexo-Professor.zip
+```
 
 Roteiro e capturas: [relatório final](../ai/FINAL_IMPLEMENTATION_REPORT.md).

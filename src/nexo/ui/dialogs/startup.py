@@ -26,7 +26,7 @@ class StartupDialog(QDialog):
         companion.help_requested.connect(
             lambda: companion.set_state(
                 CompanionState.EXPLAINING,
-                "Demo usa exemplos em banco separado. Normal mantém seus registros. Fechar esta tela cancela a abertura sem criar dados.",
+                "Apresentação usa exemplos fictícios em banco separado. Seu ambiente mantém seus próprios registros.",
             )
         )
         layout.addWidget(companion)
@@ -35,13 +35,13 @@ class StartupDialog(QDialog):
         self.normal_button = action_button("Abrir meu ambiente")
         for name, detail, button, value in (
             (
-                "Modo Demo",
+                "Apresentação",
                 "Carteiras e exemplos fictícios prontos. Alterações ficam no ambiente de demonstração.",
                 self.demo_button,
                 True,
             ),
             (
-                "Modo Normal",
+                "Meu ambiente",
                 "Seus dados locais. No primeiro acesso, crie uma carteira para começar. Dados anteriores são preservados.",
                 self.normal_button,
                 False,

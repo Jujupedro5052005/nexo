@@ -1,5 +1,14 @@
 # Status atual do projeto
 
+## Entrega para avaliação — 03/11/2026
+
+Copiloto visual restaurado no chat. Apresentação com caixa e eventos financeiros
+nas três carteiras, patrimônio e provedor de mercado fictício exclusivo, sem
+depender de internet. Migração preserva contas já inicializadas. Removidos
+marcadores vazios e formulários antigos sem persistência. README com clone da
+master e execução via launcher após instalar requirements; pendências em TODO.md.
+Persistência verificada após reabrir banco, com aporte adicional preservado.
+
 ## Hotfix NEXO Intelligence — 03/11/2026
 
 Corrigidos foco por ticker, contexto da posição na síntese, fallback local de

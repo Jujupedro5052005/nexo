@@ -5,9 +5,7 @@ from PySide6.QtWidgets import QPushButton, QStackedWidget, QWidget
 from nexo.application.portfolio.create_portfolio import CreatePortfolio
 from nexo.application.portfolio.list_portfolios import ListPortfolios
 from nexo.ui.dialogs.forms import (
-    AlertDialog,
-    AssetDialog,
-    GoalDialog,
+    NoticeDialog,
     TransactionDialog,
 )
 from nexo.ui.windows.main_window import MainWindow
@@ -16,7 +14,8 @@ from nexo.ui.windows.main_window import MainWindow
 @pytest.fixture
 def window(qtbot, portfolio_repository) -> MainWindow:
     main_window = MainWindow(
-        CreatePortfolio(portfolio_repository), ListPortfolios(portfolio_repository),
+        CreatePortfolio(portfolio_repository),
+        ListPortfolios(portfolio_repository),
     )
     qtbot.addWidget(main_window)
     main_window.show()
@@ -66,9 +65,9 @@ def test_every_sidebar_item_changes_page(window: MainWindow, qtbot) -> None:
     ("dialog_key", "dialog_type"),
     [
         ("transaction", TransactionDialog),
-        ("asset", AssetDialog),
-        ("alert", AlertDialog),
-        ("goal", GoalDialog),
+        ("asset", type(None)),
+        ("alert", NoticeDialog),
+        ("goal", NoticeDialog),
     ],
 )
 def test_quick_actions_open_their_dialogs(
@@ -99,8 +98,8 @@ def test_transaction_alert_and_goal_dialogs_have_expected_identity(
 ) -> None:
     expected = (
         ("transaction", "transaction_dialog"),
-        ("alert", "alert_dialog"),
-        ("goal", "goal_dialog"),
+        ("alert", "notice_dialog"),
+        ("goal", "notice_dialog"),
     )
     for kind, object_name in expected:
         window.open_dialog(kind)

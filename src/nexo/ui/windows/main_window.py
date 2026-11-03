@@ -55,9 +55,6 @@ from nexo.ui.components.account_panel import AccountPanel
 from nexo.ui.components.common import Badge, SectionCard
 from nexo.ui.components.navigation_button import NavigationButton
 from nexo.ui.dialogs.forms import (
-    AlertDialog,
-    DemoFormDialog,
-    GoalDialog,
     NoticeDialog,
     PortfolioDialog,
     TransactionDialog,
@@ -176,7 +173,7 @@ class MainWindow(QMainWindow):
         self.resize(self.INITIAL_WIDTH, self.INITIAL_HEIGHT)
         self.setMinimumSize(1180, 720)
         self.active_dialog: (
-            DemoFormDialog | NoticeDialog | PortfolioDialog | TransactionDialog | None
+            NoticeDialog | PortfolioDialog | TransactionDialog | None
         ) = None
 
         root = QWidget()
@@ -273,10 +270,6 @@ class MainWindow(QMainWindow):
             self.settings_page,
         )
         for page in pages:
-            if self.demo_mode and hasattr(page, "page_layout"):
-                page.page_layout.insertWidget(
-                    0, Badge("DEMO · dados fictícios · alterações ficam neste ambiente")
-                )
             signal = getattr(page, "dialog_requested", None)
             if signal is not None:
                 signal.connect(self.open_dialog)
@@ -315,11 +308,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(period_label)
         layout.addWidget(period)
         self.mode_badge = Badge(
-            "DEMO · fictício" if self.demo_mode else "●  Banco local",
+            "Apresentação" if self.demo_mode else "●  Banco local",
             "Badge" if self.demo_mode else "SuccessBadge",
         )
         self.mode_badge.setToolTip(
-            "Ambiente de demonstração com registros fictícios; separado dos seus dados."
+            "Registros, preços e fundamentos fictícios para apresentação; separados dos seus dados."
             if self.demo_mode
             else "Seu ambiente local de carteiras e movimentações."
         )
@@ -527,9 +520,7 @@ class MainWindow(QMainWindow):
         if kind == "logout":
             self.close()
             return
-        factories: dict[str, Callable[[], DemoFormDialog | NoticeDialog]] = {
-            "alert": lambda: AlertDialog(self),
-            "goal": lambda: GoalDialog(self),
+        factories: dict[str, Callable[[], NoticeDialog]] = {
             "notice": lambda: NoticeDialog(
                 "Recurso indisponível",
                 "Este recurso não está conectado nesta configuração da aplicação.",

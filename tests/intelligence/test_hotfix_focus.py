@@ -177,6 +177,7 @@ def test_chat_is_simple_and_context_resets(qtbot, portfolio_investigation, tmp_p
     qtbot.addWidget(page)
     page.resize(1100, 760)
     page.show()
+    assert page.companion.isVisible() and page.companion.avatar.isVisible()
     page.portfolio.setCurrentIndex(1)
     assert not page.tabs.tabBar().isVisible() and page.portfolio.isVisible()
     assert not page.context_dialog.isVisible() and page.method.currentData() == ""
