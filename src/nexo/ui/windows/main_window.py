@@ -29,6 +29,7 @@ from nexo.application.assets.market_integration import (
 )
 from nexo.application.assets.provider_status import GetProviderHealth
 from nexo.application.financial_planning.manage_finances import ManageFinances
+from nexo.application.intelligence.workspace import IntelligenceWorkspace
 from nexo.application.local_data import ManageLocalData
 from nexo.application.portfolio.account import PortfolioAccount
 from nexo.application.portfolio.compare_portfolios import ComparePortfolios
@@ -66,6 +67,7 @@ from nexo.ui.pages.analysis_reports_settings import (
     AnalysisPage,
     SettingsPage,
 )
+from nexo.ui.pages.intelligence_page import IntelligencePage
 from nexo.ui.pages.overview_page import OverviewPage
 from nexo.ui.pages.personal_finance import AlertsPage, GoalsPage, PlanningPage
 from nexo.ui.pages.portfolio_assets import AssetsPage, PortfoliosPage
@@ -96,6 +98,11 @@ PAGE_INFO = (
     ("Análises", "Analise ativos e compare carteiras com dados reais.", "analytics"),
     ("Relatórios", "Prepare relatórios para consulta e exportação.", "reports"),
     ("Configurações", "Gerencie preferências e informações da aplicação.", "settings"),
+    (
+        "NEXO Intelligence",
+        "Converse, consulte evidências e explore cenários financeiros.",
+        "analytics",
+    ),
 )
 
 
@@ -128,6 +135,7 @@ class MainWindow(QMainWindow):
         performance: LoadPortfolioPerformance | None = None,
         market_research: AnalyzeMarketRisk | None = None,
         local_data: ManageLocalData | None = None,
+        intelligence: IntelligenceWorkspace | None = None,
     ) -> None:
         super().__init__()
         self._create_portfolio = create_portfolio
@@ -142,6 +150,7 @@ class MainWindow(QMainWindow):
         self._integration_cases = (integration_status, test_connection)
         self._provider_health = provider_health
         self._local_data = local_data
+        self._intelligence = intelligence
         self._finances = finances
         self._export_report = export_report
         self._account, self._performance, self._market_research = (
@@ -220,6 +229,7 @@ class MainWindow(QMainWindow):
         self.goals_page = GoalsPage(self._finances)
         self.alerts_page = AlertsPage(self._finances)
         self.reports_page = ReportsPage(self._list_portfolios, self._export_report)
+        self.intelligence_page = IntelligencePage(self._intelligence)
         pages = (
             self.overview_page,
             self.portfolios_page,
@@ -231,6 +241,7 @@ class MainWindow(QMainWindow):
             self.analysis_page,
             self.reports_page,
             self.settings_page,
+            self.intelligence_page,
         )
         for page in pages:
             signal = getattr(page, "dialog_requested", None)
@@ -364,6 +375,7 @@ class MainWindow(QMainWindow):
         self.show_page(3)
 
     def _prepare_data_reset(self) -> None:
+        self.intelligence_page.cancel()
         root = self.centralWidget()
         if root is not None:
             root.setEnabled(False)
@@ -388,6 +400,8 @@ class MainWindow(QMainWindow):
         self.reports_page.reload()
 
     def show_page(self, index: int) -> None:
+        if index == 10:
+            self.intelligence_page.reload()
         if index == 8:
             self.reports_page.reload()
         if index in (4, 5, 6):
@@ -629,6 +643,7 @@ class MainWindow(QMainWindow):
             return
         for runner in self._transaction_runners:
             runner.stop()
+        self.intelligence_page.runner.stop()
         self.market_runner.stop()
         self.assets_page.runner.stop()
         self.alerts_page.runner.stop()
@@ -637,6 +652,7 @@ class MainWindow(QMainWindow):
         super().closeEvent(event)
 
     def wait_for_market(self) -> None:
+        self.intelligence_page.runner.wait()
         for runner in self._transaction_runners:
             runner.stop()
             runner.wait()

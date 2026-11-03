@@ -1,5 +1,14 @@
 # Arquitetura de software do Nexo Invest
 
+## NEXO Intelligence — 03/11/2026
+
+Workspace e orquestrador coordenam protocolos de IA, recuperação e persistência.
+FinancialTools usa os casos de uso/providers compartilhados; fórmulas Decimal
+ficam em Calculations. SDK Gemini e SQLite dedicado ficam em Infrastructure.
+IntelligencePage usa TaskRunner e recebe a composição de main.py. Ledger e
+posições preservados. Arquitetura efetiva, POO e limites:
+[docs/ai/ARCHITECTURE.md](../ai/ARCHITECTURE.md).
+
 ## Fechamento de fluxos — 27/10/2026
 
 `ManageLocalData` coordena o protocolo `LocalDataStorage`; a implementação

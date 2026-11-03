@@ -1,5 +1,15 @@
 # Backlog priorizado
 
+## NEXO Intelligence — aceite externo
+
+- [x] Implementação integrada, cálculos, ferramentas, histórico, biblioteca e mocks.
+- [ ] Chave local e validação da geração no modelo disponível no projeto.
+- [ ] Store existente e autorização de eventual indexação de embeddings.
+- [ ] Chave YouTube, confirmação do ID UC e autorização do titular para vídeos.
+- [ ] Curadoria das metodologias extraídas antes do uso nas análises.
+
+Relatório: [IMPLEMENTATION_REPORT](../ai/IMPLEMENTATION_REPORT.md).
+
 ## Aceite restante — 05.2
 
 - [x] Implementar quatro providers, routing fechado, budgets e snapshot avançado.

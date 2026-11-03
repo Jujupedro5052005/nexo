@@ -20,6 +20,7 @@ from nexo.application.assets.market_integration import (
 )
 from nexo.application.assets.provider_status import GetProviderHealth
 from nexo.application.financial_planning.manage_finances import ManageFinances
+from nexo.application.intelligence.tools import FinancialTools
 from nexo.application.local_data import ManageLocalData
 from nexo.application.portfolio.account import PortfolioAccount
 from nexo.application.portfolio.compare_portfolios import ComparePortfolios
@@ -49,6 +50,9 @@ from nexo.infrastructure.database.session import (
     create_session_factory,
     initialize_database,
 )
+from nexo.infrastructure.intelligence.composition import create_workspace
+from nexo.infrastructure.intelligence.config import AISettings
+from nexo.infrastructure.intelligence.storage import SqliteIntelligenceStorage
 from nexo.infrastructure.market_data.composition import ProviderServices
 from nexo.infrastructure.market_data.config import MarketSettings
 from nexo.infrastructure.persistence.report_writer import CsvReportWriter
@@ -69,7 +73,9 @@ def create_application() -> QApplication:
     application.setStyle("Fusion")
     apply_theme()
     if not application.property("theme_listener_connected"):
-        application.styleHints().colorSchemeChanged.connect(lambda _scheme: apply_theme())
+        application.styleHints().colorSchemeChanged.connect(
+            lambda _scheme: apply_theme()
+        )
         application.setProperty("theme_listener_connected", True)
     return application
 
@@ -109,12 +115,33 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
         load_positions = LoadPortfolioPositions(transactions)
         valuation = LoadPortfolioValuation(load_positions, cached)
         finances = ManageFinances(SqlPersonalFinanceRepository(session_factory), cached)
+        ai_storage = SqliteIntelligenceStorage(
+            Path(str(engine.url.database)).with_name(
+                Path(str(engine.url.database)).stem + "_intelligence.db"
+            )
+        )
+        intelligence = create_workspace(
+            AISettings.from_environment(),
+            ai_storage,
+            FinancialTools(
+                ListPortfolios(repository),
+                load_positions,
+                valuation,
+                GetAssetQuote(cached),
+                GetAssetHistory(cached),
+                providers.fundamentals,
+                providers.dividends,
+                ai_storage,
+                transactions=ListTransactions(transactions),
+            ),
+        )
         window = MainWindow(
             CreatePortfolio(repository),
             ListPortfolios(repository),
             RegisterTransaction(transactions),
             ListTransactions(transactions),
             load_positions,
+            intelligence=intelligence,
             load_valuation=valuation,
             search_assets=SearchAssets(cached),
             get_quote=GetAssetQuote(cached),
@@ -161,11 +188,14 @@ def main(database_path: Path | None = None, *, demo: bool = False) -> int:
     finally:
         if window is not None:
             window.market_runner.stop()
+            window.intelligence_page.runner.stop()
             window.alerts_page.runner.stop()
             window.assets_page.runner.stop()
             window.analysis_page.stop()
             window.settings_page.market_panel.runner.stop()
             window.wait_for_market()
+            if window.intelligence_page.workspace is not None:
+                window.intelligence_page.workspace.orchestrator.provider.close()
         providers.close()
         engine.dispose()
 

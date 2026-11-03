@@ -1,5 +1,31 @@
 # Status atual do projeto
 
+## NEXO Intelligence — 03/11/2026
+
+- Página integrada: conversa, histórico local, contexto, valuation Decimal,
+  sensibilidade, exportação Markdown, biblioteca e revisão de metodologias.
+- SDK Gemini com chave externa, modo auto/mock, prompt versionado e ferramentas
+  read-only. Sem HTTP/SQL na UI ou integração financeira redundante.
+- Recuperação textual local e File Search opcional; catálogo YouTube oficial
+  limitado, confirmação de ID, autorização e preflight de tokens de vídeo.
+- Extrações entram em pending_review e não criam fórmulas executáveis. Os três
+  métodos nativos são do Nexo, sem atribuição a vídeos não processados.
+- SQLite da IA separado, quota atômica, erros seguros, contexto limitado,
+  retentativa 429 e cancelamento cooperativo em worker.
+- `.env` e bancos financeiros originais preservados. Projeto informado já
+  configurado; basta adicionar GEMINI_API_KEY no `.env` local.
+- Gemini/File Search/YouTube/vídeo testados com mocks e transporte simulado do SDK.
+  Sem inferência/indexação paga real. oEmbed oficial confirmou
+  `@geracaodividendoss`; ID UC e autorização do titular pendentes.
+- Branch feature/nexo-intelligence; remoto possui master, não main.
+- Validação: suíte completa 764 aprovados/2 ignorados (376,84 s); após os últimos
+  ajustes de UI/precisão, regressão IA final 77 aprovados/2 ignorados (5,75 s).
+  Ruff, mypy (146 arquivos), compileall e diff-check aprovados. Testes reais
+  Gemini continuam desativados por padrão, sem custo de inferência nesta sessão.
+
+Documentação, instalação Windows/Linux, resultados e limites:
+[IMPLEMENTATION_REPORT](../ai/IMPLEMENTATION_REPORT.md).
+
 ## Fechamento de fluxos — 27/10/2026
 
 - Boleta consulta automaticamente a cotação após 500 ms sem digitação do ticker,

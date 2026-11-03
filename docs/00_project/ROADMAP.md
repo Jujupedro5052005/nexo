@@ -1,5 +1,15 @@
 # Roadmap acadêmico do Nexo Invest
 
+## NEXO Intelligence — 03/11/2026
+
+- [x] Copiloto integrado, modo offline e Gemini pronto para chave local.
+- [x] Ferramentas read-only sobre providers/cache e ledger existentes.
+- [x] Valuation Decimal, cenários, biblioteca, revisão e histórico.
+- [x] Adapters File Search/YouTube com testes controlados e documentação.
+- [ ] Aceite autenticado real e autorização de conteúdo do canal.
+
+Detalhes: [roadmap de IA](../ai/ROADMAP.md).
+
 ## Fechamento — 27/10/2026
 
 - [x] Cotação automática na boleta, alternativa manual e entrada por quantidade/valor.

@@ -8,6 +8,28 @@ não mantém custódia e não oferece recomendação personalizada.
 
 ## Status
 
+**NEXO Intelligence — 03/11/2026:** nova página com chat offline, cliente Gemini,
+ferramentas de carteira/mercado, valuation Decimal e biblioteca com curadoria.
+Para habilitar, inclua somente `GEMINI_API_KEY=SUA_CHAVE_LOCAL` no `.env` existente
+e reinicie. Preserve suas configurações de mercado. Sem chave, usa modo offline.
+Abra NEXO Intelligence → Configuração para testar a conexão e autorize o envio
+do contexto antes de analisar. Nenhuma chave está no repositório.
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e .
+.\.venv\Scripts\python.exe -m nexo.main
+```
+
+[Configuração Windows/Linux](docs/ai/GEMINI_SETUP.md) ·
+[Premissas e exemplos](docs/ai/METHODOLOGIES.md) ·
+[Biblioteca e YouTube](docs/ai/KNOWLEDGE_PIPELINE.md) ·
+[Relatório e limites](docs/ai/IMPLEMENTATION_REPORT.md).
+
+Gemini/File Search/YouTube foram verificados por mocks e contratos do SDK;
+aceite autenticado real permanece pendente de configuração local e autorização
+de conteúdo. File Search e YouTube são opcionais. Histórico da IA fica em banco
+separado, com limpeza própria; o backup/limpeza financeiro não o inclui.
+
 **Grande Incremento 05.2: multi-provider, snapshot avançado e controle de consumo.**
 Crie/selecione uma carteira, registre BUY/SELL simulados, consulte o ledger e
 posições, e reencontre as operações após reabrir o aplicativo. Carteiras e Visão
@@ -75,7 +97,8 @@ Roteiro, cobertura dos gráficos e limitações:
 - dashboards, gráficos, indicadores e análises;
 - alertas no aplicativo quando essa etapa for priorizada.
 
-Planejamento, educação, IA e notificações externas são complementos futuros.
+Planejamento, educação e IA são complementos entregues nos incrementos posteriores;
+notificações externas continuam futuras. Consulte CURRENT_STATUS para o estado atual.
 
 ## Arquitetura
 

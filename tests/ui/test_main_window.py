@@ -33,7 +33,7 @@ def test_sidebar_and_all_product_pages_exist(window: MainWindow) -> None:
     assert window.findChild(QWidget, "Sidebar") is not None
     stack = window.findChild(QStackedWidget, "PageStack")
     assert stack is not None
-    assert stack.count() == 10
+    assert stack.count() == 11
     assert [stack.widget(index).objectName() for index in range(stack.count())] == [
         "overview_page",
         "portfolios_page",
@@ -45,6 +45,7 @@ def test_sidebar_and_all_product_pages_exist(window: MainWindow) -> None:
         "analysis_page",
         "reports_page",
         "settings_page",
+        "intelligence_page",
     ]
 
 

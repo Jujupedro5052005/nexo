@@ -1,5 +1,14 @@
 # Requisitos do Nexo Invest
 
+## Complemento autorizado — NEXO Intelligence (03/11/2026)
+
+RF-203/RF-204 recebem implementação complementar: chat local/Gemini, ferramentas
+somente leitura sobre serviços existentes, valuation determinístico, fontes,
+datas e premissas; biblioteca de documentos autorizados e metodologias revisadas.
+UI em workers, credenciais externas e cotas locais. Prioridades acadêmicas
+preservadas. Aceite autenticado Gemini/File Search/YouTube separado dos mocks.
+Evidências: [TESTING](../ai/TESTING.md) e [relatório](../ai/IMPLEMENTATION_REPORT.md).
+
 ## Convenções
 
 - **MUST:** necessário para o núcleo funcional ou para a obrigação acadêmica.

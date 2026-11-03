@@ -1,5 +1,12 @@
 # Estratégia de testes
 
+## NEXO Intelligence — 03/11/2026
+
+Validação sem rede, smokes externos opt-in, contratos do SDK real com transporte
+simulado, cálculos conhecidos, SQLite temporário e responsividade/cancelamento Qt:
+[docs/ai/TESTING.md](../ai/TESTING.md). Integrações autenticadas não são afirmadas
+com base apenas em mocks. Resultados consolidados no relatório de IA e status.
+
 ## Fechamento — 27/10/2026
 
 Suíte completa: **688 aprovados**, zero falhas, em **283,44 s**. Ruff check .,

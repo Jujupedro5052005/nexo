@@ -1,5 +1,13 @@
 # Escopo do Nexo Invest
 
+## Ampliação autorizada — 03/11/2026
+
+NEXO Intelligence adiciona copiloto educacional com Gemini opcional, ferramentas
+somente leitura, cálculos determinísticos e biblioteca autorizada com curadoria.
+O núcleo acadêmico mantém prioridade. Sem ordens reais ou fórmulas executáveis
+criadas pelo modelo. Limites e aceite externo em
+[IMPLEMENTATION_REPORT.md](../ai/IMPLEMENTATION_REPORT.md).
+
 ## Ampliação autorizada — 21/10/2026
 
 A evolução solicitada inclui Yahoo como fonte pública principal, cenários
