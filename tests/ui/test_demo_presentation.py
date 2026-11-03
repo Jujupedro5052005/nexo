@@ -181,7 +181,7 @@ def test_real_entry_point_uses_separate_db_and_labels_demo(tmp_path, qtbot, monk
             assert window.selected_portfolio_id == 1
             assert window.overview_page.positions_table.rowCount() == 8
             assert DEMO_NOTICE in window.windowTitle()
-            assert DEMO_NOTICE in window.statusBar().currentMessage()
+            assert window.mode_badge.text() == "Apresentação"
             assert not normal.exists()
         else:
             assert window.selected_portfolio_id is None

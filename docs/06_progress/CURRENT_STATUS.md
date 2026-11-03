@@ -1,5 +1,13 @@
 # Status atual do projeto
 
+## Revisão de entrega — integração com master — 03/11/2026
+
+Preservado o mercado online real nos dois modos, conforme a atualização da
+master. Mantidas as correções de empacotamento, o nome único do teste de
+persistência e a documentação acadêmica. Roteiro/checklist atualizados: sem
+internet, comprovar o ledger e o caixa; métricas de mercado podem ficar
+indisponíveis. [Revisão](../00_project/FINAL_REVIEW.md).
+
 ## Correção do mercado online — 03/11/2026
 
 Removida a substituição de mercado no modo Apresentação. Ambos os modos usam os
@@ -11,6 +19,7 @@ Esta correção substitui a descrição de mercado fictício da entrega anterior
 Limite Yahoo do `.env.example` ampliado para 500 consultas locais; os limites
 dos provedores pagos permanecem intactos. Na configuração local, havia 51/50
 consultas registradas; o mesmo ajuste permite consultas automáticas novamente.
+
 
 ## Entrega para avaliação — 03/11/2026
 

@@ -36,8 +36,8 @@ ao menos uma integração válida conforme os requisitos acadêmicos.
 
 ## MUST — núcleo principal
 
-- cadastrar, renomear, selecionar e remover carteiras simuladas conforme regras
-  de segurança definidas na implementação;
+- cadastrar e selecionar carteiras simuladas; renomear e remover carteiras
+  ainda não estão implementados e permanecem como evolução;
 - persistir ao menos `id` e `name` de cada `Portfolio`;
 - registrar `Transaction` de compra e venda por carteira;
 - reconstruir `Position`, quantidade, preço médio e valor investido do ledger;

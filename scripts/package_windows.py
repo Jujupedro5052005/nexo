@@ -6,11 +6,37 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
+def _validate_files(folder: Path) -> list[Path]:
+    files = []
+    for path in sorted(folder.rglob("*")):
+        name = path.name.lower()
+        if path.is_symlink():
+            raise ValueError("Remova links simbólicos da distribuição antes de empacotar.")
+        if not path.is_file():
+            continue
+        if (
+            (name == ".env" or name.startswith(".env.")) and name != ".env.example"
+            or re.search(r"\.(?:db|sqlite|sqlite3)(?:-(?:wal|shm|journal))?$", name)
+            or name in {"provider_usage.json", "provider_usage.tmp"}
+        ):
+            raise ValueError("Remova dados/segredos da distribuição antes de empacotar.")
+        files.append(path)
+    return files
+
+
 def package(folder: Path | None = None, destination: Path | None = None) -> Path:
     root = Path(__file__).resolve().parents[1]
     folder = folder or root / "dist" / "Nexo"
     if not (folder / "Nexo.exe").is_file():
         raise ValueError("Gere o executável com Nexo.spec antes de empacotar.")
+    if not (folder / "_internal").is_dir():
+        raise ValueError("Mantenha a pasta _internal do build ao lado de Nexo.exe.")
+    folder = folder.resolve()
+    destination = (destination or root / "dist" / "Nexo-Windows.zip").resolve()
+    if destination.is_relative_to(folder):
+        raise ValueError("Salve o ZIP fora da pasta da distribuição.")
+    # Validate before writing even the generated instructions/template.
+    _validate_files(folder)
     template = (root / ".env.example").read_text(encoding="utf-8-sig")
     template = re.sub(r"(?m)^([A-Z0-9_]*(?:API_KEY|TOKEN))=.*$", r"\1=", template)
     (folder / ".env.example").write_text(template, encoding="utf-8")
@@ -28,17 +54,8 @@ def package(folder: Path | None = None, destination: Path | None = None) -> Path
         "Código, documentação e limites: https://github.com/Jujupedro5052005/nexo\n",
         encoding="utf-8",
     )
-    files = sorted(path for path in folder.rglob("*") if path.is_file())
-    for path in files:
-        if (
-            path.name == ".env"
-            or path.suffix in {".db", ".sqlite", ".sqlite3"}
-            or path.name == "provider_usage.json"
-        ):
-            raise ValueError(
-                "Remova dados/segredos da distribuição antes de empacotar."
-            )
-    destination = destination or root / "dist" / "Nexo-Windows.zip"
+    files = _validate_files(folder)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_suffix(".zip.tmp")
     try:
         with ZipFile(

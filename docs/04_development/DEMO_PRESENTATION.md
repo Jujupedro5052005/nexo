@@ -1,6 +1,8 @@
-﻿# Apresentação ao professor
+# Apresentação ao professor
 
 Abra `launcher.py` (código) ou `Nexo.exe` (ZIP extraído) e escolha **Apresentação**. O primeiro acesso prepara os exemplos; reabrir preserva alterações. Para começar do zero, o script `scripts/create_demo_dataset.py` recria exclusivamente o banco de apresentação, com o aplicativo fechado. Esse script exige o pacote instalado com `pip install -e .`.
+
+Para a apresentação final de 8–12 minutos, use o [roteiro cronometrado](FINAL_PRESENTATION.md), com fluxo completo, arquitetura e evidências de POO.
 
 ## Roteiro curto
 

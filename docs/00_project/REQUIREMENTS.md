@@ -35,7 +35,7 @@ prevalecem sobre decisões internas.
 
 | ID | Requisito |
 |---|---|
-| RF-001 | Criar, identificar, nomear, selecionar e manter múltiplas carteiras simuladas. |
+| RF-001 | Criar, identificar, nomear, selecionar e manter múltiplas carteiras simuladas. Parcial: criação/seleção e persistência disponíveis; renomear/remover individualmente pendentes. |
 | RF-002 | Registrar compras e vendas por carteira com ativo, tipo, quantidade, preço e data. |
 | RF-003 | Persistir dados estruturais de `Portfolio` e o ledger de `Transaction`. |
 | RF-004 | Reconstruir `Position`, quantidade, preço médio e valor investido das transações. |
