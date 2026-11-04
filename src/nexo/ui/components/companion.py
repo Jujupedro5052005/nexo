@@ -110,7 +110,10 @@ class CompanionCard(SectionCard):
         self.motion.toggled.connect(self._motion_changed)
         controls.addWidget(self.motion)
         row.addLayout(controls)
+        text.setAlignment(Qt.AlignmentFlag.AlignTop)
+        controls.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.content.addLayout(row)
+        self.setSizePolicy(self.sizePolicy().Policy.Preferred, self.sizePolicy().Policy.Maximum)
 
     def _motion_changed(self, enabled: bool) -> None:
         self.avatar.motion = enabled

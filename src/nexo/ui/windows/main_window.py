@@ -60,6 +60,7 @@ from nexo.ui.dialogs.forms import (
     TransactionDialog,
 )
 from nexo.ui.icons import icon
+from nexo.ui.navigation import PageId
 from nexo.ui.pages.activity_planning import TransactionsPage
 from nexo.ui.pages.analysis_reports_settings import (
     AnalysisPage,
@@ -69,8 +70,10 @@ from nexo.ui.pages.intelligence_page import IntelligencePage
 from nexo.ui.pages.overview_page import OverviewPage
 from nexo.ui.pages.personal_finance import AlertsPage, GoalsPage, PlanningPage
 from nexo.ui.pages.portfolio_assets import AssetsPage, PortfoliosPage
+from nexo.ui.pages.presentation_page import PresentationPage
 from nexo.ui.pages.reports_page import ReportsPage
 from nexo.ui.preferences import preferences, profile_name
+from nexo.ui.window_chrome import install_window_chrome
 from nexo.ui.workers import TaskRunner
 
 PAGE_INFO = (
@@ -100,6 +103,7 @@ PAGE_INFO = (
         "Converse, consulte evidências e explore cenários financeiros.",
         "analytics",
     ),
+    ("Apresentação", "Slides acadêmicos disponíveis offline.", "reports"),
     ("Configurações", "Gerencie preferências e informações da aplicação.", "settings"),
 )
 
@@ -197,7 +201,8 @@ class MainWindow(QMainWindow):
 
         root_layout.addWidget(self._build_sidebar())
         root_layout.addWidget(main_area, 1)
-        self.show_page(0)
+        self.show_page(PageId.OVERVIEW)
+        install_window_chrome(self)
 
     def _add_pages(self) -> None:
         self.overview_page = OverviewPage()
@@ -216,9 +221,9 @@ class MainWindow(QMainWindow):
             self._prepare_cash
         )
         self.assets_page = AssetsPage(*self._asset_cases)
-        self.assets_page.analysis_requested.connect(lambda: self.show_page(7))
+        self.assets_page.analysis_requested.connect(lambda: self.show_page(PageId.ANALYSIS))
         self.assets_page.asset_selected.connect(self.analysis_page.set_asset)
-        self.assets_page.integration_requested.connect(lambda: self.show_page(10))
+        self.assets_page.integration_requested.connect(lambda: self.show_page(PageId.SETTINGS))
         self.settings_page = SettingsPage(
             *self._integration_cases,
             provider_health=self._provider_health,
@@ -256,6 +261,10 @@ class MainWindow(QMainWindow):
             ai_options.content.addWidget(button)
         self.settings_page.page_layout.insertWidget(0, ai_options)
         self.analysis_page.explain_requested.connect(self._explain_education)
+        self.presentation_page = PresentationPage()
+        self.presentation_page.demo_requested.connect(
+            lambda _slide: self.show_page(PageId.OVERVIEW)
+        )
         pages = (
             self.overview_page,
             self.portfolios_page,
@@ -267,6 +276,7 @@ class MainWindow(QMainWindow):
             self.analysis_page,
             self.reports_page,
             self.intelligence_page,
+            self.presentation_page,
             self.settings_page,
         )
         for page in pages:
@@ -407,7 +417,7 @@ class MainWindow(QMainWindow):
 
     def _set_history_period(self, period: str) -> None:
         self.transactions_page.period_filter.setCurrentText(period)
-        self.show_page(3)
+        self.show_page(PageId.TRANSACTIONS)
 
     def _prepare_data_reset(self) -> None:
         self.intelligence_page.cancel()
@@ -435,7 +445,7 @@ class MainWindow(QMainWindow):
         self.reports_page.reload()
 
     def show_page(self, index: int) -> None:
-        if index == 9:
+        if index == PageId.INTELLIGENCE:
             self.intelligence_page.reload()
             if not getattr(self, "_intelligence_context_initialized", False):
                 self._intelligence_context_initialized = True
@@ -445,19 +455,19 @@ class MainWindow(QMainWindow):
                     )
                     if selected >= 0:
                         self.intelligence_page.portfolio.setCurrentIndex(selected)
-        if index == 8:
+        if index == PageId.REPORTS:
             self.reports_page.reload()
         if index in (4, 5, 6):
             (self.planning_page, self.goals_page, self.alerts_page)[index - 4].reload()
-        if index == 7:
+        if index == PageId.ANALYSIS:
             self.analysis_page.load()
-        if index == 1:
+        if index == PageId.PORTFOLIOS:
             self.portfolios_page.reload()
             self.selected_portfolio_id = self.portfolios_page.selected_portfolio_id
         if index in (0, 1, 3):
             self._refresh_financial_data()
         self.page_stack.setCurrentIndex(index)
-        if index == 10:
+        if index == PageId.SETTINGS:
             self.settings_page.provider_panel.refresh()
         title, subtitle, _icon_name = PAGE_INFO[index]
         self.page_title.setText(title)
@@ -466,21 +476,21 @@ class MainWindow(QMainWindow):
             button.setChecked(button.page_index == index)
 
     def _prepare_cash(self) -> None:
-        self.show_page(3)
+        self.show_page(PageId.TRANSACTIONS)
         self.account_panel.toggle.setChecked(True)
         self.account_panel.amount.setFocus()
 
     def _open_ai_options(self, index: int) -> None:
-        self.show_page(9)
+        self.show_page(PageId.INTELLIGENCE)
         self.intelligence_page.tabs.setCurrentIndex(index)
 
     def _explain_education(self, topic: str) -> None:
-        self.show_page(9)
+        self.show_page(PageId.INTELLIGENCE)
         self.intelligence_page.explain_topic(topic)
 
     def open_dialog(self, kind: str) -> None:
         if kind in {"asset", "report", "notifications"}:
-            self.show_page({"asset": 2, "report": 8, "notifications": 6}[kind])
+            self.show_page({"asset": PageId.ASSETS, "report": PageId.REPORTS, "notifications": PageId.ALERTS}[kind])
             if kind == "asset":
                 self.assets_page.search_input.setFocus()
             return
@@ -722,7 +732,7 @@ class MainWindow(QMainWindow):
     def _show_profile_menu(self, anchor: QPushButton) -> None:
         menu = QMenu(self)
         menu.addAction("Perfil", self._edit_profile)
-        menu.addAction("Preferências", lambda: self.show_page(10))
+        menu.addAction("Preferências", lambda: self.show_page(PageId.SETTINGS))
         menu.popup(anchor.mapToGlobal(anchor.rect().bottomLeft()))
 
     def _edit_profile(self) -> None:

@@ -1,5 +1,14 @@
 # Status atual do projeto
 
+## Apresentação integrada e entrega final — 04/11/2026
+
+HTML aprovado offline em WebEngine restrito, tour, foco, pausa/retomada e tela
+cheia. Navegação por PageId; Configurações por último. Ícone aprovado e identidade
+Windows estável; barra Qt no Windows 10 e tentativa DWM no Windows 11.
+Educação compacta com seletor rotulado e checklist junto ao copiloto.
+Distribuição completa com fontes e contingências, sem banco ou credenciais.
+Detalhes e limites: [FINAL_DELIVERY](../04_development/FINAL_DELIVERY.md).
+
 ## Revisão de entrega — integração com master — 03/11/2026
 
 Preservado o mercado online real nos dois modos, conforme a atualização da

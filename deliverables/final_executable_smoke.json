@@ -1,0 +1,29 @@
+{
+  "status": "APROVADO em desktop Windows 10 build 19045, copia extraida do ZIP",
+  "executable_sha256": "24abedde1aa5e83092b048c984e1db7e4c8efaa5c4602532c9dd340561768fbc",
+  "financial_rows_after_ui_smoke": {
+    "portfolios": 0,
+    "portfolio_events": 0,
+    "transactions": 0
+  },
+  "captures": "tmp\\final-acceptance-smoke",
+  "paid_ai_calls": 0,
+  "market_requests_authorized": 0,
+  "native_resize_hit_after_webengine": true,
+  "double_click_maximize_restore": true,
+  "close_reopen_financial_rows_unchanged": true,
+  "system_move_resize_minimize_restore": true,
+  "selector_smoke": true,
+  "demo_smoke": true,
+  "personal_databases_sha256_unchanged": 4,
+  "slide_after_tour": 2,
+  "html_offline": true,
+  "fullscreen_escape_restores_window": true,
+  "icons_window_taskbar_alt_tab_explorer": true,
+  "layout_review": [
+    "1180x720",
+    "1440x900",
+    "QT_SCALE_FACTOR=1.25 (simulacao Qt; sem mudar DPI do Windows)"
+  ],
+  "evaluation_spreadsheet": "ausente no checkout e no kit"
+}

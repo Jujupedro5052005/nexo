@@ -60,7 +60,7 @@ def test_settings_show_real_sandbox_capability_and_connection_result(
     configuration_window, qtbot
 ):
     window = configuration_window
-    window.show_page(10)
+    window.show_page(11)
     panel = window.settings_page.market_panel
     assert "brapi" in panel.provider_label.text()
     assert "Não configurado" in panel.configuration_label.text()
@@ -94,7 +94,7 @@ def test_itsa3_search_then_configuration_required_with_direct_navigation(
     assert "inexistente" not in page.quote_label.text()
     page.configure_button.click()
     assert (
-        window.page_stack.currentIndex() == 10
+        window.page_stack.currentIndex() == 11
         and window.page_stack.currentWidget() is window.settings_page
     )
 

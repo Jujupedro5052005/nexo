@@ -9,7 +9,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QLabel
 from test_demo_presentation import PresentationTestProvider
 
-from nexo.core.paths import bundled_knowledge_dir, environment_file
+from nexo.core.paths import bundled_knowledge_dir, environment_file, resource_path
 from nexo.infrastructure.database.demo_finances import seed_demo_finances
 from nexo.infrastructure.database.repositories.personal_finance import (
     SqlPersonalFinanceRepository,
@@ -74,6 +74,7 @@ def test_companion_reacts_and_stops_animation_when_hidden_or_reduced(qtbot):
 def test_frozen_paths_use_bundle_resources_and_external_secrets(monkeypatch, tmp_path):
     from nexo.core import paths
 
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(paths.sys, "frozen", True, raising=False)
     monkeypatch.setattr(
         paths.sys, "_MEIPASS", str(tmp_path / "_internal"), raising=False
@@ -81,6 +82,7 @@ def test_frozen_paths_use_bundle_resources_and_external_secrets(monkeypatch, tmp
     monkeypatch.setattr(paths.sys, "executable", str(tmp_path / "Nexo.exe"))
     assert environment_file() == tmp_path / ".env"
     assert bundled_knowledge_dir() == tmp_path / "_internal" / "knowledge"
+    assert resource_path("icons", "Nexo_Icone.ico") == tmp_path / "_internal/nexo/resources/icons/Nexo_Icone.ico"
 
 
 def test_cancel_startup_creates_no_database_or_provider(qtbot, monkeypatch, tmp_path):
@@ -231,7 +233,7 @@ def test_visual_entry_without_flags_and_guided_pages(
         panel.tabs.setCurrentIndex(1)
         assert "115,00" in panel.result.text()
         capture("tax", window)
-        window.show_page(10)
+        window.show_page(11)
         assert window.page_title.text() == "Configurações"
         window.close()
         return 0

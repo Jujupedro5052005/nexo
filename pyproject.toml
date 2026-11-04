@@ -25,3 +25,6 @@ where = ["src"]
 "share/nexo/knowledge/recommendations" = ["docs/ai/knowledge/recommendations/*.md"]
 "share/nexo/knowledge/sources" = ["docs/ai/knowledge/sources/*.json"]
 
+
+[tool.setuptools.package-data]
+nexo = ["resources/presentation/*", "resources/icons/*"]

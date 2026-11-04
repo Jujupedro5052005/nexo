@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import cast
 
 from PySide6.QtCore import QCoreApplication
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from nexo.application.analysis.market_research import AnalyzeMarketRisk
@@ -32,7 +33,7 @@ from nexo.application.portfolio.load_portfolio_positions import LoadPortfolioPos
 from nexo.application.portfolio.load_portfolio_valuation import LoadPortfolioValuation
 from nexo.application.portfolio.performance import LoadPortfolioPerformance
 from nexo.application.portfolio.register_transaction import RegisterTransaction
-from nexo.core.paths import application_data_dir
+from nexo.core.paths import application_data_dir, resource_path
 from nexo.demo_dataset import DEMO_NOTICE, ensure_demo_dataset
 from nexo.domain.interfaces.dividend_data_provider import DividendDataProvider
 from nexo.domain.interfaces.fundamental_data_provider import FundamentalDataProvider
@@ -62,11 +63,13 @@ from nexo.infrastructure.market_data.config import MarketSettings
 from nexo.infrastructure.persistence.report_writer import CsvReportWriter
 from nexo.ui.dialogs.startup import choose_startup_mode
 from nexo.ui.preferences import apply_theme
+from nexo.ui.window_chrome import set_app_user_model_id
 from nexo.ui.windows.main_window import MainWindow
 
 
 def create_application() -> QApplication:
     """Create the Qt application and configure its presentation metadata."""
+    set_app_user_model_id()
     instance = QApplication.instance()
     application = (
         QApplication(sys.argv) if instance is None else cast(QApplication, instance)
@@ -75,6 +78,7 @@ def create_application() -> QApplication:
     QCoreApplication.setApplicationName("Nexo Invest")
     QCoreApplication.setApplicationVersion("0.1.0")
     QCoreApplication.setOrganizationName("Nexo")
+    application.setWindowIcon(QIcon(str(resource_path("icons", "Nexo_Icone.ico"))))
     application.setStyle("Fusion")
     apply_theme()
     if not application.property("theme_listener_connected"):

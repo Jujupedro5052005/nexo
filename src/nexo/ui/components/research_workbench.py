@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -23,7 +23,7 @@ from nexo.application.analysis.solvency import EvaluateSolvency
 from nexo.application.education.checklists import TOPICS, findings
 from nexo.domain.errors import DomainValidationError
 from nexo.ui.components.common import DataTable, SectionCard, action_button
-from nexo.ui.components.companion import CompanionCard, CompanionState, GuideCard
+from nexo.ui.components.companion import CompanionCard, CompanionState
 from nexo.ui.decimal_parser import DecimalInputError, parse_decimal
 from nexo.ui.financial_formatting import currency_text, percent_text, replace_rows
 from nexo.ui.workers import TaskRunner
@@ -270,21 +270,29 @@ class DiligencePanel(SectionCard):
 
     def __init__(self) -> None:
         super().__init__("Educação financeira e roteiro de diligência")
+        self.content.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.companion = CompanionCard(
             "Aprenda por tema. Marque os pontos que ainda precisa investigar e leia as orientações correspondentes."
         )
         self.companion.help_button.setText("Explicar este tema")
         self.companion.help_requested.connect(self.explain)
-        self.content.addWidget(self.companion)
         self.topic = QComboBox()
         self.topic.addItems(list(TOPICS))
+        topic_label = QLabel("Tema para revisar")
+        topic_label.setBuddy(self.topic)
+        self.topic.setAccessibleName("Tema para revisar")
+        self.content.addWidget(topic_label)
         self.content.addWidget(self.topic)
+        self.content.addWidget(self.companion)
         self.question_widget = QWidget()
         self.questions = QVBoxLayout(self.question_widget)
+        self.questions.setContentsMargins(0, 0, 0, 0)
+        self.questions.setSpacing(8)
         self.content.addWidget(self.question_widget)
         self.feedback = QLabel()
         self.feedback.setWordWrap(True)
         self.content.addWidget(self.feedback)
+        self.content.addStretch(1)
         self.boxes: list[QCheckBox] = []
         self.topic.currentIndexChanged.connect(self.configure)
         self.configure()
@@ -450,13 +458,10 @@ class ResearchWorkbench(QWidget):
         layout = QVBoxLayout(self)
         tabs = QTabWidget()
         self.tabs = tabs
-        layout.addWidget(
-            GuideCard(
-                "Aprenda, simule, revise",
-                "Calculadoras usam valores informados; risco de mercado consulta séries; educação ajuda a organizar sua investigação.",
-                "1 · Escolha um tema. 2 · Confira as unidades e ajuste os campos. 3 · Calcule e leia a interpretação. Nenhuma simulação altera a carteira.",
-            )
-        )
+        intro = QLabel("Aprenda, simule, revise. Escolha um tema, confira as unidades e leia a interpretação. Calculadoras usam entradas manuais; risco consulta séries reais. Nenhuma simulação altera a carteira.")
+        intro.setWordWrap(True)
+        intro.setSizePolicy(intro.sizePolicy().Policy.Preferred, intro.sizePolicy().Policy.Maximum)
+        layout.addWidget(intro)
         self.calculators = CalculatorPanel()
         self.solvency = SolvencyPanel()
         self.market = MarketRiskPanel(market)

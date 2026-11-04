@@ -49,6 +49,7 @@ from nexo.ui.components.metric_card import MetricCard
 from nexo.ui.components.research_workbench import signed_number
 from nexo.ui.components.safe_markdown import SafeMarkdownBrowser
 from nexo.ui.financial_formatting import currency_text, percent_text
+from nexo.ui.navigation import PageId
 from nexo.ui.workers import TaskRunner
 
 
@@ -399,7 +400,7 @@ class IntelligencePage(PageContent):
     def _open_settings(self) -> None:
         window = self.window()
         if hasattr(window, "show_page"):
-            window.show_page(10)
+            window.show_page(PageId.SETTINGS)
         else:
             self.tabs.setCurrentIndex(3)
 

@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QVBoxLayout
 
 from nexo.ui.components.common import Badge, SectionCard, action_button
 from nexo.ui.components.companion import CompanionCard, CompanionState
+from nexo.ui.window_chrome import install_window_chrome
 
 
 class StartupDialog(QDialog):
@@ -58,6 +59,7 @@ class StartupDialog(QDialog):
             row.addWidget(card, 1)
         layout.addLayout(row)
         layout.addWidget(Badge("Ambientes separados · nenhuma ordem real é executada"))
+        install_window_chrome(self)
 
     def choose(self, demo: bool) -> None:
         self.demo = demo

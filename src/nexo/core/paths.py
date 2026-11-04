@@ -3,6 +3,14 @@
 import os
 import sys
 from pathlib import Path
+from typing import Any, cast
+
+
+def resource_path(*parts: str) -> Path:
+    """Resolve read-only assets without depending on the working directory."""
+    if getattr(sys, "frozen", False):
+        return Path(cast(Any, sys)._MEIPASS) / "nexo" / "resources" / Path(*parts)
+    return Path(__file__).resolve().parents[1] / "resources" / Path(*parts)
 
 
 def environment_file() -> Path:
